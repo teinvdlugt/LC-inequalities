@@ -49,26 +49,6 @@ def write_panda_input_for_nss(na, nb, nx, ny, readable=False, filename=None):
     #   1  1  1  1  1  1  1  0  2  -> the nonlocal, nondeterministic vertex (I checked that it's indeed the same as Eqs. (8) and (9).
 
 
-"""
-def NSS_vertices_from_BLM05(na, nb):
-    \""" Returns vertices of NSS polytope in 2-choice case, where each choice of x has na outcomes,
-     and each choice of y has nb outcomes. Calculated from results of BLM+05 \"""
-    vertices = []
-    ra = range(0, na)
-    rb = range(0, nb)
-
-    # First the deterministic vertices (i.e. the local vertices). Loop over deterministic functions f_a, f_b:
-    for f_a in itertools.product(range(0, na - 1), repeat=2):
-        for f_b in itertools.product(range(0, nb - 1), repeat=2):
-            cor = []
-            for a, b, x, y in itertools.product(ra, rb, (0, 1), (0, 1)):
-                cor.append((f_a[x] == a) * (f_b[y] == b))
-            vertices.append(cor)
-
-    # Now the nonlocal vertices. See BLM+05 Eq. (6)
-    """
-
-
 def NSS_symmetry_generators(na, nb, nx, ny, var_names):
     """ var_names should have length dim_NSS(na, nb, nx, ny). 'generators' because it returns a generating subset of all symmetries
      (namely those given by 'neighbourly 2-cycles'. """
@@ -109,6 +89,7 @@ def NSS_symmetry_generators(na, nb, nx, ny, var_names):
     # print('\n'.join(NSS_symmetry_generators(2,2,2,2, var_names2222)))
 
     # In addition, for switching Alice and Bob around: +x2 +x3 +x0 +x1 +x4 +x6 +x5 +x7
+
 
 def identity_symmetry(var_names):
     result = ""
@@ -260,17 +241,19 @@ def readable_var_names(na, nb, nx, ny):
     return var_names
 
 
-def nonlocal_nss_vertex_classes_from_BLM05(na, nb):
+def nss_vertex_classes_from_BLM05(na, nb):
     """ Calculated from BLM+05 Eq. (12), which assumes nx = ny = 2. """
     result = []
     full_to_NSS_matrix = polytope_utils.construct_full_to_NSS_matrix(na, nb, 2, 2)
     # Literally follow BLM+05 Eq. (12)
-    for k in range(2, min(na, nb) + 1):
+    for k in range(1, min(na, nb) + 1):
         # First calculate full-dim cor
         cor = np.zeros(na * nb * 2 * 2)
         i = 0
         for a, b, x, y in itertools.product(range(0, na), range(0, nb), (0, 1), (0, 1)):
-            if a < k and b < k and (b - a) % k == x * y:
+            # k = 1 is the local vertex; k > 1 are the nonlocal vertices.
+            if (k == 1 and (a, b) == (0, 0)) \
+                    or (k != 1 and a < k and b < k and (b - a) % k == x * y):  # The nonlocal vertices
                 cor[i] = 1  # Division by k is indicated by adding a k in on the end of the NSS vector - just like PANDA output files.
             i += 1
         result.append(np.r_[full_to_NSS_matrix @ cor, [k]])

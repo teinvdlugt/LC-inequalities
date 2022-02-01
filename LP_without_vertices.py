@@ -13,7 +13,7 @@ import quantum_utils as qm
 # It is crucial to stick to this convention, e.g. when switching between full and NSS reps
 
 # The LC constraints are:
-#         (i)   p = λ p^CO1 + (1-λ) p^CO2
+#         (i)   0 = λ p^CO1 + (1-λ) p^CO2 - p
 #         (ii)  p^CO1 ≥ 0  expressed in NSS coords
 #         (iii) p^CO2 ≥ 0  expressed in NSS coords
 #         (iv)  0 ≤ λ ≤ 1

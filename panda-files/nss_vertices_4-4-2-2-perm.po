@@ -5,11 +5,13 @@ Reduced Vertices / Rays:
   1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  1  0  1  1  0  0  4
 
 # nonlocal vertices given by BLM+05:
+BLM1:  1  1  0  0  0  0  1  1  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1
 BLM2:  1  1  1  1  0  0  1  1  1  1  0  0  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
 BLM3:  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  1  1  1  0  0  0  0  1  0  0  0  1  0  0  0  0  1  1  1  0  3
 BLM4:  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  1  1  1  0  4
 
 These are equivalent to the PANDA output vertices above. Can be checked by
+np.all(BLM1 == panda1)
 vertices_are_equivalent(4,4,2,2, BLM2, panda2, 10)
 vertices_are_equivalent(4,4,2,2, BLM3, panda3, 10)
 vertices_are_equivalent(4,4,2,2, BLM4, panda4, 10)  -> this one takes long, but does return True
