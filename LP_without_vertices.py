@@ -5,9 +5,8 @@ from scipy.optimize import NonlinearConstraint, LinearConstraint
 import scipy.optimize
 import time
 import one_switch_4mmts
-import polytope_utils
 import quantum_utils as qm
-
+import vector_space_utils as vs
 
 ## IN THIS SCRIPT WE ORDER THE VARIABLES AS p(a1 a2 c b | x1 x2 y), i.e. c and b INTERCHANGED!
 # It is crucial to stick to this convention, e.g. when switching between full and NSS reps
@@ -67,10 +66,10 @@ def construct_constraints_v_vi():
     # It has 1s in positions corresponding to p^CO1(0 a2 c | 0 0) for each a2,c, and -1s at p^CO1(0 a2 c | 0 1)
     cons_v_matrix = np.zeros((2, 173))
     for a2, c, x1, x2 in itertools.product((0, 1), repeat=4):
-        cons_v_matrix[x1, 1 + concatenate_bits(0, a2, c, x1, x2)] = (-1) ** x2
+        cons_v_matrix[x1, 1 + vs.concatenate_bits(0, a2, c, x1, x2)] = (-1) ** x2
     cons_vi_matrix = np.zeros((2, 173))
     for a1, c, x1, x2 in itertools.product((0, 1), repeat=4):
-        cons_vi_matrix[x2, 87 + concatenate_bits(a1, 0, c, x1, x2)] = (-1) ** x1
+        cons_vi_matrix[x2, 87 + vs.concatenate_bits(a1, 0, c, x1, x2)] = (-1) ** x1
     cons_v_vi_matrix = np.r_[cons_v_matrix, cons_vi_matrix]
     cons_v_vi_lb = cons_v_vi_ub = np.zeros(4)
     return cons_v_vi_matrix, cons_v_vi_lb, cons_v_vi_ub
@@ -256,19 +255,19 @@ def get_full_to_NSS_matrix():
     for (a1, a2, c), x1, x2 in itertools.product(a1a2c_range, x1_range, x2_range):
         # p(a1 a2 c | x1 x2) = sum_b p(a1 a2 c b | x1 x2 y=0)
         for b in (0, 1):
-            full_to_NSS_matrix[current_row][concatenate_bits(a1, a2, c, b, x1, x2, 0)] = 1
+            full_to_NSS_matrix[current_row][vs.concatenate_bits(a1, a2, c, b, x1, x2, 0)] = 1
         current_row += 1
 
     # Secondly, the p(b | y) coords, for (b,y) ∊ b_range × y_range
     for b, y in itertools.product(b_range, y_range):
         # p(b | y) = sum_{a_1 a_2 c} p(a1 a2 c b | x1=0 x2=0 y)
         for a1, a2, c in itertools.product((0, 1), repeat=3):
-            full_to_NSS_matrix[current_row][concatenate_bits(a1, a2, c, b, 0, 0, y)] = 1
+            full_to_NSS_matrix[current_row][vs.concatenate_bits(a1, a2, c, b, 0, 0, y)] = 1
         current_row += 1
 
     # Finally, the p(a1 a2 c b | x1 x2 y) coords, again variables restricted to their appropriate ranges
     for (a1, a2, c), b, x1, x2, y in itertools.product(a1a2c_range, b_range, x1_range, x2_range, y_range):  # (sic. for the order of the vars)
-        full_to_NSS_matrix[current_row][concatenate_bits(a1, a2, c, b, x1, x2, y)] = 1
+        full_to_NSS_matrix[current_row][vs.concatenate_bits(a1, a2, c, b, x1, x2, y)] = 1
         current_row += 1
 
     return full_to_NSS_matrix
@@ -328,7 +327,7 @@ def get_NSS_to_full_matrix_but_weird():
 
         return NSS_to_full_matrix_but_weird"""
 
-    return polytope_utils.construct_NSS_to_full_matrix_but_weird(8, 2, 4, 2)
+    return vs.construct_NSS_to_full_matrix_but_weird(8, 2, 4, 2)
 
 
 """
@@ -359,40 +358,19 @@ def NSS_to_full_rep(NSS_correlation):
         full_rep_but_weird[0b1111000 + x1x2y] += 1
     return full_rep_but_weird
 
-
-def concatenate_bits(*bits):
-    # Example: concatenate_bits(1,0,1) returns 5
-    return sum([bits[i] << (len(bits) - i - 1) for i in range(0, len(bits))])
-
-
-def timer(fun):
-    start = time.time()
-    fun()
-    end = time.time()
-    print(end - start)
-
-
-def almost_equal(array1, array2, tol=1e-16):
-    assert array1.shape == array2.shape
-    return np.equal(array1, array2, out=np.ones_like(array1), where=np.abs(array1 - array2) >= tol)
-
-
-def not_almost_equal(array1, array2, tol=1e-16):
-    return np.ones_like(array1.shape) - almost_equal(array1, array2, tol=tol)
-
-
-qm_cor = one_switch_4mmts.qm_corr_one_switch_4mmts_3stngs(
-    rho_ctb=qm.proj(qm.kron(qm.ket0, qm.ket0, qm.ket0)),
-    X1=[qm.random_real_onb(), qm.random_real_onb()],
-    X2=[qm.random_real_onb(), qm.random_real_onb()],
-    Y=[qm.random_real_onb(), qm.random_real_onb()],
-    c_onb=qm.random_real_onb()).reshape((2,) * 7).swapaxes(2, 3).reshape((128,))
-qm_cor_CO2 = one_switch_4mmts.qm_corr_one_switch_4mmts_3stngs(
-    rho_ctb=qm.proj(qm.kron(qm.ket1, qm.ket0, qm.ket0)),
-    X1=[qm.random_real_onb(), qm.random_real_onb()],
-    X2=[qm.random_real_onb(), qm.random_real_onb()],
-    Y=[qm.random_real_onb(), qm.random_real_onb()],
-    c_onb=qm.random_real_onb()).reshape((2,) * 7).swapaxes(2, 3).reshape((128,))
-initial_guess = np.r_[[1], full_to_NSS_rep(qm_cor), full_to_NSS_rep(qm_cor_CO2)]
-print('Constructed qm_cor')
-sol = in_LC_scipy_root(qm_cor, np.random.rand(173))
+if __name__ == '__main__':
+    qm_cor = one_switch_4mmts.qm_corr_one_switch_4mmts_3stngs(
+        rho_ctb=qm.proj(qm.kron(qm.ket0, qm.ket0, qm.ket0)),
+        X1=[qm.random_real_onb(), qm.random_real_onb()],
+        X2=[qm.random_real_onb(), qm.random_real_onb()],
+        Y=[qm.random_real_onb(), qm.random_real_onb()],
+        c_onb=qm.random_real_onb()).reshape((2,) * 7).swapaxes(2, 3).reshape((128,))
+    qm_cor_CO2 = one_switch_4mmts.qm_corr_one_switch_4mmts_3stngs(
+        rho_ctb=qm.proj(qm.kron(qm.ket1, qm.ket0, qm.ket0)),
+        X1=[qm.random_real_onb(), qm.random_real_onb()],
+        X2=[qm.random_real_onb(), qm.random_real_onb()],
+        Y=[qm.random_real_onb(), qm.random_real_onb()],
+        c_onb=qm.random_real_onb()).reshape((2,) * 7).swapaxes(2, 3).reshape((128,))
+    initial_guess = np.r_[[1], full_to_NSS_rep(qm_cor), full_to_NSS_rep(qm_cor_CO2)]
+    print('Constructed qm_cor')
+    sol = in_LC_scipy_root(qm_cor, np.random.rand(173))

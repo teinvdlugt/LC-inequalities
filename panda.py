@@ -1,8 +1,13 @@
 import itertools
 import numpy as np
-import polytope_utils
 
-from symmetry_utils import nss_symmetry_generators
+import vector_space_utils as vs
+from vector_space_utils import cart
+
+B = (0, 1)
+
+import symmetry_utils
+
 
 ## NSS (i.e. pure Bell) stuff
 def nss_write_panda_input(na, nb, nx, ny, readable=False, filename=None):
@@ -12,7 +17,7 @@ def nss_write_panda_input(na, nb, nx, ny, readable=False, filename=None):
     lines = []  # Store lines here, then write all lines at once at the end of this function.
 
     # 1) Dimension information
-    dim_NSS = polytope_utils.dim_NSS(na, nb, nx, ny)
+    dim_NSS = vs.dim_NSS(na, nb, nx, ny)
     lines.append('DIM=%d' % dim_NSS)
 
     # 2) Names of coordinates
@@ -25,14 +30,13 @@ def nss_write_panda_input(na, nb, nx, ny, readable=False, filename=None):
 
     # 3) Symmetry information
     lines.append('Maps:')
-    for symm in nss_symmetry_generators(na, nb, nx, ny, var_names):
+    for symm in symmetry_utils.nss_symmetry_generators(na, nb, nx, ny, var_names):
         lines.append(symm)
 
     # 5) Inequalities and equations
     lines.append('Inequalities:')
-    # the ineqs are -p(ab|xy) <= 0 for all a,b,x,y. For the final nx * ny rows, note that this means -(p(na-1 nb-1|xy) - 1) <= 1
-    # except for the final nx * ny rows, which represent , and must therefore be >= -1.
-    matrix = polytope_utils.construct_NSS_to_full_matrix_but_weird(na, nb, nx, ny).astype('int8')
+    # the ineqs are -p(ab|xy) <= 0 for all a,b,x,y. For the final nx * ny rows, note that this means -(p(na-1 nb-1|xy) - 1) - 1 <= 0
+    matrix = vs.construct_NSS_to_full_matrix_but_weird(na, nb, nx, ny).astype('int8')
     dim_full = na * nb * nx * ny
     for i in range(0, dim_full):
         lines.append(' '.join(map(str, -matrix[i])) + (' 0' if i < dim_full - nx * ny else ' -1'))
@@ -67,7 +71,7 @@ def nss_readable_var_names(na, nb, nx, ny):
 def nss_vertex_classes_from_BLM05(na, nb):
     """ Calculated from BLM+05 Eq. (12), which assumes nx = ny = 2. """
     result = []
-    full_to_NSS_matrix = polytope_utils.construct_full_to_NSS_matrix(na, nb, 2, 2)
+    full_to_NSS_matrix = vs.construct_full_to_NSS_matrix(na, nb, 2, 2)
     # Literally follow BLM+05 Eq. (12)
     for k in range(1, min(na, nb) + 1):
         # First calculate full-dim cor
@@ -93,5 +97,136 @@ def nss_vertex_classes_from_BLM05(na, nb):
     # Gives True, so the vertices are equivalent.
 
 
-## NSCO1 stuff
-# ...
+## NSCO1 stuff (strong version! so 80-dim)
+# NOTE Always stick to the order a1 a2 c b x1 x2 y, so c first, then b. (Esp. for NSCO1-V)
+
+def nsco1_write_panda_input(readable=False, filename=None):
+    """ See http://comopt.ifi.uni-heidelberg.de/software/PANDA/format.html for format of PANDA input file.
+    :param filename: if None, then automatically generated.
+    :param readable: if True, use human-readable variable names (which are however longer). """
+    lines = []  # Store lines here, then write all lines at once at the end of this function.
+
+    # 1) Dimension information
+    dim_NSCO1 = vs.dim_NSCO1((2,) * 7)
+    lines.append('DIM=%d' % dim_NSCO1)
+
+    # 2) Names of coordinates
+    lines.append('Names:')
+    if readable:
+        var_names = nsco1_readable_var_names()
+    else:
+        var_names = ['x' + str(i) for i in range(0, dim_NSCO1)]
+    lines.append(' '.join(var_names))
+
+    # 3) Symmetry information
+    lines.append('Maps:')
+    for symm in symmetry_utils.nsco1_symmetries(var_names):
+        lines.append(symm)
+
+    # 5) Inequalities and equations
+    lines.append('Inequalities:')
+    # the ineqs are -p(a1a2cb|x1x2y) <= 0 for all a1,a2,c,b,x1,x2,y. For the final 8 rows, note that this means -(p(1111|x1x2y) - 1) - 1 <= 0.
+    NtoF = vs.construct_NSCO1_to_full_weird_matrix().astype('int8')  # list of 'full vectors' expressed in NSCO1 vectors
+    dim_full = 128
+    for i in range(0, dim_full):
+        lines.append(' '.join(map(str, -NtoF[i])) + (' 0' if i < 120 else ' -1'))
+
+    # Write to file
+    if filename is None:
+        filename = 'panda-files/nsco1_facets.pi'
+    file = open(filename, 'w')
+    file.write('\n'.join(lines))
+    file.close()
+
+
+def nsco1_readable_var_names():
+    var_names = []
+
+    # NSCO1-I
+    for a1, x1 in cart((0,), B):
+        var_names.append('I' + str(a1) + str(x1))
+    # NSCO1-II
+    for b, y in cart((0,), B):
+        var_names.append('II' + str(b) + str(y))
+    # NSCO1-III
+    for x1, y in cart(B, B):
+        var_names.append('III00' + str(x1) + str(y))
+    # NSCO1-IV
+    for a1, (a2, c), x1, x2 in cart(B, cart(B, B)[:-1], B, B):
+        var_names.append('IV' + str(a1) + str(a2) + str(c) + str(x1) + str(x2))
+    # NSCO1-V
+    for a1, (a2, c), b, x1, x2, y in cart(B, cart(B, B)[:-1], (0,), B, B, B):
+        var_names.append('V' + str(a1) + str(a2) + str(c) + str(b) + str(x1) + str(x2) + str(y))
+
+    return var_names
+
+
+def nsco1_panda_vertex_to_full_cor(panda_vertex):
+    """ Takes a string of a panda output file and returns the probability distribution that it represents as a length-128 vector. """
+    splitted = panda_vertex.split()
+    NSCO1_vector = np.array(splitted[:-1]).astype('float64')
+    NSCO1_vector = 1 / float(splitted[-1]) * NSCO1_vector
+    return vs.construct_NSCO1_to_full_weird_matrix() @ NSCO1_vector + vs.beta()
+
+
+def nsco1_characterise_deterministic_vertex(vertex):
+    cor = vertex.reshape((2,) * 7)
+
+    def totuple(array):
+        try:
+            return tuple(totuple(i) for i in array)
+        except TypeError:
+            return array
+
+    # characterise p(a1|x1)
+    cor_a1_x1 = np.einsum('ijklmno->imno', cor)[:, :, 0, 0]
+    print(totuple(cor_a1_x1))
+    if np.all(cor_a1_x1[0] == [1, 1]):
+        print('a1 = 0')
+    elif np.all(cor_a1_x1[0] == [1, 0]):
+        print('a1 = x1')
+    elif np.all(cor_a1_x1[0] == [0, 1]):
+        print('a1 = ¬x1')
+    elif np.all(cor_a1_x1[0] == [1, 1]):
+        print('a1 = 1')
+
+    descriptions_dict = {
+        ((1, 1), (1, 1)): 'a2 is 0',
+        ((0, 0), (0, 0)): 'a2 is 1',
+        ((0, 0), (1, 1)): 'a2 is x1',
+        ((1, 1), (0, 0)): 'a2 is ¬x1',
+        ((0, 1), (0, 1)): 'a2 is x2',
+        ((1, 0), (1, 0)): 'a2 is ¬x2',
+        ((1, 0), (0, 1)): 'a2 is x1+x2',
+        ((0, 1), (1, 0)): 'a2 is ¬(x1+x2)'
+    }
+
+    # characterise p(a2|x1x2)
+    cor_a2_x1x2 = np.einsum('ijklmno->jmno', cor)[:, :, :, 0]
+    if totuple(cor_a2_x1x2) in descriptions_dict.keys():
+        print(descriptions_dict[cor_a2_x1x2])
+    else:
+        print('cor_a2_x1x2 was not recognised:')
+        print(cor_a2_x1x2)
+
+    # characterise p(c|x1x2)
+    cor_c_x1x2 = np.einsum('ijklmno->kmno', cor)[:, :, :, 0]
+    if totuple(cor_c_x1x2) in descriptions_dict.keys():
+        print(descriptions_dict[cor_c_x1x2])
+    else:
+        print('cor_c_x1x2 was not recognised:')
+        print(cor_c_x1x2)
+
+    # characterise p(b|y)
+    cor_b_y = np.einsum('ijklmno->lmno', cor)[:, 0, 0, :]
+    if np.all(cor_b_y[0] == [1, 1]):
+        print('b = 0')
+    elif np.all(cor_b_y[0] == [1, 0]):
+        print('b = y')
+    elif np.all(cor_b_y[0] == [0, 1]):
+        print('b = ¬y')
+    else:
+        print('b = 1')
+
+if __name__ == '__main__':
+    nsco1_write_panda_input(False, 'panda-files/nsco1_facets_with_c_symmetry.pi')
