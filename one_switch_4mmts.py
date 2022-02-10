@@ -6,6 +6,7 @@ import itertools
 import numpy as np
 import polytope_utils
 import quantum_utils as qm
+import utils
 from quantum_utils import kron, proj, reshuffle_kron_vector, phi_plus, ket0, ket_diag, ket_plus, z_onb, x_onb, \
     diag1_onb, diag2_onb
 
@@ -92,7 +93,7 @@ def vertices_one_switch_4mmts():
     ## Merge CO1 and CO2
     all_vertices = np.r_[CO1_vertices, CO2_vertices]
     # Remove duplicate vertices. Those arise because CO1 and CO2 overlap. For larger problems, should probably do this in a cleverer way.
-    all_vertices = np.unique(all_vertices, axis=0)
+    all_vertices = utils.eliminate_duplicate_rows(all_vertices)
     print("There are " + str(len(all_vertices)) + " vertices in total.")  # 32704: agrees with calculated number! [p69]
 
     return all_vertices

@@ -16,4 +16,13 @@ def almost_equal(array1, array2, tol=1e-16):
 
 
 def not_almost_equal(array1, array2, tol=1e-16):
-    return np.ones_like(array1.shape) - almost_equal(array1, array2, tol=tol)
+    return np.ones_like(array1.shape) - almost_equal(array1, array2, tol=tol)#
+
+
+def eliminate_duplicate_rows(array):
+    """ Returns array where duplicate rows have been eliminated. Contrary to np.unique(array, axis=0), this does NOT also sort the array.
+     (However, I can't guarantee that, IF there are duplicates, the first occurrence of each duplicate row is taken.) """
+    unique_and_sorted, indices = np.unique(array, axis=0, return_index=True)
+    indices_sorted = np.sort(indices)
+    print(indices)
+    return np.array([array[i] for i in indices_sorted])

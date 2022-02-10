@@ -120,8 +120,8 @@ def nsco1_write_panda_input(readable=False, filename=None):
 
     # 3) Symmetry information
     lines.append('Maps:')
-    for symm in symmetry_utils.nsco1_symmetries(var_names):
-        lines.append(symm)
+    for symm in symmetry_utils.nsco1_symm_generators():
+        lines.append(symmetry_utils.symm_matrix_to_string(symm, var_names))
 
     # 5) Inequalities and equations
     lines.append('Inequalities:')
@@ -133,7 +133,7 @@ def nsco1_write_panda_input(readable=False, filename=None):
 
     # Write to file
     if filename is None:
-        filename = 'panda-files/nsco1_facets.pi'
+        filename = 'panda-files/nsco1_facets_perm6feb.pi'
     file = open(filename, 'w')
     file.write('\n'.join(lines))
     file.close()
@@ -229,4 +229,4 @@ def nsco1_characterise_deterministic_vertex(vertex):
         print('b = 1')
 
 if __name__ == '__main__':
-    nsco1_write_panda_input(False, 'panda-files/nsco1_facets_with_c_symmetry.pi')
+    nsco1_write_panda_input(False, 'panda-files/nsco1_facets_simple_generators.pi')

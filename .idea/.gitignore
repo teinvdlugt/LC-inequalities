@@ -1,0 +1,16 @@
+# Default ignored files
+/shelf/
+/workspace.xml
+# Editor-based HTTP Client requests
+/httpRequests/
+# Datasource local storage ignored files
+/dataSources/
+/dataSources.local.xml
+/.name
+/codeStyles/codeStyleConfig.xml
+/LC_ineqs_python.iml
+/misc.xml
+/modules.xml
+/other.xml
+/inspectionProfiles/profiles_settings.xml
+/vcs.xml

@@ -3,9 +3,10 @@ import re
 
 import numpy as np
 
+import panda
+import utils
 import vector_space_utils as vs
 from vector_space_utils import cart
-from panda import nss_readable_var_names
 
 B = (0, 1)
 
@@ -120,7 +121,7 @@ def nss_vertices_are_equivalent(na, nb, nx, ny, vertex1, vertex2, depth):
     :param depth: nss_symmetry_generators only returns the generators, not ALL symmetries. So this function has to loop
         through compositions of those generators. It only tries compositions of `depth' (or less) generators.
     """
-    var_names = nss_readable_var_names(na, nb, nx, ny)
+    var_names = panda.nss_readable_var_names(na, nb, nx, ny)
     symm_generators = ['identity symmetry'] + nss_symmetry_generators(na, nb, nx, ny, var_names)
     for generator_list in itertools.product(symm_generators, repeat=depth):  # loop through compositions of symmetries of length 20.
         # apply all symmetries in generator_list in succession
@@ -135,12 +136,13 @@ def nss_vertices_are_equivalent(na, nb, nx, ny, vertex1, vertex2, depth):
 
 ## NSCO1 stuff
 # NOTE Always stick to the order a1 a2 c b x1 x2 y, so c first, then b. (Esp. for NSCO1-V)
-def nsco1_symmetries(var_names, only_output_generators=True):
+
+def nsco1_symmetries_old(only_output_generators=True, a2_only_ctrled_by_x2=False, c_ctrled=True):
     """
     var_names should have length dim_NSCO1. If just_output_generators=True, it returns a generating subset of all symmetries (namely
     those where only one of the 7 random variables is permuted). If False, it returns all symmetries.
     """
-    symmetries = []  # array of strings
+    symmetries = []  # array of (80,81)-shape matrices. See nsco1_var_perm_to_symm_old docs for what they represent.
 
     # In the binary case, there are just two permutations: identity and bitflip.
     # For permutations of values of a1, a2, b, note that we may allow these to depend on the value of x1, x2, y, respectively.
@@ -159,50 +161,65 @@ def nsco1_symmetries(var_names, only_output_generators=True):
     Bs = (B, B)  # the 'trivial controlled permutation' of B
     # Now consider permutations controlled by 2 parameters instead of 1 (i.e. perm of a2,c may be controlled by x1 AND x2):
     fns_from_4_to_perms_of_B = cart(perms_of_B, perms_of_B, perms_of_B, perms_of_B)
-    fns_from_B2_to_perms_of_B = [lambda x1, x2: fn[x1 * 2 + x2] for fn in fns_from_4_to_perms_of_B]  # more intuitive data structure
+    B2_ctrled_B_perms = [lambda x1, x2, fn2=fn: fn2[x1 * 2 + x2] for fn in fns_from_4_to_perms_of_B]  # more intuitive data structure
+    B2_ctrled_B_perms_but_actually_dep_on_x1_is_trivial = [lambda x1, x2, fn2=fn: fn2[x2] for fn in
+                                                           fns_from_B_to_perms_of_B]  # 'fn2=fn' makes a variable local to the lambda and which is fixed from the definition of the lambda onwards
     # And a generating subset of fns_from_B2_to_perms_of_B:  [see p136]
-    less_fns_from_B2_to_perms_of_B = [lambda x1, x2: (1, 0),  # c <-> c + 1
-                                      lambda x1, x2: perms_of_B[x1],  # c <-> c + x1
-                                      lambda x1, x2: perms_of_B[x2],  # c <-> c + x2
-                                      lambda x1, x2: perms_of_B[x1 * x2]]  # c <-> c + x1*x2
+    less_B2_ctrled_B_perms = [lambda x1, x2: (1, 0),  # c <-> c + 1
+                              lambda x1, x2: perms_of_B[x1],  # c <-> c + x1
+                              lambda x1, x2: perms_of_B[x2],  # c <-> c + x2
+                              lambda x1, x2: perms_of_B[x1 * x2]]  # c <-> c + x1*x2
+    triv_B2_controlled_B_perm = lambda x1, x2: (0, 1)
+    const_B2_ctrled_B_perms = [lambda x1, x2: (0, 1), lambda x1, x2: (1, 0)]  # controlled permutations that are actually uncontrolled
 
     if only_output_generators:
         for B_perms in less_fns_from_B_to_perms_of_B:
-            symmetries.append(nsco1_var_perm_to_symm(B_perms, Bs, B, Bs, B, B, B, var_names))  # controlled permutation of a1
-            symmetries.append(nsco1_var_perm_to_symm(Bs, B_perms, B, Bs, B, B, B, var_names))  # controlled permutation of a2
-            symmetries.append(nsco1_var_perm_to_symm(Bs, Bs, B, B_perms, B, B, B, var_names))  # controlled permutation of b
-        # For the c, x1, x2, y permutations, there's only one nontrivial permutation: (1,0)
-        symmetries.append(nsco1_var_perm_to_symm(Bs, Bs, (1, 0), Bs, B, B, B, var_names))  # permutation of c
-        symmetries.append(nsco1_var_perm_to_symm(Bs, Bs, B, Bs, (1, 0), B, B, var_names))  # permutation of x1
-        symmetries.append(nsco1_var_perm_to_symm(Bs, Bs, B, Bs, B, (1, 0), B, var_names))  # permutation of x2
-        symmetries.append(nsco1_var_perm_to_symm(Bs, Bs, B, Bs, B, B, (1, 0), var_names))  # permutation of y
+            symmetries.append(nsco1_var_perm_to_symm_old(B_perms, triv_B2_controlled_B_perm, triv_B2_controlled_B_perm, Bs, B, B, B))  # controlled permutation of a1
+            symmetries.append(nsco1_var_perm_to_symm_old(Bs, triv_B2_controlled_B_perm, triv_B2_controlled_B_perm, B_perms, B, B, B))  # controlled permutation of b
+        for B2_controlled_B_perm in less_B2_ctrled_B_perms:
+            symmetries.append(nsco1_var_perm_to_symm_old(Bs, B2_controlled_B_perm, triv_B2_controlled_B_perm, Bs, B, B, B))  # controlled permutation of a2
+            symmetries.append(nsco1_var_perm_to_symm_old(Bs, triv_B2_controlled_B_perm, B2_controlled_B_perm, Bs, B, B, B))  # controlled permutation of c
+        # For the x1, x2, y permutations, there's only one nontrivial permutation: (1,0)
+        symmetries.append(nsco1_var_perm_to_symm_old(Bs, triv_B2_controlled_B_perm, triv_B2_controlled_B_perm, Bs, (1, 0), B, B))  # permutation of x1
+        symmetries.append(nsco1_var_perm_to_symm_old(Bs, triv_B2_controlled_B_perm, triv_B2_controlled_B_perm, Bs, B, (1, 0), B))  # permutation of x2
+        symmetries.append(nsco1_var_perm_to_symm_old(Bs, triv_B2_controlled_B_perm, triv_B2_controlled_B_perm, Bs, B, B, (1, 0)))  # permutation of y
     else:
-        for a1_perms, a2_perms, c_perm, b_perms, x1_perm, x2_perm, y_perm in \
-                cart(fns_from_B_to_perms_of_B, fns_from_B_to_perms_of_B, perms_of_B, fns_from_B_to_perms_of_B, perms_of_B, perms_of_B, perms_of_B):
-            symmetries.append(nsco1_var_perm_to_symm(a1_perms, a2_perms, c_perm, b_perms, x1_perm, x2_perm, y_perm, var_names))
-            # TODO eliminate duplicates
+        for a1_perms, a2_ctrled_perm, c_ctrled_perm, b_perms, x1_perm, x2_perm, y_perm in \
+                cart(fns_from_B_to_perms_of_B, B2_ctrled_B_perms_but_actually_dep_on_x1_is_trivial if a2_only_ctrled_by_x2 else B2_ctrled_B_perms,
+                     B2_ctrled_B_perms if c_ctrled else const_B2_ctrled_B_perms, fns_from_B_to_perms_of_B, perms_of_B, perms_of_B, perms_of_B):
+            # cart(((B,B),((1,0),(1,0))), )
+            symmetries.append(nsco1_var_perm_to_symm_old(a1_perms, a2_ctrled_perm, c_ctrled_perm, b_perms, x1_perm, x2_perm, y_perm))
+        # Eliminate duplicates:
+        # symmetries = utils.eliminate_duplicate_rows(symmetries)  # if you don't want them sorted too
+        print(len(symmetries), 'symmetries before eliminating duplicates')
+        symmetries, counts = np.unique(np.array(symmetries), axis=0, return_counts=True)
+        print(len(symmetries), 'symmetries after eliminating duplicates')
 
     # For uncontrolled permutations on a1, a2 and b, simply redefine
     # less_fns_from_B_to_perms_of_B = fns_from_B_to_perms_of_B[3:4]  # a one-element array containing just the function that maps all x1 to the bitflip perm on a1.
 
-    return symmetries
+    return np.array(symmetries)
 
 
-def nsco1_var_perm_to_symm(a1_perms, a2_perms, c_perm, b_perms, x1_perm, x2_perm, y_perm, var_names):
-    """ Returns a string of dim_NSCO1 algebraic expressions separated by spaces. The i-th expression represents the
-    i-th NSCO1 coordinate of p^σ, which is the probability distribution defined by pullback p^σ = p∘σ, where σ is the
-    permutation defined by a1_perms, a2_perms, c_perm, b_perms, x1_perm, x2_perm, y_perm. [See p122]
+def nsco1_var_perm_to_symm_old(a1_perms, a2_ctrled_perm, c_ctrled_perm, b_perms, x1_perm, x2_perm, y_perm, dtype='int8'):
+    """ Returns a shape-(dim_NSCO1,dim_NSCO1+1) matrix. The i-th row, having length 81, represents the
+    i-th NSCO1 coordinate of p^σ expressed affine map on NSCO1 coordinates, where p^σ which is the probability distribution
+    defined by pullback p^σ = p∘σ, where σ is the permutation defined by a1_perms, a2_ctrled_perm, c_ctrled_perm, b_perms, x1_perm, x2_perm,
+    y_perm. [See p122]  I.e. the first 80 entries in each row represent coefficients for NSCO1 vectors, while the last (81st) entry
+    is 1 iff we should add 1 to the expression (this adding 1 makes the symmetry an affine map, as opposed to a linear one).
     :param a1_perms: size-2 array such that a1_perms[x1] is a permutation of the values of a1 (i.e. a permutation of B).
-    :param a2_perms: sim.
-    :param c_perm: a permutation of B, i.e. either B or (1,0).
+    :param a2_ctrled_perm: a function from two binary variables ('x1,x2') to a permutation of B
+    :param c_ctrled_perm: a function from two binary variables ('x1,x2') to a permutation of B
     :param b_perms: sim. to a1_perms.
     :param x1_perm: sim. to c_perm.
     :param x2_perm: sim.
     :param y_perm: sim.
     """
-    result = []  # length-NSS_dim array of strings, each representing an algebraic expression
-
     dim_NSCO1 = 80
+
+    symm_matrix = np.zeros((dim_NSCO1, dim_NSCO1 + 1))  # each row has length 81: the laste entry encodes whether we should add 1 to the
+    # expression or not (after all, symmetries are affine maps, not just linear maps).
+    current_row = 0
 
     get_full_index = lambda a1, a2, c, b, x1, x2, y: vs.concatenate_bits(a1, a2, c, b, x1, x2, y)
 
@@ -211,46 +228,119 @@ def nsco1_var_perm_to_symm(a1_perms, a2_perms, c_perm, b_perms, x1_perm, x2_perm
     # NSCO1-I coords of p^σ
     for a1, x1 in cart((0,), B):
         _x1 = x1_perm[x1]  # NOTE As before (for NSS), _x1 means σ(x1); sim. for other variables in below code.
-        _a1 = a1_perms[_x1][a1]
+        _a1 = a1_perms[x1][a1]
         # Now what is p(_a1|_x1) in terms of NSCO1-cpts of p? p(_a1|_x1) = sum_{a2,c,b} p(_a1 a2 c b | _x1 0 0) and we know
         # what each p(_a1 a2 c b | _x1 0 0) is in NSCO1-cpts because we have NSCO1_to_full_weird.
-        NSCO1_vector = np.zeros(dim_NSCO1)
         for a2, c, b in cart(B, B, B):
-            NSCO1_vector += NSCO1_to_full_weird[get_full_index(_a1, a2, c, b, _x1, 0, 0)]
+            symm_matrix[current_row][:-1] += NSCO1_to_full_weird[get_full_index(_a1, a2, c, b, _x1, 0, 0)]
         # If _a1==1, then since (_a1,a2,c,b) has been (1,1,1,1) once in the above loop, we have to correct for weirdness once, by adding 1.
-        result.append(vector_to_expression(NSCO1_vector, var_names, _a1 == 1))
+        symm_matrix[current_row][-1] += _a1 == 1
+        current_row += 1
     # NSCO1-II
     for b, y in cart((0,), B):
         _y = y_perm[y]
-        _b = b_perms[_y][b]
-        NSCO1_vector = np.zeros(dim_NSCO1)
+        _b = b_perms[y][b]
         for a1, a2, c in cart(B, B, B):
-            NSCO1_vector += NSCO1_to_full_weird[get_full_index(a1, a2, c, _b, 0, 0, _y)]
-        result.append(vector_to_expression(NSCO1_vector, var_names, _b == 1))
+            symm_matrix[current_row][:-1] += NSCO1_to_full_weird[get_full_index(a1, a2, c, _b, 0, 0, _y)]
+        symm_matrix[current_row][-1] += _b == 1
+        current_row += 1
     # NSCO1-III
     for a1, b, x1, y in cart((0,), (0,), B, B):
         _x1, _y = x1_perm[x1], y_perm[y]
-        _a1, _b = a1_perms[_x1][a1], b_perms[_y][b]
-        NSCO1_vector = np.zeros(dim_NSCO1)
+        _a1, _b = a1_perms[x1][a1], b_perms[y][b]
         for a2, c in cart(B, B):
-            NSCO1_vector += NSCO1_to_full_weird[get_full_index(_a1, a2, c, _b, _x1, 0, _y)]
-        result.append(vector_to_expression(NSCO1_vector, var_names, (_a1, _b) == (1, 1)))
+            symm_matrix[current_row][:-1] += NSCO1_to_full_weird[get_full_index(_a1, a2, c, _b, _x1, 0, _y)]
+        symm_matrix[current_row][-1] += (_a1, _b) == (1, 1)
+        current_row += 1
     # NSCO1-IV
     for a1, (a2, c), x1, x2 in cart(B, cart(B, B)[:-1], B, B):
         _x1, _x2 = x1_perm[x1], x2_perm[x2]
-        _a1, _a2, _c = a1_perms[_x1][a1], a2_perms[_x2][a2], c_perm[c]
-        NSCO1_vector = np.zeros(dim_NSCO1)
+        _a1, _a2, _c = a1_perms[x1][a1], a2_ctrled_perm(x1, x2)[a2], c_ctrled_perm(x1, x2)[c]
         for b in B:
-            NSCO1_vector += NSCO1_to_full_weird[get_full_index(_a1, _a2, _c, b, _x1, _x2, 0)]
-        result.append(vector_to_expression(NSCO1_vector, var_names, (_a1, _a2, _c) == (1, 1, 1)))
+            symm_matrix[current_row][:-1] += NSCO1_to_full_weird[get_full_index(_a1, _a2, _c, b, _x1, _x2, 0)]
+        symm_matrix[current_row][-1] += (_a1, _a2, _c) == (1, 1, 1)
+        current_row += 1
     # NSCO1-V
     for a1, (a2, c), b, x1, x2, y in cart(B, cart(B, B)[:-1], (0,), B, B, B):
         _x1, _x2, _y = x1_perm[x1], x2_perm[x2], y_perm[y]
-        _a1, _a2, _c, _b = a1_perms[_x1][a1], a2_perms[_x2][a2], c_perm[c], b_perms[_y][b]
-        NSCO1_vector = NSCO1_to_full_weird[get_full_index(_a1, _a2, _c, _b, _x1, _x2, _y)]
-        result.append(vector_to_expression(NSCO1_vector, var_names, (_a1, _a2, _c, _b) == (1, 1, 1, 1)))
+        _a1, _a2, _c, _b = a1_perms[x1][a1], a2_ctrled_perm(x1, x2)[a2], c_ctrled_perm(x1, x2)[c], b_perms[y][b]
+        symm_matrix[current_row][:-1] = NSCO1_to_full_weird[get_full_index(_a1, _a2, _c, _b, _x1, _x2, _y)]
+        symm_matrix[current_row][-1] += (_a1, _a2, _c, _b) == (1, 1, 1, 1)
+        current_row += 1
 
-    return ' '.join(result)  # TODO test this function
+    return symm_matrix.astype(dtype=dtype)
+
+
+def nsco1_symm_generators():
+    symmetries = [
+        nsco1_var_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a1, a2, c, b, (x1 + 1) % 2, x2, y)),  # x1 -> x1 + 1
+        nsco1_var_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: ((a1 + x1) % 2, a2, c, b, x1, x2, y)),  # a1 -> a1 + x1
+        nsco1_var_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a1, a2, c, b, x1, (x2 + x1 * a1) % 2, y)),  # x2 -> x2 + x1*a1
+        nsco1_var_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a1, (a2 + x1 * a1 * x2) % 2, c, b, x1, x2, y)),  # a2 -> a2 + x1*a1*x2
+        nsco1_var_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a1, a2, (c + x1 * a1 * x2 * a2) % 2, b, x1, x2, y)),  # c -> c + x1*a1*x2*a2
+        nsco1_var_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a1, a2, c, b, x1, x2, (y + 1) % 2)),  # y  -> y  + 1
+        nsco1_var_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a1, a2, c, (b + y) % 2, x1, x2, y))  # b  -> b  + y
+    ]
+
+    return np.array(symmetries)
+
+
+def nsco1_var_perm_to_symm(perm, dtype='int8'):
+    """
+    :param perm: a function with 7 binary arguments and one binary output.
+    :return: the symmetry p -> p^σ (with σ := perm), encoded in the same way as in the output of nsco1_var_perm_to_symm_old().
+    """
+    dim_NSCO1 = 80
+
+    symm_matrix = np.zeros((dim_NSCO1, dim_NSCO1 + 1))  # each row has length 81: the laste entry encodes whether we should add 1 to the
+    # expression or not (after all, symmetries are affine maps, not just linear maps).
+    current_row = 0
+
+    NSCO1_to_full_weird = vs.construct_NSCO1_to_full_weird_matrix()
+
+    def add_standard_basis_vector_to_matrix_row(row_number, var_tuple):
+        symm_matrix[row_number][:-1] += NSCO1_to_full_weird[
+            vs.concatenate_bits(*var_tuple)]  # vs.concatenate_bits(*var_tuple) is the index of the standard basis vector characterised by var_tuple in the ordered standard ('full') basis.
+        symm_matrix[row_number][-1] += var_tuple[:4] == (1, 1, 1, 1)
+
+    # NSCO1-I coords of p^σ
+    for a1, x1 in cart((0,), B):
+        # Now what is p(_a1|_x1) in terms of NSCO1-cpts of p? p(_a1|_x1) = sum_{a2,c,b} p(_a1 a2 c b | _x1 0 0) and we know
+        # what each p(_a1 a2 c b | _x1 0 0) is in NSCO1-cpts because we have NSCO1_to_full_weird.
+        for a2, c, b, x2, y in cart(B, B, B, (0,), (0,)):
+            add_standard_basis_vector_to_matrix_row(current_row, perm(a1, a2, c, b, x1, x2, y))
+        current_row += 1
+    # NSCO1-II
+    for b, y in cart((0,), B):
+        for a1, a2, c, x1, x2 in cart(B, B, B, (0,), (0,)):
+            add_standard_basis_vector_to_matrix_row(current_row, perm(a1, a2, c, b, x1, x2, y))
+        current_row += 1
+    # NSCO1-III
+    for a1, b, x1, y in cart((0,), (0,), B, B):
+        for a2, c, x2 in cart(B, B, (0,)):
+            add_standard_basis_vector_to_matrix_row(current_row, perm(a1, a2, c, b, x1, x2, y))
+        current_row += 1
+    # NSCO1-IV
+    for a1, (a2, c), x1, x2 in cart(B, cart(B, B)[:-1], B, B):
+        for b, y in cart(B, (0,)):
+            add_standard_basis_vector_to_matrix_row(current_row, perm(a1, a2, c, b, x1, x2, y))
+        current_row += 1
+    # NSCO1-V
+    for a1, (a2, c), b, x1, x2, y in cart(B, cart(B, B)[:-1], (0,), B, B, B):
+        add_standard_basis_vector_to_matrix_row(current_row, perm(a1, a2, c, b, x1, x2, y))
+        current_row += 1
+
+    return symm_matrix.astype(dtype=dtype)
+
+
+def symm_matrix_to_string(symm_matrix, var_names):
+    assert len(symm_matrix.shape) and symm_matrix.shape[0] + 1 == symm_matrix.shape[1]
+
+    string = ''
+    for row in symm_matrix:
+        string += vector_to_expression(row[:-1], var_names, row[-1])
+        string += ' '
+    return string[:-1]  # Remove the last space
 
 
 ## General stuff
@@ -306,3 +396,14 @@ def apply_symmetry(vertex, symmetry, var_names):
                 raise ValueError('provided symmetry is of unsupported format')
         new_vertex.append(NSS_cpt)
     return new_vertex
+
+
+if __name__ == '__main__':
+    # symms_a2_controlled_by_x2, count_x2 = nsco1_symmetries_old(False, True)
+    # print('total', symms_a2_controlled_by_x2.shape[0], 'symmetries;', len(np.argwhere(count_x2 > 1)), ' symmetries which had at least 1 duplicate')
+    # symms_a2_controlled_by_x1x2, count_x1x2 = nsco1_symmetries_old(False, False)
+    # print('total', symms_a2_controlled_by_x1x2.shape[0], 'symmetries;', len(np.argwhere(count_x1x2 > 1)), ' symmetries which had at least 1 duplicate')
+    # print('the symmetries generated are', 'equal' if np.all(symms_a2_controlled_by_x2 == symms_a2_controlled_by_x1x2) else 'unequal')
+
+    perm = lambda a1, a2, c, b, x1, x2, y: (a1 + 1, a2, c, b, x1, x2, (y + 1) % 2)
+    nsco1_var_perm_to_symm(perm)
