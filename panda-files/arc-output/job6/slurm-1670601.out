@@ -135,3 +135,55 @@ Fourier-Motzkin Elimination step 105 / 112: 2371
 Fourier-Motzkin Elimination step 110 / 112: 4283
 Fourier-Motzkin Elimination step 111 / 112: 4580
 Fourier-Motzkin Elimination step 112 / 112: 3752
+  2  2  1  1  1  1  1  1  2  2  1  1  0  0  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  2  1  1  0  0  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Done processing #35
+Processing #42 of at least 43 classes
+Processing #43 of at least 43 classes
+Done processing #23
+  2  2  1  1  1  1  1  1  2  1  2  1  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  0  1  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  0  0  0  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  2  1  1  1  0  0  0  0  0  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Done processing #7
+Processing #44 of at least 47 classes
+Processing #45 of at least 47 classes
+Processing #46 of at least 47 classes
+Processing #47 of at least 47 classes
+  2  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  0  1  1  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Done processing #9
+Processing #48 of at least 49 classes
+Processing #49 of at least 49 classes
+Done processing #5
+Fourier-Motzkin Elimination step 110 / 112: 3034
+Fourier-Motzkin Elimination step 105 / 112: 1641
+Fourier-Motzkin Elimination step 106 / 112: 2436
+Done processing #11
+Fourier-Motzkin Elimination step 110 / 112: 3034
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  1  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #50 of at least 50 classes
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  0  1  0  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Done processing #10
+Processing #51 of at least 52 classes
+Processing #52 of at least 52 classes
+Done processing #6
+  2  2  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  0  1  0  1  1  1  1  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Done processing #15
+Processing #53 of at least 54 classes
+Processing #54 of at least 54 classes
+Done processing #26
+Done processing #33
+Done processing #32
+Done processing #27
+Done processing #25
+Done processing #53
+Done processing #20
+Done processing #31
+Done processing #8
+Done processing #16
+Done processing #21
+Done processing #17
+slurmstepd: error: *** JOB 1670601 ON arc-c302 CANCELLED AT 2022-02-17T12:44:10 DUE TO TIME LIMIT ***
