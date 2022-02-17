@@ -1,0 +1,5 @@
+PANDA -- vertex enumeration with adjacency decomposition
+Reduced Vertices / Rays:
+  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1
+Processing #1 of at least 1 class
+slurmstepd: error: *** JOB 1670306 ON arc-c302 CANCELLED AT 2022-02-17T11:06:22 ***

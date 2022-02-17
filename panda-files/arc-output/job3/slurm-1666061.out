@@ -1,0 +1,16 @@
+PANDA -- vertex enumeration with adjacency decomposition
+Reduced Vertices / Rays:
+  1  1  0  0  0  0  1  1  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1
+Processing #1 of at least 1 class
+Fourier-Motzkin Elimination step 73 / 76: 56475
+Fourier-Motzkin Elimination step 74 / 76: 133932
+Fourier-Motzkin Elimination step 75 / 76: 212833
+Fourier-Motzkin Elimination step 76 / 76: 303926
+  1  1  1  1  0  0  1  1  1  1  0  0  0  0  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  1  1  1  1  1  1  1  1  1  1  1  1  0  0  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  1  0  1  1  0  1  0  0  0  0  3
+  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  1  0  1  1  0  0  0  0  0  1  4
+Done processing #1
+Processing #2 of at least 4 classes
+Processing #3 of at least 4 classes
+Processing #4 of at least 4 classes
+slurmstepd: error: *** JOB 1666061 ON arc-c302 CANCELLED AT 2022-02-15T19:53:52 DUE TO TIME LIMIT ***

@@ -1,0 +1,15 @@
+PANDA -- vertex enumeration with adjacency decomposition
+Reduced Vertices / Rays:
+  1  1  0  0  1  1  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1
+Processing #1 of at least 1 class
+  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  0  2
+  1  1  1  1  1  1  1  1  1  1  0  0  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  0  0  0  1  0  0  0  0  0  3
+Done processing #1
+Processing #2 of at least 3 classes
+Processing #3 of at least 3 classes
+Done processing #3
+Done processing #2
+
+real	0m4.613s
+user	0m4.558s
+sys	0m0.039s

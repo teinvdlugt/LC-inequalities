@@ -1,0 +1,33 @@
+PANDA -- vertex enumeration with adjacency decomposition
+Reduced Vertices / Rays:
+  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1
+Processing #1 of at least 1 class
+  2  2  1  1  1  1  1  1  2  1  1  1  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #2 of at least 2 classes
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  0  0  0  0  1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #3 of at least 3 classes
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #4 of at least 4 classes
+  2  2  1  1  1  1  1  1  2  1  1  1  0  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #5 of at least 5 classes
+  2  2  1  1  1  1  1  1  2  1  1  1  0  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  1  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #6 of at least 6 classes
+Fourier-Motzkin Elimination step 116 / 120: 4418
+  2  2  1  1  1  1  1  1  2  1  1  1  0  0  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #7 of at least 7 classes
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #8 of at least 8 classes
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #9 of at least 9 classes
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #10 of at least 10 classes
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  1  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #11 of at least 11 classes
+Fourier-Motzkin Elimination step 110 / 112: 4283
+Fourier-Motzkin Elimination step 109 / 112: 8171
+  2  2  1  1  1  1  1  1  2  1  1  1  0  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #12 of at least 12 classes
+Fourier-Motzkin Elimination step 111 / 112: 4580
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #13 of at least 13 classes
+slurmstepd: error: *** JOB 1670295 ON arc-c302 CANCELLED AT 2022-02-17T10:48:40 ***

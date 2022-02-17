@@ -1,0 +1,6 @@
+PANDA -- vertex enumeration with adjacency decomposition
+Exception caught: Failed to open file "known_vertices_from_jobjesdfsdf".
+
+real	0m0.154s
+user	0m0.133s
+sys	0m0.018s
