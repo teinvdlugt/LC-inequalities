@@ -1,0 +1,10 @@
+   0.0030s   PANDA -- vertex enumeration with adjacency decomposition
+   0.0006s   Reduced Vertices / Rays:
+   0.0001s     1  1  0  0  0  0  1  1  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1
+   4.6953s   Processing #1 of at least 1 class
+  23.5530s   Fourier-Motzkin Elimination step 73 / 76: 56475
+  51.1491s   Fourier-Motzkin Elimination step 74 / 76: 133932
+ 125.2147s   Fourier-Motzkin Elimination step 75 / 76: 212833
+  98.2497s   Fourier-Motzkin Elimination step 76 / 76: 303926
+             
+     Total   302.8656s

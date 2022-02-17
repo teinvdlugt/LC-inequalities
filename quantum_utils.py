@@ -443,14 +443,14 @@ if __name__ == '__main__':
 
     ## Trying to see if p~^1(a_1, a_2, c | x_1, x_2, y) depends on y:
 
-    # phacek1abc_xy, dep = dependence_of_ac_on_y_in_phacek1(
-    #     rho_ctb=proj(kron(ket_plus, phi_plus)),
-    #     # rho_ctb=proj(normalise_vec(np.random.rand(8))),
-    #     X1=[z_onb, x_onb],  # X1 = [random_real_onb(), random_real_onb()] # TODO see below
-    #     X2=[z_onb, x_onb],  # TODO change back to z_onb, x_onb when NaN problem resolved
-    #     Y=[z_onb, x_onb],  # Y = [random_real_onb(), random_real_onb()]
-    #     c_onb=x_onb)  # c_onb = x_onb
-    # print(dep)
+    """phacek1abc_xy, dep = dependence_of_ac_on_y_in_phacek1(
+        rho_ctb=proj(kron(ket_plus, phi_plus)),
+        # rho_ctb=proj(normalise_vec(np.random.rand(8))),
+        X1=[z_onb, x_onb],  # X1 = [random_real_onb(), random_real_onb()] # TODO see below
+        X2=[z_onb, x_onb],  # TODO change back to z_onb, x_onb when NaN problem resolved
+        Y=[z_onb, x_onb],  # Y = [random_real_onb(), random_real_onb()]
+        c_onb=x_onb)  # c_onb = x_onb
+    print(dep)""" # NOTE this code takes 10-11 seconds on my laptop, 13-14 seconds on google cloud c2 VM
 
     # III(rho_ctb=proj(kron(ket_plus, phi_plus)),
     #     X1=[z_onb, x_onb],

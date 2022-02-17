@@ -1,0 +1,13 @@
+   0.0031s   PANDA -- vertex enumeration with adjacency decomposition
+   0.0006s   Reduced Vertices / Rays:
+   0.0001s     1  1  0  0  1  1  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1
+   0.9299s   Processing #1 of at least 1 class
+   0.0001s     1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  0  2
+   0.0000s     1  1  1  1  1  1  1  1  1  1  0  0  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  0  0  0  1  0  0  0  0  0  3
+   0.0000s   Done processing #1
+   0.0001s   Processing #2 of at least 3 classes
+   1.1417s   Processing #3 of at least 3 classes
+   0.0180s   Done processing #2
+   0.0035s   Done processing #3
+             
+     Total   2.0973s
