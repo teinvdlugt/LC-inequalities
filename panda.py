@@ -228,5 +228,27 @@ def nsco1_characterise_deterministic_vertex(vertex):
     else:
         print('b = 1')
 
+
+def convert_panda_output_vertex_to_input_vertex_format(old_filename, new_filename):
+    old_file = open(old_filename, 'r')
+    new_lines = []
+    from fractions import Fraction
+    for line in old_file.readlines():
+        try:
+            output_format_list = list(map(int, line.split()))
+            vector = output_format_list[:-1]
+            denominator = output_format_list[-1]
+            for i in range(len(vector)):
+                vector[i] = str(Fraction(vector[i] / denominator))
+            new_lines.append(' '.join(vector))
+        except ValueError:
+            # Line was not filled with integers. Probably a comment line. Ignore it.
+            pass
+    old_file.close()
+    new_file = open(new_filename, 'w')
+    new_file.write('\n'.join(new_lines))
+    new_file.close()
+
+
 if __name__ == '__main__':
     nsco1_write_panda_input(False, 'panda-files/nsco1_facets_simple_generators.pi')
