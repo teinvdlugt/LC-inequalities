@@ -1,2 +1,3 @@
 I did a lot of debugging here, making small changes to job6.sh every time I resubmitted. The weird thing I found (and the reason I was debugging) is that when
 --ntasks-per-node is larger than 1, the algorithm does not seem to make use of the specified --known-vertices. Either that or slurm just shows the output of the first core.
+So before I have resolved this, don't run serious algorithms on multiple ntasks-per-node; because I might miss vertices that are output on other cores.

@@ -1,0 +1,234 @@
+PANDA -- vertex enumeration with adjacency decomposition
+Reduced Vertices / Rays:
+  2  2  1  1  1  1  1  1  2  1  1  1  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #1 of at least 1 class
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  0  0  0  0  1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #2 of at least 2 classes
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #3 of at least 3 classes
+  2  2  1  1  1  1  1  1  2  1  1  1  0  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #4 of at least 4 classes
+  2  2  1  1  1  1  1  1  2  1  1  1  0  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  1  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #5 of at least 5 classes
+  2  2  1  1  1  1  1  1  2  1  1  1  0  0  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #6 of at least 6 classes
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #7 of at least 7 classes
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #8 of at least 8 classes
+Fourier-Motzkin Elimination step 109 / 112: 8171
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #9 of at least 9 classes
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  1  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #10 of at least 10 classes
+Fourier-Motzkin Elimination step 110 / 112: 4283
+  2  2  1  1  1  1  1  1  2  1  1  1  0  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #11 of at least 11 classes
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #12 of at least 12 classes
+Fourier-Motzkin Elimination step 111 / 112: 4580
+Fourier-Motzkin Elimination step   2  2  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+110 / 112: 4283
+Processing #13 of at least 13 classes
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #14 of at least 14 classes
+Fourier-Motzkin Elimination step 109 / 112: 8171
+Fourier-Motzkin Elimination step 109 / 112: 2809
+Fourier-Motzkin Elimination step 112 / 112: 3752
+Fourier-Motzkin Elimination step 109 / 112: 2809
+Fourier-Motzkin Elimination step 112 / 112: 3106
+Fourier-Motzkin Elimination step 111 / 112: 4580
+  2  2  1  1  1  1  1  1  2  1  1  1  0  0  1  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #15 of at least 15 classes
+  2  2  1  1  1  1  1  1  2  1  1  1  0  0  1  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  1  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #16 of at least 16 classes
+Fourier-Motzkin Elimination step 112 / 112: 3752
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  1  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #17 of at least 17 classes
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  1  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  0  1  1  0  0  0  0  0  1  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #18 of at least 18 classes
+Fourier-Motzkin Elimination step 110 / 112: 4283
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  1  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #19 of at least 19 classes
+Fourier-Motzkin Elimination step 109 / 112: 8171
+Fourier-Motzkin Elimination step 109 / 112: 8171
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  1  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  1  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #20 of at least 20 classes
+Fourier-Motzkin Elimination step 108 / 112: 3313
+Fourier-Motzkin Elimination step 111 / 112: 4580
+Fourier-Motzkin Elimination step 109 / 112: 2809
+Fourier-Motzkin Elimination step 112 / 112: 3106
+Fourier-Motzkin Elimination step 109 / 112: 2809
+Fourier-Motzkin Elimination step 112 / 112: 3752
+Fourier-Motzkin Elimination step 112 / 112: 3106
+Fourier-Motzkin Elimination step 110 / 112: 4283
+Fourier-Motzkin Elimination step 110 / 112: 4283
+Fourier-Motzkin Elimination step 111 / 112: 4580
+Fourier-Motzkin Elimination step 111 / 112: 4580
+  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1
+  2  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  0  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  0  1  0  1  1  1  1  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Done processing #3
+Processing #21 of at least 28 classes
+Processing #22 of at least 28 classes
+Processing #23 of at least 28 classes
+Processing #24 of at least 28 classes
+Processing #25 of at least 28 classes
+Processing #26 of at least 28 classes
+Processing #27 of at least 28 classes
+Processing #28 of at least 28 classes
+  2  2  1  1  1  1  1  1  2  1  2  1  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  2  1  0  1  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  2  1  1  1  0  1  0  0  0  0  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  2  1  1  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Done processing #1
+Processing #29 of at least 34 classes
+Processing #30 of at least 34 classes
+Processing #31 of at least 34 classes
+Processing #32 of at least 34 classes
+Processing #33 of at least 34 classes
+Processing #34 of at least 34 classes
+Fourier-Motzkin Elimination step 112 / 112: 3752
+Fourier-Motzkin Elimination step 105 / 112: 1641
+Fourier-Motzkin Elimination step 112 / 112: 3752
+  2  2  1  1  1  1  1  1  2  1  1  1  0  0  0  0  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #35 of at least 35 classes
+Fourier-Motzkin Elimination step 111 / 120: 2738
+Fourier-Motzkin Elimination step 106 / 112: 2436
+Fourier-Motzkin Elimination step 112 / 120: 3980
+Fourier-Motzkin Elimination step 110 / 112: 3034
+Fourier-Motzkin Elimination step 116 / 120: 4418
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #36 of at least 36 classes
+Fourier-Motzkin Elimination step 107 / 112: 2298
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #37 of at least 37 classes
+Fourier-Motzkin Elimination step 104 / 112: 1417
+Fourier-Motzkin Elimination step 105 / 112: 2371
+Fourier-Motzkin Elimination step 106 / 112: 2512
+Fourier-Motzkin Elimination step 109 / 112: 2809
+Fourier-Motzkin Elimination step 109 / 112: 8171
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #38 of at least 38 classes
+Fourier-Motzkin Elimination step 105 / 112: 2371
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #39 of at least 39 classes
+Done processing #29
+Fourier-Motzkin Elimination step 109 / 112: 2809
+  2  2  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #40 of at least 40 classes
+Done processing #2
+Fourier-Motzkin Elimination step 110 / 112: 4283
+Fourier-Motzkin Elimination step 104 / 112: 1500
+Fourier-Motzkin Elimination step 109 / 112: 4117
+Fourier-Motzkin Elimination step 110 / 112: 4117
+Done processing #24
+Fourier-Motzkin Elimination step 111 / 112: 3610
+Fourier-Motzkin Elimination step 111 / 112: 4580
+Fourier-Motzkin Elimination step 112 / 112: 3106
+Fourier-Motzkin Elimination step 109 / 112: 8171
+Fourier-Motzkin Elimination step 112 / 112: 3752
+  2  2  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Processing #41 of at least 41 classes
+Fourier-Motzkin Elimination step 104 / 112: 1417
+Fourier-Motzkin Elimination step 105 / 112: 2371
+Fourier-Motzkin Elimination step 110 / 112: 4283
+Fourier-Motzkin Elimination step 109 / 112: 2809
+Fourier-Motzkin Elimination step 111 / 112: 4580
+Fourier-Motzkin Elimination step 112 / 112: 3752
+  2  2  1  1  1  1  1  1  2  2  1  1  0  0  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  2  1  1  0  0  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Done processing #34
+Processing #42 of at least 43 classes
+Processing #43 of at least 43 classes
+  2  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  0  1  1  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Done processing #4
+Processing #44 of at least 45 classes
+Processing #45 of at least 45 classes
+Fourier-Motzkin Elimination step 110 / 112: 3034
+  2  2  1  1  1  1  1  1  2  1  2  1  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  0  1  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  0  0  0  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  2  1  1  1  0  0  0  0  0  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Done processing #6
+Processing #46 of at least 49 classes
+Processing #47 of at least 49 classes
+Processing #48 of at least 49 classes
+Processing #49 of at least 49 classes
+Done processing #23
+Fourier-Motzkin Elimination step 105 / 112: 1641
+Fourier-Motzkin Elimination step 106 / 112: 2436
+Fourier-Motzkin Elimination step 109 / 112: 3538
+Fourier-Motzkin Elimination step 110 / 112: 3034
+Done processing #8
+Done processing #5
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  1  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  0  1  0  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Done processing #9
+Processing #50 of at least 52 classes
+Processing #51 of at least 52 classes
+Processing #52 of at least 52 classes
+Done processing #46
+  2  2  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  0  1  0  1  1  1  1  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Done processing #14
+Processing #53 of at least 54 classes
+Processing #54 of at least 54 classes
+Done processing #10
+Done processing #26
+Done processing #31
+Done processing #32
+Done processing #50
+Done processing #27
+Done processing #53
+Done processing #25
+Done processing #19
+Done processing #30
+Done processing #20
+Done processing #15
+Done processing #16
+Done processing #7
+Done processing #42
+Done processing #17
+Done processing #18
+Done processing #37
+  2  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Done processing #11
+Processing #55 of at least 55 classes
+Fourier-Motzkin Elimination step 110 / 112: 3034
+Done processing #13
+Done processing #48
+Done processing #39
+Done processing #47
+Done processing #35
+  1  1  1  1  1  1  1  0  1  1  1  1  0  0  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Done processing #28
+Processing #56 of at least 56 classes
+Done processing #12
+Done processing #33
+Done processing #51
+Done processing #43
+Done processing #38
+Done processing #41
+Done processing #40
+Done processing #55
+Done processing #36
+Done processing #44
+Done processing #56
+Done processing #49
+Done processing #22
+Done processing #52
+Done processing #54
+Done processing #45
+Fourier-Motzkin Elimination step 117 / 120: 455585
+Fourier-Motzkin Elimination step 118 / 120: 496034
+Fourier-Motzkin Elimination step 119 / 120: 907811
