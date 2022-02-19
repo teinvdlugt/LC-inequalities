@@ -3,11 +3,7 @@ import itertools
 import numpy as np
 import numpy.linalg
 
-import LP_without_vertices
-import one_switch_4mmts
 import panda
-import quantum_utils as qm
-import utils
 
 B = (0, 1)
 

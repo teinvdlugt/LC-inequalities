@@ -5,7 +5,6 @@ import sys
 import numpy as np
 
 import panda
-import utils
 import vector_space_utils as vs
 cart = vs.cart
 

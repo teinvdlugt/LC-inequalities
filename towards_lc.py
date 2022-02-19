@@ -3,9 +3,7 @@ import sys
 import panda
 import symmetry_utils
 import itertools
-import numpy as np
 
-import utils
 import vector_space_utils
 
 
