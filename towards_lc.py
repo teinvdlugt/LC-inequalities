@@ -84,7 +84,7 @@ if __name__ == '__main__':
     left_coset_reps = LC_NSCO1_symms_left_coset_reps()
 
     nsco1_vertex_classes_nsco1_coords = []
-    nsco1_file = open('panda-files/nsco1_vertex_classes.out', 'r')
+    nsco1_file = open('nsco1_vertex_classes.out', 'r')
     for line in nsco1_file.readlines():
         nsco1_vertex_classes_nsco1_coords.append(list(map(int, line.split())))
     nsco1_file.close()
