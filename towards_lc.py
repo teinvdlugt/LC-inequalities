@@ -3,6 +3,7 @@ import sys
 import panda
 import symmetry_utils
 import itertools
+import numpy as np
 
 import vector_space_utils
 
@@ -24,7 +25,7 @@ def LC_NSCO1_symms_left_coset_reps():
         else:
             print('No counterpart found')
         i += 1
-    print('|H\H^c| =', len(alpha_tuples))
+    # print('|H\H^c| =', len(alpha_tuples))  # gives 512 as expected
 
     # Each alpha_tuple corresponds to a representative of a class in the left quotient H\H^c. Now construct those representatives from alpha_tuples
     # explicitly. [p162]
@@ -36,6 +37,10 @@ def LC_NSCO1_symms_left_coset_reps():
                                              c, b, x1,
                                              (x2 + alphas[0] * x1 + alphas[1] * a1 + alphas[2] * x1 * a1) % 2,
                                              y)))
+
+    # Test whether there are duplicate symmetries
+    # assert np.unique(np.array(result), axis=0).shape[0] == len(result)
+
     return result
 
 
@@ -78,7 +83,7 @@ def write_unpacking_input_file(filename='panda-files/unpacking'):
     print('Done writing file')
 
 
-if __name__ == '__main__':
+def do_unpacking_in_python():
     lc_symms = symmetry_utils.lc_symm_generators()
     # nsco1_symms = symmetry_utils.nsco1_symm_generators_in_nss_coords()
     left_coset_reps = LC_NSCO1_symms_left_coset_reps()
@@ -89,17 +94,17 @@ if __name__ == '__main__':
         nsco1_vertex_classes_nsco1_coords.append(list(map(int, line.split())))
     nsco1_file.close()
 
-
     def write_line(str):
         output_file = open('unpacked.out', 'a+')
         output_file.write(str + '\n')
         output_file.close()
 
-
+    v = 0
     for nsco1_vertex_rep_nsco1_coords in nsco1_vertex_classes_nsco1_coords:
         nsco1_vertex_rep_nss_coords = vector_space_utils.NSCO1_to_NSS_with_denominator(nsco1_vertex_rep_nsco1_coords)
 
-        write_line('The NSCO1 vertex class\n' + ' '.join(map(str, nsco1_vertex_rep_nsco1_coords)))
+        v += 1
+        write_line('\nNSCO1 vertex class #' + str(v) + '\n' + ' '.join(map(str, nsco1_vertex_rep_nsco1_coords)))
         write_line('which in NSS coords is\n' + ' '.join(map(str, nsco1_vertex_rep_nss_coords)))
 
         lc_classes = []
@@ -121,4 +126,8 @@ if __name__ == '__main__':
         write_line('falls apart in the following ' + str(len(lc_classes)) + ' lc-inequivalent classes:')
         for i in range(len(lc_classes)):
             write_line(' '.join(map(str, lc_classes[i])) + ', class size ' + str(lc_class_sizes[i]))
+
+
+if __name__ == '__main__':
+    do_unpacking_in_python()
 
