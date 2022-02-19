@@ -98,6 +98,10 @@ def do_unpacking_in_python():
         output_file = open('unpacked.out', 'a+')
         output_file.write(str + '\n')
         output_file.close()
+    def write_line2(str):
+        all_lc_classes_file = open('unpacked_all_lc_classes.out', 'a+')
+        all_lc_classes_file.write(str + '\n')
+        all_lc_classes_file.close()
 
     v = 0
     for nsco1_vertex_rep_nsco1_coords in nsco1_vertex_classes_nsco1_coords:
@@ -117,6 +121,7 @@ def do_unpacking_in_python():
             if lc_rep not in lc_classes:
                 lc_classes.append(lc_rep)
                 lc_class_sizes.append(class_size)
+                write_line2(' '.join(map(str, lc_rep)))
             # else:
             #     utils.assert_soft(lc_class_sizes[lc_classes.index(lc_rep)] == class_size)
             i += 1
@@ -126,6 +131,8 @@ def do_unpacking_in_python():
         write_line('falls apart in the following ' + str(len(lc_classes)) + ' lc-inequivalent classes:')
         for i in range(len(lc_classes)):
             write_line(' '.join(map(str, lc_classes[i])) + ', class size ' + str(lc_class_sizes[i]))
+
+        write_line2('\n')
 
 
 if __name__ == '__main__':
