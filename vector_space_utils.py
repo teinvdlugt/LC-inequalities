@@ -6,6 +6,7 @@ import numpy.linalg
 
 import LP_without_vertices
 import one_switch_4mmts
+import panda
 import quantum_utils as qm
 import utils
 
@@ -80,7 +81,7 @@ def construct_full_to_NSS_matrix(na, nb, nx, ny):
 
     full_dim = na * nb * nx * ny
     NSS_dim = dim_NSS(na, nb, nx, ny)
-    matrix = np.zeros((NSS_dim, full_dim))
+    matrix = np.zeros((NSS_dim, full_dim), dtype='int8')
 
     # Define ranges of variables in NSS rep
     ra = range(0, na)
@@ -111,7 +112,7 @@ def construct_full_to_NSS_matrix(na, nb, nx, ny):
         matrix[current_row][get_index_in_full_rep(a, b, x, y)] = 1
         current_row += 1
 
-    return matrix  # TODO test this function, and use it instead of special case in other file!
+    return matrix
 
 
 ## NSCO1 stuff (strong version, i.e. dim=80).
@@ -185,7 +186,7 @@ def construct_NSCO1_to_full_weird_matrix():
     NSCO1_IV_index = lambda a1, a2, c, x1, x2: NSCO1_IV_offset + a1 * (2 * 2 - 1) * 2 * 2 + a2 * 2 * 2 * 2 + c * 2 * 2 + x1 * 2 + x2
     NSCO1_V_index = lambda a1, a2, c, x1, x2, y: NSCO1_V_offset + a1 * (2 * 2 - 1) * 1 * 8 + a2 * 2 * 8 + c * 8 + x1 * 4 + x2 * 2 + y
 
-    matrix = np.zeros((128, 80))
+    matrix = np.zeros((128, 80), dtype='int8')
     current_row = 0  # Alternatively, can use concatenate_bits(a1, a2, c, b, x1, x2, y) in each iteration of the below for-loop.
 
     # See [p133]
@@ -244,6 +245,17 @@ def beta():
     return result
 
 
+## LC stuff (using 86-dim NSS parameterisation)
+def construct_NSCO1_to_NSS_matrix():
+    return construct_full_to_NSS_matrix(8, 2, 4, 2) @ construct_NSCO1_to_full_weird_matrix()
+    # 'Weirdness' (i.e. the absence of beta()) doesn't matter, because construct_full_to_NSS_matrix will never touch the values of
+    # p(1111|x1x2y); always either b != 1 or a1a2c != 111 or both.
+
+
+def NSCO1_to_NSS_with_denominator(row, dtype='int8'):
+    return np.r_[construct_NSCO1_to_NSS_matrix() @ np.array(row[:-1], dtype=dtype), [row[-1]]]
+
+
 ## GENERAL UTILS
 def are_vectors_lin_indep(vector_list):
     # Can use the following methods:
@@ -277,7 +289,8 @@ def cart(*args):
 
 
 if __name__ == '__main__':
-    ## To test whether construct_full_to_NSCO1_matrix and construct_NSCO1_to_full_weird_matrix:
+    ## To test whether construct_full_to_NSCO1_matrix and construct_NSCO1_to_full_weird_matrix are correct:
+    """
     FtoN = construct_full_to_NSCO1_matrix()
     NtoF = construct_NSCO1_to_full_weird_matrix()
     # For any length-128 vector f satisying the linear NSCO1 constraints, we should have  f = NtoF @ FtoN @ f + beta();
@@ -294,3 +307,15 @@ if __name__ == '__main__':
     # NOTE  that makes sense, because the expression of those quantities in terms of NSCO1 parameters involves many terms, to much add-up of error.
     cor80 = np.random.rand(80)
     print(np.where(utils.not_almost_equal(cor80, FtoN @ NtoF @ cor80 + FtoN @ beta())))
+    """
+
+    ## To test NSCO1 to NSS parameterisation conversion functions:
+    row = list(map(int,
+                   "2  2  1  1  1  1  1  1  2  1  1  1  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2".split()))
+    vector_NSCO1 = panda.row_with_denom_to_vector(row)
+    vector_NSS = construct_NSCO1_to_NSS_matrix() @ vector_NSCO1
+    assert vector_NSCO1[2] == vector_NSS[28]  # p(0|y) == p(0|y). Cf. [p131, p158]
+    assert vector_NSCO1[2 + 2 + 4 + 24 + 3 * 8 + 2 * 8 + 1] == vector_NSS[30 + 0b110001]  # p(1100|001) == p(1100|001)
+    assert vector_NSS[0b01100] == vector_NSCO1[0] - vector_NSCO1[8] - vector_NSCO1[8 + 4] - vector_NSCO1[8 + 2 * 4]  # p(a1=0 a2=1 c=1|x1=0 x2=0) == p(a1=0|0) - p(000|00) - p(001|00) - p(010|00)
+    print('  '.join(map(str, vector_NSS)))
+    print('    '.join(map(str, NSCO1_to_NSS_with_denominator(row))))

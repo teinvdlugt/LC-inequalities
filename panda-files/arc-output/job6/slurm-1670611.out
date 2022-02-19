@@ -1,3 +1,14 @@
+# Below is ARC output on the following job specification:
+#!/bin/bash
+#SBATCH --partition=devel
+#SBATCH --ntasks-per-node=1
+
+time $DATA/panda-data/panda -c -i safe nsco1_facets.pi --known-vertices=known_vertices_from_job4_reordered
+
+in 10 minutes, it was 'done processing' classes 1-10, 14-20, 23-27, 29-32, 34, 50, 53
+
+---
+
 PANDA -- vertex enumeration with adjacency decomposition
 Reduced Vertices / Rays:
   2  2  1  1  1  1  1  1  2  1  1  1  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2

@@ -2,7 +2,6 @@ import itertools
 import numpy as np
 
 import vector_space_utils as vs
-from vector_space_utils import cart
 
 B = (0, 1)
 
@@ -93,7 +92,7 @@ def nss_vertex_classes_from_BLM05(na, nb):
     # Using this, I checked the PANDA output for the 3,3,2,2 case. Namely
     # panda_vertex = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0]
     # BLM05_vertex = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0]
-    # print(nss_vertices_are_equivalent(3, 3, 2, 2, panda_vertex, BLM05_vertex, 5))
+    # print(nss_vertices_are_equivalent_old(3, 3, 2, 2, panda_vertex, BLM05_vertex, 5))
     # Gives True, so the vertices are equivalent.
 
 
@@ -133,7 +132,7 @@ def nsco1_write_panda_input(readable=False, filename=None):
 
     # Write to file
     if filename is None:
-        filename = 'panda-files/nsco1_facets_perm6feb.pi'
+        filename = 'panda-files/old-and-irrelevant/nsco1_facets_perm6feb.pi'
     file = open(filename, 'w')
     file.write('\n'.join(lines))
     file.close()
@@ -143,19 +142,19 @@ def nsco1_readable_var_names():
     var_names = []
 
     # NSCO1-I
-    for a1, x1 in cart((0,), B):
+    for a1, x1 in vs.cart((0,), B):
         var_names.append('I' + str(a1) + str(x1))
     # NSCO1-II
-    for b, y in cart((0,), B):
+    for b, y in vs.cart((0,), B):
         var_names.append('II' + str(b) + str(y))
     # NSCO1-III
-    for x1, y in cart(B, B):
+    for x1, y in vs.cart(B, B):
         var_names.append('III00' + str(x1) + str(y))
     # NSCO1-IV
-    for a1, (a2, c), x1, x2 in cart(B, cart(B, B)[:-1], B, B):
+    for a1, (a2, c), x1, x2 in vs.cart(B, vs.cart(B, B)[:-1], B, B):
         var_names.append('IV' + str(a1) + str(a2) + str(c) + str(x1) + str(x2))
     # NSCO1-V
-    for a1, (a2, c), b, x1, x2, y in cart(B, cart(B, B)[:-1], (0,), B, B, B):
+    for a1, (a2, c), b, x1, x2, y in vs.cart(B, vs.cart(B, B)[:-1], (0,), B, B, B):
         var_names.append('V' + str(a1) + str(a2) + str(c) + str(b) + str(x1) + str(x2) + str(y))
 
     return var_names
@@ -232,15 +231,9 @@ def nsco1_characterise_deterministic_vertex(vertex):
 def convert_panda_output_vertex_to_input_vertex_format(old_filename, new_filename):
     old_file = open(old_filename, 'r')
     new_lines = []
-    from fractions import Fraction
     for line in old_file.readlines():
         try:
-            output_format_list = list(map(int, line.split()))
-            vector = output_format_list[:-1]
-            denominator = output_format_list[-1]
-            for i in range(len(vector)):
-                vector[i] = str(Fraction(vector[i] / denominator))
-            new_lines.append(' '.join(vector))
+            new_lines.append(row_with_denom_to_vector_str(list(map(int, line.split()))))
         except ValueError:
             # Line was not filled with integers. Probably a comment line. Ignore it.
             pass
@@ -250,5 +243,16 @@ def convert_panda_output_vertex_to_input_vertex_format(old_filename, new_filenam
     new_file.close()
 
 
+def row_with_denom_to_vector_str(row):
+    from fractions import Fraction
+    vector = list(row[:-1])
+    denominator = row[-1]
+    for i in range(len(vector)):
+        vector[i] = str(Fraction(vector[i] / denominator))
+    return ' '.join(vector)
+
+def row_with_denom_to_vector(row):
+    return 1/row[-1] * np.array(row[:-1])
+
 if __name__ == '__main__':
-    nsco1_write_panda_input(False, 'panda-files/nsco1_facets_simple_generators.pi')
+    nsco1_write_panda_input(False, 'panda-files/nsco1_facets.pi')

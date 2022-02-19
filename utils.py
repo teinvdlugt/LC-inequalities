@@ -26,3 +26,9 @@ def eliminate_duplicate_rows(array):
     indices_sorted = np.sort(indices)
     print(indices)
     return np.array([array[i] for i in indices_sorted])
+
+def assert_soft(statement):
+    try:
+        assert statement
+    except AssertionError as e:
+        print(e)

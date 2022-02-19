@@ -6,6 +6,7 @@ import scipy.optimize
 import time
 import one_switch_4mmts
 import quantum_utils as qm
+import vector_space_utils
 import vector_space_utils as vs
 
 ## IN THIS SCRIPT WE ORDER THE VARIABLES AS p(a1 a2 c b | x1 x2 y), i.e. c and b INTERCHANGED!
@@ -243,7 +244,8 @@ def get_full_to_NSS_matrix():
     else:
         print("Constructing full_to_NSS_matrix...")
 
-    full_to_NSS_matrix = np.zeros((86, 128))
+    # Old code:
+    """full_to_NSS_matrix = np.zeros((86, 128))
     current_row = 0  # keep track of current row in matrix that I'm filling
 
     # Range of the variables in the NSS representation. (See NSS representation)
@@ -270,7 +272,9 @@ def get_full_to_NSS_matrix():
         full_to_NSS_matrix[current_row][vs.concatenate_bits(a1, a2, c, b, x1, x2, y)] = 1
         current_row += 1
 
-    return full_to_NSS_matrix
+    return full_to_NSS_matrix"""
+
+    return vector_space_utils.construct_full_to_NSS_matrix(8, 2, 4, 2)
 
 
 NSS_to_full_matrix_but_weird = None
