@@ -122,4 +122,3 @@ if __name__ == '__main__':
         for i in range(len(lc_classes)):
             write_line(' '.join(map(str, lc_classes[i])) + ', class size ' + str(lc_class_sizes[i]))
 
-        output_file.close()
