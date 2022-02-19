@@ -1,7 +1,6 @@
 import itertools
 
 import numpy as np
-import scipy.linalg, sympy
 import numpy.linalg
 
 import LP_without_vertices
@@ -271,12 +270,12 @@ def are_vectors_lin_indep(vector_list):
     answer1 = numpy.linalg.matrix_rank(matrix) == len(vector_list)
 
     # scipy.linalg.lu:
-    answer2 = not np.all(scipy.linalg.lu(matrix, permute_l=True)[-1][-1] == 0)
+    # answer2 = not np.all(scipy.linalg.lu(matrix, permute_l=True)[-1][-1] == 0)
 
     # sympy.Matirx().rref():
-    answer3 = not np.all(sympy.Matrix(matrix).rref()[-1] == 0)
+    # answer3 = not np.all(sympy.Matrix(matrix).rref()[-1] == 0)
 
-    return answer1 and answer2 and answer3
+    return answer1 #and answer2 and answer3
 
 
 def concatenate_bits(*bits):
