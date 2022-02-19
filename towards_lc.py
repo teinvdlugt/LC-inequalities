@@ -87,12 +87,20 @@ if __name__ == '__main__':
     nsco1_file = open('panda-files/nsco1_vertex_classes.out', 'r')
     for line in nsco1_file.readlines():
         nsco1_vertex_classes_nsco1_coords.append(list(map(int, line.split())))
+    nsco1_file.close()
+
+    output_file = open('unpacked.out', 'w')
+
+
+    def write_line(str):
+        output_file.write(str + '\n')
+
 
     for nsco1_vertex_rep_nsco1_coords in nsco1_vertex_classes_nsco1_coords:
         nsco1_vertex_rep_nss_coords = vector_space_utils.NSCO1_to_NSS_with_denominator(nsco1_vertex_rep_nsco1_coords)
 
-        print('The NSCO1 vertex class\n' + ' '.join(map(str, nsco1_vertex_rep_nsco1_coords)))
-        print('which in NSS coords is\n' + ' '.join(map(str, nsco1_vertex_rep_nss_coords)))
+        write_line('The NSCO1 vertex class\n' + ' '.join(map(str, nsco1_vertex_rep_nsco1_coords)))
+        write_line('which in NSS coords is\n' + ' '.join(map(str, nsco1_vertex_rep_nss_coords)))
 
         lc_classes = []
         lc_class_sizes = []  # i-th element is the size of the class represented by lc_classes[i]
@@ -110,6 +118,8 @@ if __name__ == '__main__':
         assert len(lc_classes) == len(lc_class_sizes)
         # sys.stdout.write('\r ')
         # sys.stdout.flush()
-        print('falls apart in the following', len(lc_classes), 'lc-inequivalent classes:')
+        write_line('falls apart in the following ' + str(len(lc_classes)) + ' lc-inequivalent classes:')
         for i in range(len(lc_classes)):
-            print(' '.join(map(str, lc_classes[i])) + ', class size ' + str(lc_class_sizes[i]))
+            write_line(' '.join(map(str, lc_classes[i])) + ', class size ' + str(lc_class_sizes[i]))
+
+        output_file.close()
