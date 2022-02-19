@@ -89,11 +89,11 @@ if __name__ == '__main__':
         nsco1_vertex_classes_nsco1_coords.append(list(map(int, line.split())))
     nsco1_file.close()
 
-    output_file = open('unpacked.out', 'w')
-
 
     def write_line(str):
+        output_file = open('unpacked.out', 'a+')
         output_file.write(str + '\n')
+        output_file.close()
 
 
     for nsco1_vertex_rep_nsco1_coords in nsco1_vertex_classes_nsco1_coords:
