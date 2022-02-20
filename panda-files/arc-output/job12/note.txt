@@ -1,0 +1,1 @@
+This dir contains just a copy of some input/output files of $DATA/jobs/job12; the actual job was not done here.
