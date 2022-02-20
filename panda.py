@@ -256,4 +256,4 @@ def row_with_denom_to_vector(row):
     return 1/row[-1] * np.array(row[:-1])
 
 if __name__ == '__main__':
-    convert_panda_output_vertex_to_input_vertex_format('panda-files/arc-output/job14/nsco1_vertices_NSS_coords_H_symms_denoms', 'panda-files/arc-output/job14/nsco1_vertices_NSS_coords_H_symms')
+    convert_panda_output_vertex_to_input_vertex_format('panda-files/arc-output/job14/nsco1_vertices_NSS_coords_H_symms_denoms', 'panda-files/nsco1_vertices_NSS_coords_H_symms')

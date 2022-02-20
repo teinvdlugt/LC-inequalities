@@ -207,5 +207,5 @@ def write_panda_file_just_for_maps(filename, symms, dim):
 
 
 if __name__ == '__main__':
-    write_panda_file_just_for_maps('panda-files/arc-output/job14/h_symms.pi', symmetry_utils.H_symm_generators(), 86)
-    write_panda_file_just_for_maps('panda-files/arc-output/job15/lc_symms.pi', symmetry_utils.LC_symm_generators(), 86)
+    write_panda_file_just_for_maps('panda-files/h_symms.pi', symmetry_utils.H_symm_generators(), 86)
+    write_panda_file_just_for_maps('panda-files/lc_symms.pi', symmetry_utils.LC_symm_generators(), 86)
