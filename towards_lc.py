@@ -42,8 +42,6 @@ def LC_NSCO1_symms_left_coset_reps():
     # Test whether there are duplicate symmetries
     # assert np.unique(np.array(result), axis=0).shape[0] == len(result)
 
-    assert 2 + 2 == 5
-
     return result
 
 
@@ -56,7 +54,7 @@ def write_unpacking_input_file(map_filename='panda-files/unpacking_maps_1024', v
     map_file.write('DIM=86\nNames:\n')
     map_file.write(' '.join(var_names) + '\nMaps:\n')
 
-    # The first 512 maps will be representatives of the left coset classes in H\H^c
+    # The first 1024 maps will be representatives of the left coset classes in H\H^c
     left_coset_reps = LC_NSCO1_symms_left_coset_reps()
     for symm in left_coset_reps:
         map_file.write(symmetry_utils.symm_matrix_to_string(symm, var_names) + '\n')
@@ -91,7 +89,8 @@ def write_unpacking_input_file(map_filename='panda-files/unpacking_maps_1024', v
         rows_in_nss_coords.append(panda.row_with_denom_to_vector_str(row_in_nss_coords) + '\n')
 
         # To get with denominators instead of Fraction format, use:
-        # file.write('  ' + '  '.join(map(str, row_in_nss_coords)) + '\n')
+        # rows_in_nsco1_coords.append(' '.join(map(str, np.r_[row_in_nsco1_coords, [4, ] * 6])) + '\n')
+        # rows_in_nss_coords.append(' '.join(map(str, row_in_nss_coords)) + '\n')
     nsco1_file.close()
 
     for line in rows_in_nsco1_coords:
@@ -188,5 +187,25 @@ def write_panda_input_for_nsco1_but_NSS_coords_and_H_symms(filename='panda-files
     file.close()
 
 
+def write_panda_file_just_for_maps(filename, symms, dim):
+    var_names = ['x' + str(i) for i in range(0, dim)]
+
+    ## WRITE MAPS
+    map_file = open(filename, 'w')
+    map_file.write('DIM=%i\nNames:\n' % dim)
+    map_file.write(' '.join(var_names) + '\nMaps:\n')
+
+    for symm in symms:
+        map_file.write(symmetry_utils.symm_matrix_to_string(symm, var_names) + '\n')
+
+    # For the data, just some boilerplate that I won't use anyway:
+    map_file.write(
+        "Inequalities:\n1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0")
+    map_file.close()
+
+    print('Done writing file')
+
+
 if __name__ == '__main__':
-    write_panda_input_for_nsco1_but_NSS_coords_and_H_symms()
+    write_panda_file_just_for_maps('panda-files/arc-output/job14/h_symms.pi', symmetry_utils.H_symm_generators(), 86)
+    write_panda_file_just_for_maps('panda-files/arc-output/job15/lc_symms.pi', symmetry_utils.LC_symm_generators(), 86)

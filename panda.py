@@ -235,7 +235,8 @@ def convert_panda_output_vertex_to_input_vertex_format(old_filename, new_filenam
         try:
             new_lines.append(row_with_denom_to_vector_str(list(map(int, line.split()))))
         except ValueError:
-            # Line was not filled with integers. Probably a comment line. Ignore it.
+            # Line was not filled with integers. Probably a comment/header line. Leave intact but remove the newline.
+            new_lines.append(line.strip())
             pass
     old_file.close()
     new_file = open(new_filename, 'w')
@@ -255,4 +256,4 @@ def row_with_denom_to_vector(row):
     return 1/row[-1] * np.array(row[:-1])
 
 if __name__ == '__main__':
-    nsco1_write_panda_input(False, 'panda-files/nsco1_facets.pi')
+    convert_panda_output_vertex_to_input_vertex_format('panda-files/arc-output/job14/nsco1_vertices_NSS_coords_H_symms_denoms', 'panda-files/arc-output/job14/nsco1_vertices_NSS_coords_H_symms')

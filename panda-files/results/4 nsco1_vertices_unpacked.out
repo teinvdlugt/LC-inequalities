@@ -3,6 +3,8 @@
 // to variable permutations in which a2 and x2 are _not_ controlled by x1 or a1.
 // As you can see, the class sizes of the H-classes add up to the class size of the NSCO1-class, as they should.
 // Done using C++ (job12), using the bit of code in method_adjacency_decomposition_implementation.cpp, function panda::implementation::adjacencyDecomposition.
+// The very last vertex class is big and took long; but I've checked the ARC result against a result on my PC, and the class sizes add up.
+// Result file 5 contains just the H-classes (i.e. those lines that are here preceded by a +).
 
 Vertex class #1:
 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 

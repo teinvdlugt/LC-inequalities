@@ -6,7 +6,6 @@ import numpy as np
 
 import panda
 import vector_space_utils as vs
-cart = vs.cart
 
 B = (0, 1)
 
@@ -151,7 +150,7 @@ def nss_var_perm_to_symm(perm, dtype='int8'):
         symm_matrix[row_number][-1] += var_tuple[:4] == (1, 1, 1, 1)
 
     # NSS-I coords of p^σ  NOTE NSS-I,II,III as defined on [p158]
-    for (a1, a2, c), x1, x2 in cart(cart(B,B,B)[:-1], B, B):
+    for (a1, a2, c), x1, x2 in vs.cart(vs.cart(B,B,B)[:-1], B, B):
         # Now what is p(_a1|_x1) in terms of NSCO1-cpts of p? p(_a1|_x1) = sum_{a2,c,b} p(_a1 a2 c b | _x1 0 0) and we know
         # what each p(_a1 a2 c b | _x1 0 0) is in NSCO1-cpts because we have NSCO1_to_full_weird.
         for b, y in vs.cart(B, (0,)):
@@ -163,7 +162,7 @@ def nss_var_perm_to_symm(perm, dtype='int8'):
             add_standard_basis_vector_to_matrix_row(current_row, perm(a1, a2, c, b, x1, x2, y))
         current_row += 1
     # NSS-III
-    for (a1, a2, c), b, x1, x2, y in vs.cart(cart(B, B, B)[:-1], (0,), B, B, B):
+    for (a1, a2, c), b, x1, x2, y in vs.cart(vs.cart(B, B, B)[:-1], (0,), B, B, B):
         add_standard_basis_vector_to_matrix_row(current_row, perm(a1, a2, c, b, x1, x2, y))
         current_row += 1
     assert current_row == len(symm_matrix) - 1
@@ -320,6 +319,18 @@ def H_symm_generators():
         nss_var_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a1, a2, c, (b + y) % 2, x1, x2, y))  # b  -> b  + y
     ])
 
+def LC_symm_generators():
+    return np.array([
+        nss_var_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a1, a2, c, b, (x1 + 1) % 2, x2, y)),  # x1 -> x1 + 1
+        nss_var_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: ((a1 + x1) % 2, a2, c, b, x1, x2, y)),  # a1 -> a1 + x1
+        nss_var_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a1, a2, c, b, x1, (x2 + 1) % 2, y)),  # x2 -> x2 + 1
+        nss_var_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a1, (a2 + x2) % 2, c, b, x1, x2, y)),  # a2 -> a2 + x2
+        nss_var_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a1, a2, (c + x1 * a1 * x2 * a2) % 2, b, x1, x2, y)),  # c -> c + x1*a1*x2*a2
+        nss_var_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a1, a2, c, b, x1, x2, (y + 1) % 2)),  # y  -> y  + 1
+        nss_var_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a1, a2, c, (b + y) % 2, x1, x2, y)),  # b  -> b  + y
+
+        nss_var_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a2, a1, c, b, x2, x1, y)) # a2 <-> a1, x2 <-> x1
+    ])
 
 ## General stuff
 def neighbourly_two_cycle_permutations(array):
