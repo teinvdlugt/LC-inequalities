@@ -1,0 +1,2 @@
+Ignore the output files in this directory. They were created using Python (slow) and using the wrong maps (512 maps instead of 1024).
+This problem was instead solved in C++ in job12.

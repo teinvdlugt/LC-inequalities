@@ -187,3 +187,9 @@ Done processing #49
 Done processing #56
 Fourier-Motzkin Elimination step 118 / 120: 553088
 Fourier-Motzkin Elimination step 119 / 120: 758108
+Fourier-Motzkin Elimination step 120 / 120: 875195
+Done processing #21
+
+real	1568m57.649s
+user	1553m14.483s
+sys	10m56.546s
