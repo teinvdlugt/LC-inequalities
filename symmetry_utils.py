@@ -309,7 +309,7 @@ def symm_matrix_to_string(symm_matrix, var_names):
 
 
 ## LC stuff
-def lc_symm_generators():
+def H_symm_generators():
     return np.array([
         nss_var_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a1, a2, c, b, (x1 + 1) % 2, x2, y)),  # x1 -> x1 + 1
         nss_var_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: ((a1 + x1) % 2, a2, c, b, x1, x2, y)),  # a1 -> a1 + x1
@@ -373,7 +373,7 @@ def get_class(row, symmetry_generators, console_output=True):
                 result.append(new_node)
                 nodes_to_explore.append(new_node)
     if console_output:
-        sys.stdout.write('\rConstructing equivalence class... done')
+        sys.stdout.write('\rConstructing equivalence class... done\n')
     # sys.stdout.flush()
     return result
 
@@ -394,8 +394,9 @@ if __name__ == '__main__':
     # perm = lambda a1, a2, c, b, x1, x2, y: (a1 + 1, a2, c, b, x1, x2, (y + 1) % 2)
     # nsco1_var_perm_to_symm(perm)
 
+
     # To test get_class and get_class_representative:
-    row = list(map(int,
+    """row = list(map(int,
                    "  2  2  1  1  1  1  1  1  2  1  1  1  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2".split()))
     symm_generators = nsco1_symm_generators()
     equiv_class = get_class(row, symm_generators)
@@ -404,4 +405,5 @@ if __name__ == '__main__':
     assert equiv_row in equiv_class
     assert list(symm_generators[5] @ symm_generators[6] @ row) in equiv_class
     assert get_class_representative(equiv_row, symm_generators) == row
-    print('Success!')
+    print('Success!')"""
+    pass
