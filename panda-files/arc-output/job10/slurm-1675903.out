@@ -5,3 +5,185 @@ Processing #1 of at least 1 class
 Fourier-Motzkin Elimination step 117 / 120: 138425
 Fourier-Motzkin Elimination step 118 / 120: 553088
 Fourier-Motzkin Elimination step 119 / 120: 758108
+Fourier-Motzkin Elimination step 120 / 120: 875195
+  2  2  1  1  1  1  1  1  2  1  1  1  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  0  0  0  0  1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  1  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  0  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  1  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  0  1  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  0  1  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  1  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  1  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  1  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  0  1  1  0  0  0  0  0  1  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  1  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  1  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  1  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  0  0  0  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  0  1  1  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  2  1  1  1  0  1  0  0  0  0  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  0  1  0  1  1  1  1  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  2  1  1  1  0  0  0  0  0  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  1  1  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  0  1  0  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  1  0  1  0  1  1  1  1  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  0  0  0  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  0  1  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  0  1  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  1  1  0  0  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  2  1  0  1  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  2  1  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  1  2  1  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  2  1  1  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  2  1  1  0  0  1  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  2  2  1  1  1  1  1  1  2  2  1  1  0  0  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+  1  1  1  1  1  1  1  0  1  1  1  1  0  0  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  1  1  1  1  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2
+Done processing #1
+Processing #2 of at least 56 classes
+Processing #3 of at least 56 classes
+Processing #4 of at least 56 classes
+Processing #5 of at least 56 classes
+Processing #6 of at least 56 classes
+Processing #7 of at least 56 classes
+Processing #8 of at least 56 classes
+Processing #9 of at least 56 classes
+Processing #10 of at least 56 classes
+Processing #11 of at least 56 classes
+Processing #12 of at least 56 classes
+Processing #13 of at least 56 classes
+Processing #14 of at least 56 classes
+Processing #15 of at least 56 classes
+Processing #16 of at least 56 classes
+Processing #17 of at least 56 classes
+Processing #18 of at least 56 classes
+Processing #19 of at least 56 classes
+Processing #20 of at least 56 classes
+Processing #21 of at least 56 classes
+Processing #22 of at least 56 classes
+Processing #23 of at least 56 classes
+Processing #24 of at least 56 classes
+Processing #25 of at least 56 classes
+Processing #26 of at least 56 classes
+Processing #27 of at least 56 classes
+Processing #28 of at least 56 classes
+Processing #29 of at least 56 classes
+Processing #30 of at least 56 classes
+Processing #31 of at least 56 classes
+Processing #32 of at least 56 classes
+Processing #33 of at least 56 classes
+Processing #34 of at least 56 classes
+Processing #35 of at least 56 classes
+Processing #36 of at least 56 classes
+Processing #37 of at least 56 classes
+Processing #38 of at least 56 classes
+Processing #39 of at least 56 classes
+Processing #40 of at least 56 classes
+Processing #41 of at least 56 classes
+Processing #42 of at least 56 classes
+Processing #43 of at least 56 classes
+Processing #44 of at least 56 classes
+Processing #45 of at least 56 classes
+Processing #46 of at least 56 classes
+Processing #47 of at least 56 classes
+Processing #48 of at least 56 classes
+Processing #49 of at least 56 classes
+Fourier-Motzkin Elimination step 112 / 112: 3106
+Fourier-Motzkin Elimination step 112 / 112: 3752
+Fourier-Motzkin Elimination step 112 / 112: 3106
+Fourier-Motzkin Elimination step 112 / 112: 3106
+Fourier-Motzkin Elimination step 112 / 112: 3106
+Fourier-Motzkin Elimination step 112 / 112: 3752
+Fourier-Motzkin Elimination step 112 / 112: 3034
+Fourier-Motzkin Elimination step 112 / 112: 3034
+Fourier-Motzkin Elimination step 112 / 112: 3034
+Fourier-Motzkin Elimination step 112 / 112: 3752
+Fourier-Motzkin Elimination step 112 / 112: 3752
+Done processing #48
+Processing #50 of at least 56 classes
+Done processing #2
+Processing #51 of at least 56 classes
+Done processing #51
+Processing #52 of at least 56 classes
+Done processing #47
+Processing #53 of at least 56 classes
+Done processing #3
+Processing #54 of at least 56 classes
+Done processing #52
+Processing #55 of at least 56 classes
+Done processing #4
+Processing #56 of at least 56 classes
+Done processing #53
+Done processing #46
+Done processing #44
+Done processing #55
+Done processing #42
+Done processing #39
+Done processing #49
+Done processing #43
+Done processing #50
+Done processing #38
+Done processing #6
+Done processing #15
+Done processing #45
+Done processing #10
+Done processing #41
+Done processing #5
+Done processing #9
+Done processing #40
+Done processing #17
+Done processing #18
+Done processing #7
+Done processing #20
+Done processing #19
+Done processing #24
+Done processing #8
+Done processing #16
+Done processing #26
+Done processing #11
+Done processing #14
+Done processing #12
+Done processing #22
+Done processing #27
+Done processing #13
+Done processing #25
+Done processing #28
+Done processing #21
+Done processing #23
+Done processing #54
+Done processing #34
+Done processing #37
+Done processing #35
+Done processing #33
+Done processing #56
+Done processing #36
+Done processing #31
+Done processing #29
+Done processing #30
+Done processing #32
+
+real	1549m35.899s
+user	1544m52.522s
+sys	0m38.418s
