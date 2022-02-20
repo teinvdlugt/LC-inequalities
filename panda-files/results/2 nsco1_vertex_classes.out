@@ -2,7 +2,8 @@
 // They were originally generated in job4, which however terminated before completely finishing; however, I confirmed
 // my expectation that these were all vertices by running job8, which gave the same output (albeit in a different order).
 // Note that job7 tried to do the same but did not use the option '-s reverse', and that it takes much longer to
-// complete (2d21h34m up till now, and not finished yet). I expect job10 to confirm the output of job4 and job8 as well.
+// complete (2d21h34m up till now, and not finished yet).
+// Update: once again confirmed by job10.
 
 // There are 56 vertex classes in total. For the class sizes, see result file 3.
 
