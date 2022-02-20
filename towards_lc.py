@@ -190,7 +190,6 @@ def write_panda_input_for_nsco1_but_NSS_coords_and_H_symms(filename='panda-files
 def write_panda_file_just_for_maps(filename, symms, dim):
     var_names = ['x' + str(i) for i in range(0, dim)]
 
-    ## WRITE MAPS
     map_file = open(filename, 'w')
     map_file.write('DIM=%i\nNames:\n' % dim)
     map_file.write(' '.join(var_names) + '\nMaps:\n')
@@ -206,6 +205,41 @@ def write_panda_file_just_for_maps(filename, symms, dim):
     print('Done writing file')
 
 
+def lc_write_panda_input(filename='panda-files/lc_vertices.pi', shuffle_vertices=False):
+    lines = []  # Store lines here, then write all lines at once at the end of this function.
+
+    # 1) Dimension information
+    dim_NSS = 86
+    lines.append('DIM=%d' % dim_NSS)
+
+    # 2) Names of coordinates
+    lines.append('Names:')
+    var_names = ['x' + str(i) for i in range(0, dim_NSS)]
+    lines.append(' '.join(var_names))
+
+    # 3) Symmetry information
+    lines.append('Maps:')
+    for symm in symmetry_utils.LC_symm_generators():
+        lines.append(symmetry_utils.symm_matrix_to_string(symm, var_names))
+
+    # 5) Now we're doing facet enumeration!
+    lines.append('Reduced Vertices:')
+    vertices = []
+    for line in open('panda-files/lc_vertices', 'r').readlines():
+        vertices.append(panda.row_with_denom_to_vector_str(list(map(int, line.split()))))
+    if shuffle_vertices:
+        import random
+        random.shuffle(vertices)
+    for vertex in vertices:
+        lines.append(vertex)
+
+    # Write to file
+    if filename is None:
+        filename = 'panda-files/old-and-irrelevant/nsco1_facets_perm6feb.pi'
+    file = open(filename, 'w')
+    file.write('\n'.join(lines))
+    file.close()
+
+
 if __name__ == '__main__':
-    write_panda_file_just_for_maps('panda-files/h_symms.pi', symmetry_utils.H_symm_generators(), 86)
-    write_panda_file_just_for_maps('panda-files/lc_symms.pi', symmetry_utils.LC_symm_generators(), 86)
+    lc_write_panda_input('panda-files/lc_vertices_shuffled.pi', True)
