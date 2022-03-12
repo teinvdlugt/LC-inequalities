@@ -32,3 +32,18 @@ def assert_soft(statement):
         assert statement
     except AssertionError as e:
         print(e)
+
+
+def approximate(vector, allowed_values):
+    assert len(vector.shape) == 1  # Could easily generalise to not require this if necessary
+    max_dev, argmax_dev = -1, -1
+    approx_vector = np.zeros_like(vector)
+    for i in range(len(vector)):
+        closest_matching_index = np.argmin([abs(vector[i] - value) for value in allowed_values])
+        approx_vector[i] = allowed_values[closest_matching_index]
+        dev = vector[i] - allowed_values[closest_matching_index]
+        if abs(dev) > max_dev:
+            max_dev = abs(dev)
+            argmax_dev = i
+    print('Largest error in utils.approximate(): %s at index %i' % (str(max_dev), argmax_dev))
+    return approx_vector

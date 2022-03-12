@@ -1,6 +1,9 @@
 import sys
 
 import panda
+import quantum_utils
+import utils
+from quantum_utils import proj, kron, ket_plus, phi_plus, z_onb, x_onb, ket0
 import symmetry_utils
 import itertools
 import numpy as np
@@ -241,5 +244,77 @@ def lc_write_panda_input(filename='panda-files/lc_vertices.pi', shuffle_vertices
     file.close()
 
 
+def inequality_GYNI():
+    """ Bran+15 Eq. (4), but both sides multiplied by 4.
+    The inequality is returned in the form of a length-87 vector, where the last element is the negated value of the upper bound (i.e. how PANDA requires its input). """
+    coeffs = np.zeros(86)
+    upper_bound = 2
+    # Literally code Bran+15 Eq. (4)
+    NSS_to_full_weird = vs.construct_NSS_to_full_matrix_but_weird(8, 2, 4, 2)
+    for a1, a2, x1, x2 in itertools.product((0, 1), repeat=4):
+        if a1 == x2 and a2 == x1:
+            # Need to add p(a1 a2 | x1 x2) in NSS coords to coeffs.
+            for _c, _b, _y in itertools.product((0, 1), (0, 1), (0,)):
+                coeffs += NSS_to_full_weird[vs.concatenate_bits(a1, a2, _c, _b, x1, x2, _y)]
+                upper_bound -= (a1, a2, _c, _b) == (1, 1, 1, 1)  # to correct for weirdness
+    result = np.r_[coeffs, [-upper_bound]].astype('int8')
+
+    # Try manually
+    manually = np.zeros(87, dtype='int8')
+    for i in [0, 4, 17, 21, 10, 14, 27]:
+        manually[i] += 1
+    for i in [3, 7, 11, 15, 19, 23, 27]:
+        manually[i] -= 1
+    manually[-1] = -1
+    assert np.all(result == manually)
+
+    return result
+
+
+def inequality_LGYNI():
+    """ Bran+15 Eq. (5), but both sides multiplied by 4 """
+    coeffs = np.zeros(86)
+    upper_bound = 3
+    # Literally code Bran+15 Eq. (4)
+    NSS_to_full_weird = vs.construct_NSS_to_full_matrix_but_weird(8, 2, 4, 2)
+    for a1, a2, x1, x2 in itertools.product((0, 1), repeat=4):
+        if x1 * (a1 + x2) % 2 == 0 and x2 * (a2 + x1) % 2 == 0:
+            # Need to add p(a1 a2 | x1 x2) in NSS coords to coeffs.
+            for _c, _b, _y in itertools.product((0, 1), (0, 1), (0,)):
+                coeffs += NSS_to_full_weird[vs.concatenate_bits(a1, a2, _c, _b, x1, x2, _y)]
+                upper_bound -= (a1, a2, _c, _b) == (1, 1, 1, 1)  # to correct for weirdness
+    result = np.r_[coeffs, [-upper_bound]].astype('int8')
+
+    return result
+
+
+def inequality_violation(vector, inequality):
+    """ vector: shape (86,), inequality: shape (87,)
+    :returns sth <0 if the vector satisfies the inequality with equality;
+             0 if the vector satisfies the inequality strictly;
+             sth >0 if the vector does not satisfy the inequality. """
+    return np.dot(inequality, np.r_[vector, [1]])
+
+
 if __name__ == '__main__':
-    lc_write_panda_input('panda-files/lc_vertices_shuffled.pi', True)
+    qm_cor_str = quantum_utils.quantum_cor_in_panda_format_nss(
+        rho_ctb = proj(kron(ket0, phi_plus).reshape(2,2,2).swapaxes(1,2).reshape(8)), # rho_ctb=proj(kron(ket_plus, phi_plus)),
+        X1=[z_onb, x_onb],
+        X2=[z_onb, x_onb],
+        Y=[z_onb, x_onb],
+        c_onb=x_onb)
+    print(qm_cor_str)
+    # for _ in range(10):
+    #     var_values = np.random.randint(0, 2, 7)
+    #     print("p(%d,%d,%d,%d|%d,%d,%d) = %s" % (*var_values, qm_cor_str.split()[vector_space_utils.concatenate_bits(*var_values)]))
+
+    # ineq = inequality_GYNI()
+    # vectors = np.array([panda.row_with_denom_to_vector(list(map(int, line.split())))
+    #            for line in open('panda-files/lc_vertices', 'r').readlines()])
+    # violations = []
+    # for vector in vectors:
+    #     violations.append(inequality_violation(vector, ineq))
+    # print(violations)
+    # violations = np.array(violations)
+    # if len(np.argwhere(violations > 0)) != 0:
+    #     print('VIOLATION! Of the following inequalities:', np.argwhere(violations > 0))

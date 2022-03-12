@@ -5,6 +5,9 @@ from math import pi, cos, sin, sqrt
 import numpy as np
 import itertools
 
+import utils
+import vector_space_utils
+
 sqrt2 = sqrt(2)
 
 
@@ -370,8 +373,7 @@ def III(rho_ctb, X1, X2, Y, c_onb):
 def make_pabc_xy(rho_ctb, X1, X2, Y, c_onb):
     proc_op_total = process_operator_1switch_1mmt()
     pabc_xy = np.empty((2,) * 7)
-    for setting_outcome_tuple in itertools.product((0, 1), repeat=7):
-        a_1, a_2, b, c, x_1, x_2, y = setting_outcome_tuple
+    for a_1, a_2, b, c, x_1, x_2, y in itertools.product((0, 1), repeat=7):
         tau_ctb = rho_ctb.T
         tau_a_1 = kron(proj(X1[x_1][a_1]), proj(X1[x_1][a_1])).T
         tau_a_2 = kron(proj(X2[x_2][a_2]), proj(X2[x_2][a_2])).T
@@ -379,8 +381,20 @@ def make_pabc_xy(rho_ctb, X1, X2, Y, c_onb):
         tau_Ctilde = proj(c_onb[c]).T
         tau_Ttilde = np.identity(2)
         taus = kron(tau_ctb, tau_a_1, tau_a_2, tau_Ctilde, tau_Ttilde, tau_Btilde)
-        pabc_xy[setting_outcome_tuple] = np.trace(np.matmul(proc_op_total, taus))
+        pabc_xy[a_1, a_2, b, c, x_1, x_2, y] = np.trace(np.matmul(proc_op_total, taus))
     return pabc_xy
+
+def make_pacb_xy(rho_ctb, X1, X2, Y, c_onb):
+    return make_pabc_xy(rho_ctb, X1, X2, Y, c_onb).swapaxes(2,3)
+
+
+def make_pabc_xy_NSS_coords(rho_ctb, X1, X2, Y, c_onb):
+    full_coords = make_pabc_xy(rho_ctb, X1, X2, Y, c_onb).reshape(2 ** 7)
+    return vector_space_utils.construct_full_to_NSS_matrix(8, 2, 4, 2) @ full_coords
+
+
+def print_pabc_xy_NSS_coords(rho_ctb, X1, X2, Y, c_onb):
+    print(' '.join(map(str, make_pabc_xy_NSS_coords(rho_ctb, X1, X2, Y, c_onb))))
 
 
 def make_p1ab_xy_unnormalised(rho_ctb, X1, X2, Y):
@@ -425,6 +439,14 @@ def reciprocal_or_zero(array):
     return np.reciprocal(array, out=np.zeros_like(array), where=array != 0)
 
 
+def quantum_cor_in_panda_format_nss(rho_ctb, X1, X2, Y, c_onb):
+    cor = make_pacb_xy(rho_ctb, X1, X2, Y, c_onb).reshape((128,))
+    cor_approx = utils.approximate(cor, [n/32. for n in range(32+1)])
+    cor_approx_nss = vector_space_utils.construct_full_to_NSS_matrix(8,2,4,2) @ cor_approx
+    from fractions import Fraction
+    return ' '.join([str(Fraction(value)) for value in cor_approx_nss])
+
+
 if __name__ == '__main__':
     ## Showing that p(c | x_1, x_2, y) can generally depend on y (i.e. 'disproving (iii)'):
     """
@@ -450,7 +472,7 @@ if __name__ == '__main__':
         X2=[z_onb, x_onb],  # TODO change back to z_onb, x_onb when NaN problem resolved
         Y=[z_onb, x_onb],  # Y = [random_real_onb(), random_real_onb()]
         c_onb=x_onb)  # c_onb = x_onb
-    print(dep)""" # NOTE this code takes 10-11 seconds on my laptop, 13-14 seconds on google cloud c2 VM
+    print(dep)"""  # NOTE this code takes 10-11 seconds on my laptop, 13-14 seconds on google cloud c2 VM
 
     # III(rho_ctb=proj(kron(ket_plus, phi_plus)),
     #     X1=[z_onb, x_onb],
