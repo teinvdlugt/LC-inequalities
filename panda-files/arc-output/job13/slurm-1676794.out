@@ -8,3 +8,12 @@ Processing #1 of at least 4 classes
 Processing #2 of at least 4 classes
 Processing #3 of at least 4 classes
 Processing #4 of at least 4 classes
+Fourier-Motzkin Elimination step 117 / 120: 74775
+Fourier-Motzkin Elimination step 117 / 120: 74775
+Fourier-Motzkin Elimination step 117 / 120: 74775
+Fourier-Motzkin Elimination step 118 / 120: 78024
+Fourier-Motzkin Elimination step 118 / 120: 1113757
+Fourier-Motzkin Elimination step 118 / 120: 1113757
+Fourier-Motzkin Elimination step 118 / 120: 1113757
+Fourier-Motzkin Elimination step 119 / 120: 1162492
+slurmstepd: error: *** JOB 1676794 ON arc-c267 CANCELLED AT 2022-02-22T13:56:15 ***

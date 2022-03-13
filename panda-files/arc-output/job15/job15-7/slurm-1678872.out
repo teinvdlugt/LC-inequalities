@@ -1,0 +1,62 @@
+PANDA -- facet enumeration with adjacency decomposition
+Warning: validity of input vertices cannot be verified for reduced input.
+Reduced Inequalities:
+x0 +x4 +x8 +x12 +x16 +x20 +x24 +x28 -x30 -x38 -x46 -x54 -x62 -x70 -x78 <= 1
+** which is   1  0  0  0  1  0  0  0  1  0  0  0  1  0  0  0  1  0  0  0  1  0  0  0  1  0  0  0  1  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1.
+Processing #1 of at least 1 class
+Class #1 is   1  0  0  0  1  0  0  0  1  0  0  0  1  0  0  0  1  0  0  0  1  0  0  0  1  0  0  0  1  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1
+Fourier-Motzkin Elimination step 132 / 8020096: 3800
+Fourier-Motzkin Elimination step 138 / 8020096: 3114
+Fourier-Motzkin Elimination step 140 / 8020096: 4127
+Fourier-Motzkin Elimination step 141 / 8020096: 3820
+Fourier-Motzkin Elimination step 148 / 8020096: 4329
+Fourier-Motzkin Elimination step 149 / 8020096: 4032
+Fourier-Motzkin Elimination step 150 / 8020096: 3894
+Fourier-Motzkin Elimination step 154 / 8020096: 3591
+Fourier-Motzkin Elimination step 156 / 8020096: 4598
+Fourier-Motzkin Elimination step 157 / 8020096: 4200
+Fourier-Motzkin Elimination step 162 / 8020096: 4553
+Fourier-Motzkin Elimination step 163 / 8020096: 4421
+Fourier-Motzkin Elimination step 164 / 8020096: 7907
+Fourier-Motzkin Elimination step 165 / 8020096: 6485
+Fourier-Motzkin Elimination step 166 / 8020096: 6829
+Fourier-Motzkin Elimination step 167 / 8020096: 5667
+Fourier-Motzkin Elimination step 168 / 8020096: 4807
+Fourier-Motzkin Elimination step 169 / 8020096: 3845
+Fourier-Motzkin Elimination step 170 / 8020096: 6241
+Fourier-Motzkin Elimination step 171 / 8020096: 5817
+Fourier-Motzkin Elimination step 172 / 8020096: 9929
+Fourier-Motzkin Elimination step 173 / 8020096: 7466
+Fourier-Motzkin Elimination step 174 / 8020096: 6821
+Fourier-Motzkin Elimination step 175 / 8020096: 5380
+Fourier-Motzkin Elimination step 176 / 8020096: 4584
+Fourier-Motzkin Elimination step 178 / 8020096: 5732
+Fourier-Motzkin Elimination step 179 / 8020096: 5468
+Fourier-Motzkin Elimination step 180 / 8020096: 9432
+Fourier-Motzkin Elimination step 181 / 8020096: 7842
+Fourier-Motzkin Elimination step 182 / 8020096: 7810
+Fourier-Motzkin Elimination step 183 / 8020096: 6144
+Fourier-Motzkin Elimination step 184 / 8020096: 4980
+Fourier-Motzkin Elimination step 185 / 8020096: 3765
+Fourier-Motzkin Elimination step 186 / 8020096: 6139
+Fourier-Motzkin Elimination step 187 / 8020096: 5735
+Fourier-Motzkin Elimination step 188 / 8020096: 9433
+Fourier-Motzkin Elimination step 189 / 8020096: 7169
+Fourier-Motzkin Elimination step 190 / 8020096: 6535
+Fourier-Motzkin Elimination step 191 / 8020096: 5025
+Fourier-Motzkin Elimination step 192 / 8020096: 4123
+Fourier-Motzkin Elimination step 194 / 8020096: 3215
+Fourier-Motzkin Elimination step 195 / 8020096: 13161
+Fourier-Motzkin Elimination step 196 / 8020096: 16313
+Fourier-Motzkin Elimination step 197 / 8020096: 18075
+Fourier-Motzkin Elimination step 198 / 8020096: 15795
+Fourier-Motzkin Elimination step 199 / 8020096: 16050
+Fourier-Motzkin Elimination step 200 / 8020096: 14554
+Fourier-Motzkin Elimination step 201 / 8020096: 23471
+Fourier-Motzkin Elimination step 202 / 8020096: 28773
+/var/spool/slurmd/job1678872/slurm_script: line 9: 3532543 Killed                  $DATA/cpanda -c -i safe -s lex_desc ../lc_vertices.pi
+
+real	43m31.607s
+user	39m31.173s
+sys	3m46.556s
+slurmstepd: error: Detected 1 oom-kill event(s) in StepId=1678872.batch cgroup. Some of your processes may have been killed by the cgroup out-of-memory handler.
