@@ -12,12 +12,21 @@ def in_hull(vertices, point, tol=1e-8):
     Alternatively with MATLAB: https://uk.mathworks.com/matlabcentral/fileexchange/10226-inhull
     or https://github.com/coin-or/CyLP"""
     n = len(vertices)  # number of vertices.
-    c = np.zeros(n)
-    A = np.r_[vertices.T, np.ones(
-        (1, n))]  # Transpose 'vertices', because in numpy they are provided as a column vector of row vectors
+    A = np.r_[vertices.T, np.ones((1, n))]  # Transpose 'vertices', because in numpy they are provided as a column vector of row vectors
     b = np.r_[point, np.ones(1)]
-    lp = linprog(c, A_eq=A, b_eq=b, options={'tol': tol})
+    lp = linprog(np.zeros(n), A_eq=A, b_eq=b, options={'tol': tol})  # by default, bounds=(0,None), which enforces the constraint that the convex coefficients are non-negative.
     return lp.success  # solution of optimisation problem is not relevant - only if a solution was found
+
+
+def in_affine_hull(points, point, tol=1e-8):
+    """ Decide if point is in the convex hull of points.
+    tol: tolerance value. Is passed on to scipy. Default value for scipy is 1e-8.
+    Scipy linprog docs: https://docs.scipy.org/doc/scipy/reference/optimize.linprog-interior-point.html"""
+    n = len(points)  # number of vertices.
+    A = np.r_[points.T, np.ones((1, n))]  # Transpose 'vertices', because in numpy they are provided as a column vector of row vectors
+    b = np.r_[point, np.ones(1)]
+    lp = linprog(np.zeros(n), A_eq=A, b_eq=b, options={'tol': tol}, bounds=(None, None))  # the only difference with convex hull: here we have no bounds on the coefficients
+    return lp.success  # solution of optimisation problem is not relevant - only whether a solution was found
 
 
 """

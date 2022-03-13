@@ -1,4 +1,6 @@
 import itertools
+import sys
+import time
 
 import numpy as np
 import numpy.linalg
@@ -271,12 +273,89 @@ def are_vectors_lin_indep(vector_list):
     # sympy.Matirx().rref():
     # answer3 = not np.all(sympy.Matrix(matrix).rref()[-1] == 0)
 
-    return answer1 #and answer2 and answer3
+    return answer1  # and answer2 and answer3
 
 
 def concatenate_bits(*bits):
     # Example: concatenate_bits(1,0,1) returns 5
     return sum([bits[i] << (len(bits) - i - 1) for i in range(0, len(bits))])
+
+
+def reduce_to_lin_indep_subset(matrix: numpy.ndarray, limit=None, print_progress=True):
+    """ Loops through rows of matrix from front to back and removes those rows that are in the linear span of the preceding ones.
+     Function leaves the passed argument unchanged, but returnes the reduced matrix.
+     It stops once it has found `limit` independent rows, if limit is not None. """
+    i = 2
+    while i < len(matrix) + 1:
+        if numpy.linalg.matrix_rank(matrix[0:i]) < i:
+            # The first i rows of matrix are linearly dependent. So remove row i-1.
+            matrix = numpy.delete(matrix, i - 1, 0)
+        else:
+            # The first i rows of matrix are linearly independent.
+            if i == limit:
+                if print_progress:
+                    print("Found %d linearly independent rows, limit reached; %d rows left unchecked" % (i, len(matrix) - i))
+                return matrix[0:i]
+            i += 1
+
+        if print_progress:
+            print("Found %d linearly independent rows, %d rows left to check" % (i - 1, len(matrix) - i + 1), end='\r')
+            sys.stdout.flush()
+
+    print()  # to get rid of the last \r
+    return matrix
+
+
+def reduce_file_to_lin_indep_subset(filename, lcm_of_denominators, limit=None, constraint=None, print_progress=True, output_filename=None):
+    """ Reads vertices from a file (specified by filename), waiting for user confirmation every time it encounters an empty line.
+        Outputs a subset of linearly independent rows, stopping when limit is reached (if not None).
+        `constraint` is a function which takes a 'row-with-denominator' list as input and returns a boolean. If False, this
+        particular row in the input file is ignored.
+    """
+    file = open(filename, 'r')
+    batch_count = 0  # Every chunk of lines in the file separated by witregels is called a batch here
+    matrix = np.zeros((0, 86), dtype='int8')
+
+    line = file.readline()
+    while line:
+        # Scan for next batch, i.e. skip empty lines
+        while line and (not line.strip()):
+            line = file.readline()
+
+        # Read next batch
+        current_batch = []
+        batch_size_unconstrained = 0
+        while line.strip():  # while line is not just whitespace
+            row = np.array(list(map(int, line.split())), dtype='int8')
+            batch_size_unconstrained += 1
+            if (constraint is None) or constraint(row):
+                assert int(lcm_of_denominators / row[-1]) == lcm_of_denominators / row[-1]  # Check whether lcm_of_denominators param is correct
+                scaled_row = int(lcm_of_denominators / row[-1]) * row[:-1]
+                current_batch.append(scaled_row)
+            line = file.readline()
+
+        # Batch is loaded; now process it
+        batch_count += 1
+        print("Processing batch #%d of size %d (%d)" % (batch_count, len(current_batch), batch_size_unconstrained))
+        if len(current_batch) == 0:
+            print("Batch is empty")
+            continue
+
+        matrix = reduce_to_lin_indep_subset(np.r_[matrix, np.array(current_batch, dtype='int8')], limit, print_progress)
+
+        # Print progress update and save progress
+        print("Processed batch #%d; %d linearly independent rows across all processed batches" % (batch_count, len(matrix)))
+        if output_filename:
+            output_file = open(output_filename, 'w')
+            for vec in matrix:
+                output_file.write(panda.row_with_denom_to_vector_str(np.r_[vec, [lcm_of_denominators]]) + "\n")
+            output_file.close()
+        if len(matrix) >= limit:
+            print("Limit reached!")
+            return
+        if not line:
+            print("End of input file reached")
+            return
 
 
 def cart(*args):
@@ -305,6 +384,7 @@ if __name__ == '__main__':
     """
 
     ## To test NSCO1 to NSS parameterisation conversion functions:
+    """
     row = list(map(int,
                    "2  2  1  1  1  1  1  1  2  1  1  1  0  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2".split()))
     vector_NSCO1 = panda.row_with_denom_to_vector(row)
@@ -314,3 +394,15 @@ if __name__ == '__main__':
     assert vector_NSS[0b01100] == vector_NSCO1[0] - vector_NSCO1[8] - vector_NSCO1[8 + 4] - vector_NSCO1[8 + 2 * 4]  # p(a1=0 a2=1 c=1|x1=0 x2=0) == p(a1=0|0) - p(000|00) - p(001|00) - p(010|00)
     print('  '.join(map(str, vector_NSS)))
     print('    '.join(map(str, NSCO1_to_NSS_with_denominator(row))))
+    """
+
+    ## To test reduce_to_lin_indep_subset():
+    """
+    matrix = np.array([[1, 1, 0, 1],
+                       [2, 2, 0, 2],
+                       [1, 2, 0, 1],
+                       [2, 3, 0, 2],
+                       [0, 1, 1, 0],
+                       [1, 0, 0, 1]])
+    print(reduce_to_lin_indep_subset(matrix))
+    """

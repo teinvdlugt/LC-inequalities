@@ -1,6 +1,9 @@
 import sys
 
+from scipy.optimize import linprog
+
 import panda
+import polytope_utils
 import quantum_utils
 import utils
 from quantum_utils import proj, kron, ket_plus, phi_plus, z_onb, x_onb, ket0
@@ -296,14 +299,67 @@ def inequality_violation(vector, inequality):
     return np.dot(inequality, np.r_[vector, [1]])
 
 
+def find_affinely_independent_point(points, file_to_search, constraint=None):
+    """
+    :param points: an array of d-dimensional vectors.
+    :param file_to_search: File where each non-empty line is a vector-with-denominator, i.e. d+1 integers.
+    :param constraint: a function taking length-d+1 int arrays to booleans. Any line in file_to_search that does
+                       not satisfy this constraint will be ignored (if constraint is not None).
+    :return: if it exists, a d-dimensional vector that was in `file_to_search`, that satisfies constraints and that is
+             not in the affine hull of `points`.
+    """
+    d = len(points[0])
+    file = open(file_to_search, 'r')
+
+    empty_line_count = 0
+    point_count = 0
+
+    # For the LP program:
+    n = len(points)
+    A = np.r_[points.T, np.ones((1, n))]
+
+    line = file.readline()
+    while line:
+        if not line.strip():
+            empty_line_count += 1
+            print("Empty lines encountered: %d, points processed: %d" % (empty_line_count, point_count), end='\r')
+            sys.stdout.flush()
+            line = file.readline()
+            continue
+
+        row = list(map(int, line.split()))
+        point_count += 1
+
+        if constraint is None or constraint(row):
+            point = 1. / row[-1] * np.array(row[:-1])
+            assert len(point) == d
+
+            print("Empty lines encountered: %d, points processed: %d" % (empty_line_count, point_count), end='\r')
+            sys.stdout.flush()
+
+            b = np.r_[point, np.ones(1)]
+            in_affine_hull = linprog(np.zeros(n), A_eq=A, b_eq=b, options={'tol': 1e-8}, bounds=(None, None)).success  # NOTE using the default tolerance value here. Might want to decrease
+
+            # if not polytope_utils.in_affine_hull(points, point):
+            if not in_affine_hull:
+                print()
+                print("Affinely independent point found on line %d of file (counting from 1)" % (empty_line_count + point_count))
+                return point
+
+        line = file.readline()
+
+    print()
+    print("Reached end of file. No affinely independent point found!")
+
+
 if __name__ == '__main__':
-    qm_cor_str = quantum_utils.quantum_cor_in_panda_format_nss(
-        rho_ctb = proj(kron(ket0, phi_plus).reshape(2,2,2).swapaxes(1,2).reshape(8)), # rho_ctb=proj(kron(ket_plus, phi_plus)),
-        X1=[z_onb, x_onb],
-        X2=[z_onb, x_onb],
-        Y=[z_onb, x_onb],
-        c_onb=x_onb)
-    print(qm_cor_str)
+    # qm_cor_str = quantum_utils.quantum_cor_in_panda_format_nss(
+    #     rho_ctb = proj(kron(ket0, phi_plus).reshape(2,2,2).swapaxes(1,2).reshape(8)), # rho_ctb=proj(kron(ket_plus, phi_plus)),
+    #     X1=[z_onb, x_onb],
+    #     X2=[z_onb, x_onb],
+    #     Y=[z_onb, x_onb],
+    #     c_onb=x_onb)
+    # print(qm_cor_str)
     # for _ in range(10):
     #     var_values = np.random.randint(0, 2, 7)
     #     print("p(%d,%d,%d,%d|%d,%d,%d) = %s" % (*var_values, qm_cor_str.split()[vector_space_utils.concatenate_bits(*var_values)]))
@@ -318,3 +374,20 @@ if __name__ == '__main__':
     # violations = np.array(violations)
     # if len(np.argwhere(violations > 0)) != 0:
     #     print('VIOLATION! Of the following inequalities:', np.argwhere(violations > 0))
+    # # --> 33 vertex class reps that satisfy GYNI with equality
+
+    # For result files 10 & 11: (for 11, change GYNI to LGYNI)
+    """
+    gyni = inequality_GYNI()
+    vector_space_utils.reduce_file_to_lin_indep_subset("panda-files/results/8 all LC vertices", 2, 86,
+                                                       constraint=lambda row: np.dot(gyni, row) == 0,
+                                                       output_filename='panda-files/results/11 lin indep on GYNI, not LGYNI')
+    """
+
+    gyni = inequality_GYNI()
+    result = find_affinely_independent_point(
+        points=np.array([list(map(int, line.split())) for line in open('panda-files/results/10 lin indep on GYNI').readlines()[5:]]),
+        file_to_search='panda-files/results/8 all LC vertices',
+        constraint=lambda row: np.dot(gyni, row) == 0
+    )
+    print(result)
