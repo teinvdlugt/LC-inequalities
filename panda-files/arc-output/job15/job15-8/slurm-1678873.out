@@ -1,0 +1,72 @@
+PANDA -- facet enumeration with adjacency decomposition
+Warning: validity of input vertices cannot be verified for reduced input.
+Reduced Inequalities:
+x0 +x4 +x8 +x12 +x16 +x20 +x24 +x28 -x30 -x38 -x46 -x54 -x62 -x70 -x78 <= 1
+** which is   1  0  0  0  1  0  0  0  1  0  0  0  1  0  0  0  1  0  0  0  1  0  0  0  1  0  0  0  1  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1.
+Processing #1 of at least 1 class
+Class #1 is   1  0  0  0  1  0  0  0  1  0  0  0  1  0  0  0  1  0  0  0  1  0  0  0  1  0  0  0  1  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1  0  0  0  0  0  0  0 -1
+Fourier-Motzkin Elimination step 681 / 8020096: 2622
+Fourier-Motzkin Elimination step 705 / 8020096: 3027
+Fourier-Motzkin Elimination step 707 / 8020096: 2942
+Fourier-Motzkin Elimination step 709 / 8020096: 2419
+Fourier-Motzkin Elimination step 715 / 8020096: 2671
+Fourier-Motzkin Elimination step 786 / 8020096: 2669
+Fourier-Motzkin Elimination step 788 / 8020096: 2571
+Fourier-Motzkin Elimination step 900 / 8020096: 2523
+Fourier-Motzkin Elimination step 901 / 8020096: 2798
+Fourier-Motzkin Elimination step 903 / 8020096: 2569
+Fourier-Motzkin Elimination step 950 / 8020096: 2615
+Fourier-Motzkin Elimination step 1021 / 8020096: 2525
+Fourier-Motzkin Elimination step 1022 / 8020096: 3107
+Fourier-Motzkin Elimination step 1023 / 8020096: 3626
+Fourier-Motzkin Elimination step 1032 / 8020096: 3178
+Fourier-Motzkin Elimination step 1033 / 8020096: 3589
+Fourier-Motzkin Elimination step 1035 / 8020096: 3326
+Fourier-Motzkin Elimination step 1040 / 8020096: 2873
+Fourier-Motzkin Elimination step 1041 / 8020096: 3285
+Fourier-Motzkin Elimination step 1042 / 8020096: 3642
+Fourier-Motzkin Elimination step 1047 / 8020096: 2653
+Fourier-Motzkin Elimination step 1051 / 8020096: 2654
+Fourier-Motzkin Elimination step 1066 / 8020096: 3071
+Fourier-Motzkin Elimination step 1068 / 8020096: 2780
+Fourier-Motzkin Elimination step 1105 / 8020096: 2575
+Fourier-Motzkin Elimination step 1110 / 8020096: 2657
+Fourier-Motzkin Elimination step 1114 / 8020096: 2708
+Fourier-Motzkin Elimination step 1115 / 8020096: 3260
+Fourier-Motzkin Elimination step 1116 / 8020096: 4541
+Fourier-Motzkin Elimination step 1117 / 8020096: 4369
+Fourier-Motzkin Elimination step 1118 / 8020096: 4396
+Fourier-Motzkin Elimination step 1120 / 8020096: 3255
+Fourier-Motzkin Elimination step 1121 / 8020096: 3267
+Fourier-Motzkin Elimination step 1123 / 8020096: 3313
+Fourier-Motzkin Elimination step 1125 / 8020096: 3209
+Fourier-Motzkin Elimination step 1128 / 8020096: 4441
+Fourier-Motzkin Elimination step 1129 / 8020096: 5012
+Fourier-Motzkin Elimination step 1130 / 8020096: 6258
+Fourier-Motzkin Elimination step 1131 / 8020096: 5864
+Fourier-Motzkin Elimination step 1132 / 8020096: 5556
+Fourier-Motzkin Elimination step 1133 / 8020096: 4354
+Fourier-Motzkin Elimination step 1134 / 8020096: 3835
+Fourier-Motzkin Elimination step 1135 / 8020096: 3850
+Fourier-Motzkin Elimination step 1223 / 8020096: 2622
+Fourier-Motzkin Elimination step 1224 / 8020096: 3169
+Fourier-Motzkin Elimination step 1225 / 8020096: 3549
+Fourier-Motzkin Elimination step 1648 / 8020096: 3558
+Fourier-Motzkin Elimination step 1650 / 8020096: 4029
+Fourier-Motzkin Elimination step 1652 / 8020096: 4248
+Fourier-Motzkin Elimination step 1653 / 8020096: 5101
+Fourier-Motzkin Elimination step 1654 / 8020096: 4981
+Fourier-Motzkin Elimination step 1655 / 8020096: 12725
+Fourier-Motzkin Elimination step 1656 / 8020096: 12221
+Fourier-Motzkin Elimination step 1657 / 8020096: 13883
+Fourier-Motzkin Elimination step 1658 / 8020096: 13973
+Fourier-Motzkin Elimination step 1659 / 8020096: 14030
+Fourier-Motzkin Elimination step 1660 / 8020096: 12783
+Fourier-Motzkin Elimination step 1661 / 8020096: 16181
+Fourier-Motzkin Elimination step 1662 / 8020096: 17933
+/var/spool/slurmd/job1678873/slurm_script: line 9: 3532548 Killed                  $DATA/cpanda -c -i safe -s nz_asc ../lc_vertices.pi
+
+real	26m59.639s
+user	23m21.106s
+sys	3m30.468s
+slurmstepd: error: Detected 1 oom-kill event(s) in StepId=1678873.batch cgroup. Some of your processes may have been killed by the cgroup out-of-memory handler.

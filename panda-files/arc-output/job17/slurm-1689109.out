@@ -1,0 +1,7 @@
+PANDA -- facet enumeration with adjacency decomposition
+Warning: validity of input vertices cannot be verified for reduced input.
+Exception caught: The inequality   0  1  1 -1  0  1  1 -1  0  0  1 -1  0  0  1 -1  0  1  0 -1  0  1  0 -1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0 -1 is not a facet, but only a lower-dimensional face.
+
+real	2018m36.249s
+user	2012m23.740s
+sys	0m24.773s
