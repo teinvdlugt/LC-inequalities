@@ -299,12 +299,13 @@ def inequality_violation(vector, inequality):
     return np.dot(inequality, np.r_[vector, [1]])
 
 
-def find_affinely_independent_point(points, file_to_search, constraint=None):
+def find_affinely_independent_point(points, file_to_search, constraint=None, update_interval=5000):
     """
     :param points: an array of d-dimensional vectors.
     :param file_to_search: File where each non-empty line is a vector-with-denominator, i.e. d+1 integers.
     :param constraint: a function taking length-d+1 int arrays to booleans. Any line in file_to_search that does
                        not satisfy this constraint will be ignored (if constraint is not None).
+    :param update_interval: Print a progress message every update_interval points. None if don't want to print update messages.
     :return: if it exists, a d-dimensional vector that was in `file_to_search`, that satisfies constraints and that is
              not in the affine hull of `points`.
     """
@@ -322,7 +323,8 @@ def find_affinely_independent_point(points, file_to_search, constraint=None):
     while line:
         if not line.strip():
             empty_line_count += 1
-            print("Empty lines encountered: %d, points processed: %d" % (empty_line_count, point_count), end='\r')
+            if update_interval is not None:
+                print("Empty lines encountered: %d, points processed: %d" % (empty_line_count, point_count), end='\r')
             sys.stdout.flush()
             line = file.readline()
             continue
@@ -334,7 +336,8 @@ def find_affinely_independent_point(points, file_to_search, constraint=None):
             point = 1. / row[-1] * np.array(row[:-1])
             assert len(point) == d
 
-            print("Empty lines encountered: %d, points processed: %d" % (empty_line_count, point_count), end='\r')
+            if update_interval is not None and point_count % update_interval == 0:
+                print("Empty lines encountered: %d, points processed: %d" % (empty_line_count, point_count), end='\r')
             sys.stdout.flush()
 
             b = np.r_[point, np.ones(1)]
