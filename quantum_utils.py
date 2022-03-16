@@ -1,5 +1,6 @@
 import cmath
 import functools
+import math
 import random
 from math import pi, cos, sin, sqrt
 import numpy as np
@@ -124,8 +125,11 @@ ket_plus = 1 / sqrt2 * np.array([1, 1])
 ket_minus = 1 / sqrt2 * np.array([1, -1])
 phi_plus = 1 / sqrt2 * np.array([1, 0, 0, 1])
 phi_plus_un = np.array([1, 0, 0, 1])  # unnormalised
-ket_werner = 1 / sqrt2 * np.array([1, 0, 0, 0, 0, 0, 0, 1])
+ket_ghz = 1 / sqrt2 * np.array([1, 0, 0, 0, 0, 0, 0, 1])
+ctb_ghz = 1 / 2 * proj(np.array([1, 0, 0, 0, 0, 0, 0, 1]))
 
+def random_real_3_qubit_pure_density_matrix():
+    return proj(normalise_vec(np.random.rand(8)))
 
 # Some common ONBs
 def onb_from_direction(theta, phi=0.):
@@ -384,11 +388,13 @@ def make_pabc_xy(rho_ctb, X1, X2, Y, c_onb):
         pabc_xy[a_1, a_2, b, c, x_1, x_2, y] = np.trace(np.matmul(proc_op_total, taus))
     return pabc_xy
 
+
 def make_pacb_xy(rho_ctb, X1, X2, Y, c_onb):
-    return make_pabc_xy(rho_ctb, X1, X2, Y, c_onb).swapaxes(2,3)
+    return make_pabc_xy(rho_ctb, X1, X2, Y, c_onb).swapaxes(2, 3)
 
 
 def make_pabc_xy_NSS_coords(rho_ctb, X1, X2, Y, c_onb):
+    print("THIS FUNCTION IS PROBABLY WRONG")  # because abc instead of acb
     full_coords = make_pabc_xy(rho_ctb, X1, X2, Y, c_onb).reshape(2 ** 7)
     return vector_space_utils.construct_full_to_NSS_matrix(8, 2, 4, 2) @ full_coords
 
@@ -441,10 +447,61 @@ def reciprocal_or_zero(array):
 
 def quantum_cor_in_panda_format_nss(rho_ctb, X1, X2, Y, c_onb):
     cor = make_pacb_xy(rho_ctb, X1, X2, Y, c_onb).reshape((128,))
-    cor_approx = utils.approximate(cor, [n/32. for n in range(32+1)])
-    cor_approx_nss = vector_space_utils.construct_full_to_NSS_matrix(8,2,4,2) @ cor_approx
+    cor_approx = utils.approximate(cor, [n / 32. for n in range(32 + 1)])
+    cor_approx_nss = vector_space_utils.construct_full_to_NSS_matrix(8, 2, 4, 2) @ cor_approx
     from fractions import Fraction
     return ' '.join([str(Fraction(value)) for value in cor_approx_nss])
+
+
+def quantum_cor_nss_definitive(rho_ctb, X1, X2, Y, c_onb, common_multiple_of_denominators):
+    cor = make_pacb_xy(rho_ctb, X1, X2, Y, c_onb).reshape((128,))
+    cor_nss = vector_space_utils.construct_full_to_NSS_matrix(8, 2, 4, 2) @ cor
+    cor_nss_rescaled = common_multiple_of_denominators * cor_nss
+    cor_nss_rescaled_approx = utils.approximate(cor_nss_rescaled, [n for n in range(common_multiple_of_denominators + 1)])
+    cor_nss_approx_homog = np.r_[cor_nss_rescaled_approx, [common_multiple_of_denominators]]
+    cor_nss_approx_homog_int = cor_nss_approx_homog.astype('int64')
+    assert np.all(cor_nss_approx_homog == cor_nss_approx_homog_int)
+    gcd = functools.reduce(math.gcd, cor_nss_approx_homog_int)
+    cor_nss_approx_homog_normalised = (1 / gcd) * cor_nss_approx_homog
+    cor_nss_approx_homog_normalised_int = cor_nss_approx_homog_normalised.astype('int64')
+    if not np.all(cor_nss_approx_homog_normalised == cor_nss_approx_homog_normalised_int):
+        print("Warning: your value of common_multiple_of_denominators was not correct")
+    return cor_nss_approx_homog_normalised_int
+
+
+def generate_some_quantum_cors():
+    qm_cor1 = quantum_cor_nss_definitive(
+        rho_ctb=proj(kron(ket_plus, phi_plus)),  # CTB = |+> |phi+>
+        X1=[z_onb, x_onb],
+        X2=[z_onb, x_onb],
+        Y=[z_onb, x_onb],
+        c_onb=x_onb,
+        common_multiple_of_denominators=32)
+    qm_cor2 = quantum_cor_nss_definitive(
+        rho_ctb=proj(kron(ket0, phi_plus).reshape(2, 2, 2).swapaxes(1, 2).reshape(8)),  # TCB = |0> |phi+>
+        X1=[z_onb, x_onb],
+        X2=[z_onb, x_onb],
+        Y=[z_onb, x_onb],
+        c_onb=x_onb,
+        common_multiple_of_denominators=32)
+    qm_cor3 = quantum_cor_nss_definitive(
+        rho_ctb=ctb_ghz,  # CTB = |GHZ>
+        X1=[z_onb, x_onb],
+        X2=[z_onb, x_onb],
+        Y=[z_onb, x_onb],
+        c_onb=x_onb,
+        common_multiple_of_denominators=32)
+    def random_quantum_setup():
+        return random_real_3_qubit_pure_density_matrix(), \
+               [random_real_onb(), random_real_onb()], \
+               [random_real_onb(), random_real_onb()], \
+               [random_real_onb(), random_real_onb()], \
+               random_real_onb()
+    qm_cor4 = quantum_cor_nss_definitive(*random_quantum_setup(), common_multiple_of_denominators=1000)
+    qm_cor5 = quantum_cor_nss_definitive(*random_quantum_setup(), common_multiple_of_denominators=1000)
+    qm_cor6 = quantum_cor_nss_definitive(*random_quantum_setup(), common_multiple_of_denominators=1000)
+
+    return qm_cor1, qm_cor2, qm_cor3, qm_cor4, qm_cor5, qm_cor6
 
 
 if __name__ == '__main__':
@@ -492,8 +549,8 @@ if __name__ == '__main__':
     # TODO left to check this for non-random X1,X2,Y. First solve div by 0 problem
     # Now entangle t and b:
     # rho_ctb = ket+,phi_+          : gives 0.224 and 0.0555 and 0.112 and 0.0997. NOTE Unexpected! But actually makes sense? Maybe?
-    # Now try Werner state (should logically also work, following from fact that CB entangled already works, let alone TB entangled).
-    # rho_ctb = werner              : gives 0.0347 and 0.283 ✓
+    # Now try GHZ state (should logically also work, following from fact that CB entangled already works, let alone TB entangled).
+    # rho_ctb = GHZ              : gives 0.0347 and 0.283 ✓
 
     # NOTE See [p93] for the results with non-random X1,X2,Y.
 

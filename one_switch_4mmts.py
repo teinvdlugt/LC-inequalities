@@ -197,7 +197,7 @@ ctb_cb_entangled_t_0 = proj(reshuffle_kron_vector(kron(phi_plus, ket0), (0, 2, 1
 ctb_cb_entangled_t_diag = proj(reshuffle_kron_vector(kron(phi_plus, ket_diag), (0, 2, 1)))
 ctb_tb_entangled_c_plus = proj(kron(phi_plus, ket_plus))
 ctb_tb_entangled_c_diag = proj(kron(phi_plus, ket_diag))
-ctb_werner = 1 / 2 * proj(np.array([1, 0, 0, 0, 0, 0, 0, 1]))
+ctb_ghz = 1 / 2 * proj(np.array([1, 0, 0, 0, 0, 0, 0, 1]))
 # Can also use y vectors, but maybe/probably not necessary
 
 
@@ -209,7 +209,7 @@ if __name__ == '__main__':
 
     ## Testing for quantum violations
     print(polytope_utils.in_hull(one_switch_vertices, qm_corr_one_switch_3mmts(
-        X1=[z_onb, x_onb], X2=[diag1_onb, diag2_onb], Y=[z_onb, x_onb], rho_ctb=ctb_werner),
+        X1=[z_onb, x_onb], X2=[diag1_onb, diag2_onb], Y=[z_onb, x_onb], rho_ctb=ctb_ghz),
                                  tol=1e-13))  # Returns True but only until precision 1e-13
 
     ## Try a bunch of random configurations

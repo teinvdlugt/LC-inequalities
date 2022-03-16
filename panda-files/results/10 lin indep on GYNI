@@ -1,7 +1,15 @@
-# Below are 84 linearly independent vertices of LC that all lie on the GYNI hyperplane. There are no more
-# WE NEED AFFINE, NOT LINEAR INDEPENDENCE!
-# Note that many of these are also listed in result file 11. That is because the intersection of the GYNI and LGYNI hyperplanes
-# is high-dimensional (e.g. because they're both lifted from 12 into 86 dimensions).
+# Below are 84 linearly independent vertices of LC that all lie on the GYNI hyperplane. There is no bigger such linearly independent set.
+# Because the GYNI hyperplane does not intersect the origin, this is also a maximal affinely independent set of LC vertices on the GYNI plane.
+# Hence, GYNI ∩ LC is a 83-dimensional face of LC.
+# Result file 11 is similar but for LGYNI. Note that many of the vertices listed in that file are the same as here. That is because the
+# intersection of GYNI and LGYNI is high-dimensional - for one, because they're both lifted from 12 into 86 dimensions.
+
+# Code used to generate this file:
+        gyni = inequality_GYNI()
+        vector_space_utils.reduce_file_to_lin_indep_subset("panda-files/results/8 all LC vertices", 2, 86,
+                                                           constraint=lambda row: np.dot(gyni, row) == 0,
+                                                           output_filename='panda-files/results/11 lin indep on GYNI, not LGYNI')
+
 
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 1 0 0 0 0 0 0 0 0 0 0

@@ -1,10 +1,13 @@
 import sys
 
+import scipy.linalg
+import sympy
 from scipy.optimize import linprog
+import time
 
 import panda
 import polytope_utils
-import quantum_utils
+import quantum_utils as qm
 import utils
 from quantum_utils import proj, kron, ket_plus, phi_plus, z_onb, x_onb, ket0
 import symmetry_utils
@@ -300,7 +303,8 @@ def inequality_violation(vector, inequality):
 
 
 def find_affinely_independent_point(points, file_to_search, constraint=None, update_interval=5000):
-    """
+    """ TODO this function can be massively improved by using that affine indep <=> lin indep of the homogenised coordinates (rather than using LP).
+    NOTE but also, this function wasn't really necessary, because if an affine subspace spanned by an affinely independent set S does not intersect the origin, then S is also linearly independent.
     :param points: an array of d-dimensional vectors.
     :param file_to_search: File where each non-empty line is a vector-with-denominator, i.e. d+1 integers.
     :param constraint: a function taking length-d+1 int arrays to booleans. Any line in file_to_search that does
@@ -355,8 +359,292 @@ def find_affinely_independent_point(points, file_to_search, constraint=None, upd
     print("Reached end of file. No affinely independent point found!")
 
 
+def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on_face=True, violation_tol=1e-10):
+    """ TODO can I use integer arithmetic? Calculating nullspaces with homogeneous coordinates etc?
+    NOTE I think this function only works for full-dimensional polytopes.
+    :param face: length-(d+1) vector representing an inequality that is valid for Q.
+    :param P: shape-(d-2,d+1) array; each row is the homogeneous representation of a vector, and the convex hull of the d-2 vectors is `face` ∩ LC (which is d-3 dimensional).
+    :param Q: list of vertices to search, sorted according to how likely you think it is that they will span a facet together with P (more likely first).
+              This is also the list that will be used to determine which hyperplanes constitute valid inequalities (in the sense that all pts of Q lie in one halfspace).
+    :param check_vertices_are_on_face: set to False if you already know that all vertices in Q are NOT on the face defined by P.
+    :param violation_tol: when checking whether a hyperplane constitutes a valid inequality, violation of the inequality is only taken seriously when
+                          abs(violation) > violation_tol. A higher violation_tol will reduce the chance of missing facets, but increases the chance of returning false facets.
+                          (so do check if all facets are indeed valid for LC afterwards).
+    :return: array of shape (?,d+1); each row represents a facet (not symmetry-reduced!) adjacent to the face specified by P. (also prints these rows)
+    """
+    facets = []
+    P_sympy = sympy.Matrix(P)
+    d = len(Q[0]) - 1
+    assert d == P.shape[1] - 1
+
+    total_sympy_time = 0
+    duplicate_facets_caught = 0
+
+    vertex_candidate_indices = list(range(0, len(Q)))  # Use this instead of removing elements from Q
+    for i in range(0, len(Q)):
+        if check_vertices_are_on_face and np.dot(face, Q[i]) == 0:  # if Q[i] is already on the face
+            vertex_candidate_indices.remove(i)
+            continue
+
+        P_qi = np.r_[P, [Q[i]]]
+
+        for _j in range(0, len(vertex_candidate_indices)):
+            j = vertex_candidate_indices[_j]
+            if j >= i:
+                break  # only check the 'upper triangle' in (j,i)-space
+            P_qi_qj = np.r_[P_qi, [Q[j]]]
+            if np.linalg.matrix_rank(P_qi_qj) == d:
+                # First check if we don't already have found the facet that contains these two points qi,qj. Doing this should also avoid any duplicates in the facets output
+                # This takes O(len(facets)) but potentially saves us O(len(Q)) time
+                already_found_this_facet = False
+                for facet in facets:
+                    if np.dot(facet, Q[i]) == 0 and np.dot(facet, Q[j]) == 0:  # TODO maybe abs(np.dot(...)) < violation_tol? But using sympy this might not be necessary
+                        already_found_this_facet = True
+                        duplicate_facets_caught += 1
+                        break
+                if already_found_this_facet:
+                    continue
+
+                # Find normal vector to plane through P,qi,qj:
+                a = scipy.linalg.null_space(P_qi_qj)[:, 0]
+                # Check if it defines a valid hyperplane
+                found_gt0, found_lt0 = None, None
+                for q3 in Q:  # using here that the only vertices popped from Q are those on the face P, so will satisfy `a` with equality - hence can indeed be ignored.
+                    violation = np.dot(a, q3)
+                    if violation > violation_tol:  # a will likely involve numerical errors - it looks like they're about 1e-16 but let's be careful - o/w we might miss facets of LC
+                        found_gt0 = q3
+                        if found_lt0:
+                            break  # `a` does not support a valid inequality. Move on to next `m`
+                    if violation < -violation_tol:
+                        found_lt0 = q3
+                        if found_gt0:
+                            break  # sim.
+
+                if not (found_gt0 and found_lt0):
+                    # Success! Found a facet.
+                    # Pretty-print `a` (the inequality) using sympy:   (col_join is like np.r_)
+                    time1 = time.time()
+                    a = P_sympy.col_join(sympy.Matrix([Q[i], Q[j]])).nullspace()[0]
+                    a = np.array(a).T[0]  # get rid of the annoying sympy.Matrix structure
+                    total_sympy_time += (time.time() - time1)
+                    # using sympy rather than scipy.linalg.null_space here because scipy normalises the vectors, leading to nasty round-off errors
+                    # But sympy does cost a lot of time
+
+                    if np.dot(a, (found_gt0 or found_lt0)) > 0:  # Flip sign of inequality appropriately. Note that sympy `a` might differ from scipy `a`.
+                        a = -1 * a
+                    print(' '.join(map(str, a)))
+                    facets.append([k for k in a])
+
+            if _j % 100 == 0:
+                print("i = %d \t j = %d \t # remaining vertex candidates = %d \t total_sympy_time = %.3f \t duplicate_facets_caught = %d"
+                      % (i, j, len(vertex_candidate_indices), total_sympy_time, duplicate_facets_caught), end='\r')
+            sys.stdout.flush()
+        i += 1
+
+    print("All vertices in Q checked. Found %d facets!" % len(facets))
+    print("WARNING: recall that the returned facets are only confirmed to be valid up to a tolerance of " + str(violation_tol))
+    return facets
+
+
+def test_find_facets_adjacent_to_d_minus_3_dim_face():
+    ## Let's try an octahedron centred around the origin in R^3
+    # The vertices (homogeneous coords):
+    Q = [[1, 0, 0, 1],
+         [0, 1, 0, 1],
+         [0, 0, 1, 1],
+         [-1, 0, 0, 1],
+         [0, -1, 0, 1],
+         [0, 0, -1, 1]]
+    # The hyperplane that touches the octahedron in one point: e.g. x <= 1  <=>  x - 1 <= 0
+    face = [1, 0, 0, -1]
+    # point on the face:
+    P = np.array([[1, 0, 0, 1]])
+    # Run algorithm
+    print("Octahedron (should yield 4 facets):")
+    facets = find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q)
+    assert len(facets) == 4
+    assert [1, 1, 1, -1] in facets
+    assert [1, 1, -1, -1] in facets
+    assert [1, -1, 1, -1] in facets
+    assert [1, -1, -1, -1] in facets
+
+    ## Let's now try the 0/1 cube
+    Q = np.concatenate((list(itertools.product([0, 1], repeat=3)), np.ones((8, 1), 'int8')), axis=1).tolist()
+    face = [-1, -1, -1, 0]  # x + y + z >= 0, a plane touching the vertex of Q that is the origin
+    P = np.array([[0, 0, 0, 1]])
+    print("\nCube (should yield 3 facets):")
+    facets = find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q)
+    assert len(facets) == 3
+    assert [-1, 0, 0, 0] in facets
+    assert [0, -1, 0, 0] in facets
+    assert [0, 0, -1, 0] in facets
+
+    ## Let's try the opposite vertex of the 0/1 cube
+    Q = np.concatenate((list(itertools.product([0, 1], repeat=3)), np.ones((8, 1), 'int8')), axis=1).tolist()
+    face = [1, 1, 1, -3]  # x + y + z >= 0, a plane touching the vertex of Q that is the origin
+    P = np.array([[1, 1, 1, 1]])
+    print("\nCube opposite vertex:")
+    facets = find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q)
+    assert len(facets) == 3
+    assert [1, 0, 0, -1] in facets
+    assert [0, 1, 0, -1] in facets
+    assert [0, 0, 1, -1] in facets
+
+    ## Let's see what happens with non-0/1 vertices. Try the cube with side lengths 1/2
+    Q = np.concatenate((list(itertools.product([0, 1], repeat=3)), 2 * np.ones((8, 1), 'int8')), axis=1).tolist()
+    face = [[2, 2, 2, -3]]  # x + y + z >= 0, a plane touching the vertex of Q that is the origin
+    P = np.array([[1, 1, 1, 2]])
+    print("\nCube with side-lengths 1/2:")
+    facets = find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q)
+    assert len(facets) == 3
+    assert [2, 0, 0, -1] in facets
+    assert [0, 2, 0, -1] in facets
+    assert [0, 0, 2, -1] in facets
+
+    ## Try the d-simplex
+    d = 12  # dimension of the simplex. I'm embedding in R^d here, not in R^{d+1} as usual.
+    def make_Q():
+        Q = np.zeros((d + 1, d + 1), 'int8')
+        Q[0][-1] = 1  # first vertex: the origin
+        for i in range(1, d + 1):
+            Q[i][i - 1] = Q[i][-1] = 1  # remaining vertices: 'one-hot' vectors (i.e. standard basis vectors)
+        return Q.tolist()
+    # We actually know the facets in this case:
+    facets = []
+    facets.append(np.r_[[1] * d, [-1]].tolist())  # sum_i x_i <= 1  the 'diagonal facet'
+    for i in range(0, d):
+        facets.append(np.r_[[0] * i, [-1], [0] * (d - i)].tolist())  # x_i >= 0
+    # Any (d-3)-dimensional face is the intersection of 3 facets. Let's be interested specifically in the case where one of these facets is the 'diagonal facet'
+    # The other two facets will be x_i >= 0, x_j >= 0 for some i,j. Let's test if the algorithm works for all pairs (i,j)
+    for i in range(0, d):
+        for j in range(i + 1, d):
+            face = np.ones(d + 1, 'int8')
+            face[-1] = -1
+            face[i] = face[j] = 0  # face: sum_{k!=i,j} x_k <= 1
+            Q = make_Q()
+            P = [vertex for vertex in Q]
+            P.pop(j + 1)
+            P.pop(i + 1)
+            P.pop(0)
+            P = np.array(P)
+            print("\n%d-simplex, face with (i,j)=(%d,%d):" % (d, i, j))
+            found_facets = find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q)
+
+            assert len(found_facets) == 3
+            assert facets[0] in found_facets  # the 'diagonal facet'
+            assert facets[i + 1] in found_facets
+            assert facets[j + 1] in found_facets
+            print("Success!")  # ✓ (lijkt te werken voor alle d)
+    # Let's now check the case where the three facets are all 'x_d >= 0' facets.
+    i, j, k = 0, 1, 2
+    face = np.zeros(d + 1, 'int8')
+    face[-1] = 0
+    face[i] = face[j] = face[k] = -1
+    Q = make_Q()
+    P = [vertex for vertex in Q]
+    P.pop(k + 1)
+    P.pop(j + 1)
+    P.pop(i + 1)
+    P = np.array(P)
+    print("\n%d-simplex, face with (i,j,k)=(%d,%d,%d):" % (d, i, j, k))
+    found_facets = find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q)
+    assert len(found_facets) == 3
+    for l in [i, j, k]:
+        assert facets[l + 1] in found_facets
+    print("Success!")
+
+
+def is_ineq_valid_for_LC(ineq):
+    with open('panda-files/results/8 all LC vertices', 'r') as LC_vertices:
+        line = LC_vertices.readline()
+        vertex_count = 0
+        while line:
+            if line.strip():
+                vertex = list(map(int, line.split()))
+                vertex_count += 1
+                if np.dot(ineq, vertex) > 0:
+                    print("No, the following vertex violates the provided inequality by %f:" % np.dot(ineq, vertex))
+                    print(' '.join(map(str, vertex)))
+                    return False
+    print("The inequality is valid for LC!")
+    return True
+
+
+def is_facet_of_LC(ineq):
+    """ Checks whether ineq is valid for LC and whether LC ∩ ineq is 85-dimensional. """
+    max_dimension = 85
+
+    with open('panda-files/results/8 all LC vertices', 'r') as LC_vertices:
+        aff_indep_subset = np.empty((0, 87), 'int8')
+
+        vertex_count = 0
+
+        line = LC_vertices.readline()
+        while line:
+            if line.strip():
+                vertex = list(map(int, line.split()))
+                violation = np.dot(vertex, ineq)
+                if violation > 0:
+                    print("The inequality")
+                    print(' '.join(map(str, ineq)))
+                    print("is NOT valid for LC, as it is violated by the LC vertex")
+                    print(' '.join(map(str, vertex)))
+                    return False
+                if len(aff_indep_subset) - 1 < max_dimension and violation == 0:
+                    # vertex is on the hyperplane defined by the inequality
+                    # Check if vertex is not already in span of previously found ones
+                    new_matrix = np.r_[aff_indep_subset, [vertex]]
+                    if np.linalg.matrix_rank(new_matrix) == len(aff_indep_subset) + 1:  # i.e. if matrix has full rank
+                        aff_indep_subset = new_matrix
+                vertex_count += 1
+
+            print("Processed %d vertices; currently at dimension %d" % (vertex_count, len(aff_indep_subset) - 1), end='\r')
+
+            line = LC_vertices.readline()
+
+    print()
+    if len(aff_indep_subset) == 0:
+        print("The inequality is valid for LC but is not a strict inequality and hence does not support a face of LC.")
+        return False
+    elif len(aff_indep_subset) - 1 == max_dimension:
+        print("The inequality supports a facet of LC!")
+        return True
+    elif len(aff_indep_subset) - 1 > max_dimension:
+        print("Something weird just happened.")
+        return False
+    else:
+        print("The inequality supports a face of LC of dimension %d" % (len(aff_indep_subset) - 1))
+        return False
+
+
+def does_quantum_violate_ineq(ineq):
+    """ Test some sensibly chosen and some randomly generated quantum correlations against the inequality. """
+    qm_cors = []
+    with open('panda-files/some_quantum_cors') as f:
+        lines = f.readlines()
+        for line in lines:
+            if line.strip():
+                qm_cors.append(list(map(int, line.split())))
+
+    there_is_violation = False
+    for i in range(0, len(qm_cors)):
+        violation = np.dot(qm_cors[i], ineq) / qm_cors[i][-1]
+        print("violation of qm_cor%d: %f" % (i, violation))
+        if not there_is_violation and violation > 0:
+            there_is_violation = True
+    return there_is_violation
+
+
+def generate_all_positivity_inequalities(output_filename):
+    with open(output_filename, 'w') as f:
+        for i in range(0, 128):
+            p_i_nss = vector_space_utils.construct_full_to_NSS_matrix(8,2,4,2)[:,i]
+            f.write(' '.join(map(str, -p_i_nss)) + '0\n')
+
+
+
 if __name__ == '__main__':
-    # qm_cor_str = quantum_utils.quantum_cor_in_panda_format_nss(
+    # qm_cor_str = qm.quantum_cor_in_panda_format_nss(
     #     rho_ctb = proj(kron(ket0, phi_plus).reshape(2,2,2).swapaxes(1,2).reshape(8)), # rho_ctb=proj(kron(ket_plus, phi_plus)),
     #     X1=[z_onb, x_onb],
     #     X2=[z_onb, x_onb],
@@ -387,6 +675,8 @@ if __name__ == '__main__':
                                                        output_filename='panda-files/results/11 lin indep on GYNI, not LGYNI')
     """
 
+    # Trying to find LC vertex on GYNI plane that is affinely independent to those in result file 10 (used in job18). Later realised there was no hope in finding any.
+    """
     gyni = inequality_GYNI()
     result = find_affinely_independent_point(
         points=np.array([list(map(int, line.split())) for line in open('panda-files/results/10 lin indep on GYNI').readlines()[5:]]),
@@ -394,3 +684,57 @@ if __name__ == '__main__':
         constraint=lambda row: np.dot(gyni, row) == 0
     )
     print(result)
+    """
+
+    # test_find_facets_adjacent_to_d_minus_3_dim_face()
+    # assert 2 + 2 == 5
+
+    # P = result file 10 but homogenised
+    """\with open('panda-files/results/10 lin indep on GYNI') as result_file_10:
+    P = np.concatenate(([list(map(int, line.split())) for line in result_file_10.readlines()[13:]], np.ones((84, 1), 'int8')), axis=1)
+    # Q = vertices to search = result file 8
+    Q = []
+    with open('panda-files/results/8 all LC vertices') as all_LC_vertices:
+        line = all_LC_vertices.readline()
+        while line and len(Q) <= 1000:  # TODO REMOVE BEFORE RUNNING ON ARC
+            if line.strip():  # ignore empty lines
+                Q.append(list(map(int, line.split())))
+            line = all_LC_vertices.readline()
+            print("loading Q: %d elements till now" % len(Q), end='\r')
+            # sys.stdout.flush()
+    print("Loaded P and Q into memory")
+    # run the facet-finding algorithm
+    facets = find_facets_adjacent_to_d_minus_3_dim_face(inequality_GYNI(), P, Q)
+    # write results to output file
+    print("Saving result...")
+    output_filename = 'panda-files/results/12 facets adjacent to GYNI'
+    with open(output_filename, 'w') as output_file:
+        for facet in facets:
+            output_file.write(' '.join(map(str, facet)) + '\n')
+    print("Saved result to " + output_filename)
+    """
+
+    ## To get all LC vertices NOT on GYNI (but maybe they _are_ on a face that is mapped to GYNI under a symmetry of LC!):
+    """
+    gyni = inequality_GYNI()
+    vector_space_utils.filter_row_file('panda-files/results/8 all LC vertices', 'panda-files/lc_vertices_not_satisfying_random_ineq', lambda row: np.dot(random_ineq, row) > 0)
+    """
+
+    lc_facet1 = list(map(int,
+                         "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0 0".split()))
+    lc_facet2 = list(map(int,
+                         "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0".split()))
+    lc_facet3 = list(map(int,
+                         "1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 -1".split()))
+    lc_facet4 = list(map(int,
+                         "1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 0 -1".split()))
+
+    # is_facet_of_LC(lc_facet1)
+    # is_facet_of_LC(lc_facet2)
+    # is_facet_of_LC(lc_facet3)
+    # is_facet_of_LC(lc_facet4) TODO still check! maybe also 3
+
+    print(does_quantum_violate_ineq(lc_facet1))
+    print(does_quantum_violate_ineq(lc_facet2))
+    print(does_quantum_violate_ineq(lc_facet3))
+    print(does_quantum_violate_ineq(lc_facet4))

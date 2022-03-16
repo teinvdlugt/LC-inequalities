@@ -6,6 +6,7 @@ import numpy as np
 import numpy.linalg
 
 import panda
+import towards_lc
 
 B = (0, 1)
 
@@ -284,7 +285,7 @@ def concatenate_bits(*bits):
 def reduce_to_lin_indep_subset(matrix: numpy.ndarray, limit=None, print_progress=True):
     """ Loops through rows of matrix from front to back and removes those rows that are in the linear span of the preceding ones.
      Function leaves the passed argument unchanged, but returnes the reduced matrix.
-     It stops once it has found `limit` independent rows, if limit is not None. """
+     It stops once it has found `max_dimension` independent rows, if max_dimension is not None. """
     i = 2
     while i < len(matrix) + 1:
         if numpy.linalg.matrix_rank(matrix[0:i]) < i:
@@ -294,7 +295,7 @@ def reduce_to_lin_indep_subset(matrix: numpy.ndarray, limit=None, print_progress
             # The first i rows of matrix are linearly independent.
             if i == limit:
                 if print_progress:
-                    print("Found %d linearly independent rows, limit reached; %d rows left unchecked" % (i, len(matrix) - i))
+                    print("Found %d linearly independent rows, max_dimension reached; %d rows left unchecked" % (i, len(matrix) - i))
                 return matrix[0:i]
             i += 1
 
@@ -306,9 +307,9 @@ def reduce_to_lin_indep_subset(matrix: numpy.ndarray, limit=None, print_progress
     return matrix
 
 
-def reduce_file_to_lin_indep_subset(filename, lcm_of_denominators, limit=None, constraint=None, print_progress=True, output_filename=None):
+def reduce_file_to_lin_indep_subset(filename, lcm_of_denominators, max_dimension=None, constraint=None, print_progress=True, output_filename=None):
     """ Reads vertices from a file (specified by filename), waiting for user confirmation every time it encounters an empty line.
-        Outputs a subset of linearly independent rows, stopping when limit is reached (if not None).
+        Outputs a subset of linearly independent rows, stopping when max_dimension is reached (if not None).
         `constraint` is a function which takes a 'row-with-denominator' list as input and returns a boolean. If False, this
         particular row in the input file is ignored.
     """
@@ -341,7 +342,7 @@ def reduce_file_to_lin_indep_subset(filename, lcm_of_denominators, limit=None, c
             print("Batch is empty")
             continue
 
-        matrix = reduce_to_lin_indep_subset(np.r_[matrix, np.array(current_batch, dtype='int8')], limit, print_progress)
+        matrix = reduce_to_lin_indep_subset(np.r_[matrix, np.array(current_batch, dtype='int8')], max_dimension, print_progress)
 
         # Print progress update and save progress
         print("Processed batch #%d; %d linearly independent rows across all processed batches" % (batch_count, len(matrix)))
@@ -350,12 +351,42 @@ def reduce_file_to_lin_indep_subset(filename, lcm_of_denominators, limit=None, c
             for vec in matrix:
                 output_file.write(panda.row_with_denom_to_vector_str(np.r_[vec, [lcm_of_denominators]]) + "\n")
             output_file.close()
-        if len(matrix) >= limit:
+        if len(matrix) >= max_dimension:
             print("Limit reached!")
             return
         if not line:
             print("End of input file reached")
             return
+
+
+def filter_row_file(input_filename, output_filename, constraint):
+    """ Creates a new file at output_filename that contains all integer rows of input_filename that satisfy constraint. It leaves
+    blank lines where input_filename has blank lines, and ignores badly formatted lines in input_filename.
+     :param constraint: a function taking integer vectors to booleans."""
+    bad_line_count = 0
+    constraint_satisfied_count = 0
+    total_rows_processed_count = 0
+    with open(input_filename, 'r') as input_file:
+        with open(output_filename, 'w') as output_file:
+            line = input_file.readline()
+            while line:
+                if not line.strip():
+                    # blank line; let's also put one in output_file
+                    output_file.write('\n')
+                else:
+                    try:
+                        row = list(map(int, line.split()))
+                        if constraint(row):
+                            output_file.write(line)
+                            constraint_satisfied_count += 1
+                        total_rows_processed_count += 1
+                    except:
+                        bad_line_count += 1
+
+                print("%d / %d good rows; %d bad lines" % (constraint_satisfied_count, total_rows_processed_count, bad_line_count), end='\r')
+                sys.stdout.flush()
+                line = input_file.readline()
+    print("Finished with %d / %d good rows; %d bad lines" % (constraint_satisfied_count, total_rows_processed_count, bad_line_count))
 
 
 def cart(*args):
