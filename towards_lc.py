@@ -396,8 +396,8 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
 
         P_qi = np.r_[P, [Q[i]]]
 
-        print("%s; i=%d; candidates=%d; sympy=%.1fs; secant=%.3fs; secant vertices caught=%d; duplicate facets caught=%d"
-              % (datetime.timedelta(seconds=int(time.time() - start_time)), i, len(vertex_candidate_indices), total_sympy_time, total_quadrant_time, secant_vertices_caught, duplicate_facets_caught),
+        print("%s; i=%d; facets=%d; candidates=%d; sympy=%.1fs; secant=%.3fs; secant vertices caught=%d; duplicate facets caught=%d"
+              % (datetime.timedelta(seconds=int(time.time() - start_time)), i, len(facets), len(vertex_candidate_indices), total_sympy_time, total_quadrant_time, secant_vertices_caught, duplicate_facets_caught),
               end=end)
         sys.stdout.flush()
 
@@ -454,8 +454,8 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
                 # Maybe move quadrant method to here, and use qj instead of random ONB of null space
 
                 if _j % update_frequency_j == 0 and j != 0:
-                    print("%s; (i,)=(%d,%d); candidates=%d; sympy=%.1fs; secant=%.3fs; secant vertices caught=%d; duplicate facets caught=%d"
-                          % (datetime.timedelta(seconds=int(time.time() - start_time)), i, j, len(vertex_candidate_indices), total_sympy_time, total_quadrant_time, secant_vertices_caught,
+                    print("%s; (i,j)=(%d,%d); facets=%d; candidates=%d; sympy=%.1fs; secant=%.3fs; secant vertices caught=%d; duplicate facets caught=%d"
+                          % (datetime.timedelta(seconds=int(time.time() - start_time)), i, j, len(facets), len(vertex_candidate_indices), total_sympy_time, total_quadrant_time, secant_vertices_caught,
                              duplicate_facets_caught),
                           end=end)
                     sys.stdout.flush()
@@ -753,7 +753,7 @@ if __name__ == '__main__':
     Q = []
     with open('panda-files/results/8 all LC vertices') as all_LC_vertices:
         line = all_LC_vertices.readline()
-        while line and len(Q) < 10:
+        while line:
             if line.strip():  # ignore empty lines
                 Q.append(list(map(int, line.split())))
             line = all_LC_vertices.readline()
