@@ -359,7 +359,9 @@ def find_affinely_independent_point(points, file_to_search, constraint=None, upd
     print("Reached end of file. No affinely independent point found!")
 
 
-def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on_face=True, violation_threshold=1e-10, output_file=None, update_frequency_j=100, carriage_return=True):
+def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, check_vertices_are_on_face=True, violation_threshold=1e-10, output_file=None, snapshot_file=None, load_from_snapshot=True,
+                                               snapshot_frequency=100, update_frequency_j=100,
+                                               carriage_return=True):
     """ TODO can I use integer arithmetic? Calculating nullspaces with homogeneous coordinates etc?
     NOTE I think this function only works for full-dimensional polytopes.
     :param face: length-(d+1) vector representing an inequality that is valid for Q.
@@ -373,11 +375,33 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
     :return: array of shape (?,d+1); each row represents a facet (not symmetry-reduced!) adjacent to the face specified by P. (also prints these rows)
     """
     end = '\r' if carriage_return else '\n'
+
+    facets = np.array(known_facets if known_facets else [], dtype='int64')
+
     if output_file is not None:
         with open(output_file, 'a') as f:
             f.write("\n\n--- NEW RUN, %s ---\n" % str(datetime.datetime.now()))
+            for facet in facets:
+                f.write(' '.join(map(str, facet)) + '\n')
 
-    facets = []
+    # Load from snapshot file
+    if snapshot_file and load_from_snapshot:
+        with open(snapshot_file, 'r') as f:
+            lines = f.readlines()
+            vertex_candidate_indices = list(map(int, lines[1].split()))
+            vertices_not_on_face_indices = list(map(int, lines[3].split()))
+            i = int(lines[5])
+            # scan for appropriate value of _i
+            _i = 0
+            for _i in range(0, len(vertex_candidate_indices)):
+                if vertex_candidate_indices[_i] >= i:
+                    break
+
+    else:
+        vertex_candidate_indices = list(range(0, len(Q)))
+        vertices_not_on_face_indices = list(range(0, len(Q)))
+        _i = 0
+
     P_sympy = sympy.Matrix(P)
     d = len(Q[0]) - 1
     assert d == P.shape[1] - 1
@@ -386,54 +410,61 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
     total_quadrant_time = 0
     secant_vertices_caught = 0  # 'secant vertices': vertices q s.t. <P,q1> passes through the interior of the polytope
     duplicate_facets_caught = 0
+    times_not_done_quadrant = 0
     start_time = time.time()
 
-    vertex_candidate_indices = list(range(0, len(Q)))  # Use this instead of removing elements from Q
-    vertices_not_on_face_indices = list(range(0, len(Q)))
-    for i in range(0, len(Q)):
+    while _i < len(vertex_candidate_indices):
+        i = vertex_candidate_indices[_i]
         if check_vertices_are_on_face and np.dot(face, Q[i]) == 0:  # if Q[i] is already on the face
             vertex_candidate_indices.remove(i)
             vertices_not_on_face_indices.remove(i)
+            _i += 1
             continue
 
         P_qi = np.r_[P, [Q[i]]]
 
-        print("%s; i=%d; facets=%d; candidates=%d; sympy=%.1fs; secant=%.3fs; secant vertices caught=%d; duplicate facets caught=%d"
-              % (datetime.timedelta(seconds=int(time.time() - start_time)), i, len(facets), len(vertex_candidate_indices), total_sympy_time, total_quadrant_time, secant_vertices_caught, duplicate_facets_caught),
+        print("%s; i=%d; facets=%d; candidates=%d; sympy=%.1fs; secant=%.1fs; secant vertices caught=%d; duplicate facets caught=%d; avoided quadrant=%d"
+              % (datetime.timedelta(seconds=int(time.time() - start_time)), i, len(facets), len(vertex_candidate_indices), total_sympy_time, total_quadrant_time, secant_vertices_caught,
+                 duplicate_facets_caught, times_not_done_quadrant),
               end=end)
         sys.stdout.flush()
 
-        # Do quadrant method
-        time1 = time.time()
-        a1a2 = scipy.linalg.null_space(P_qi)
-        a1 = a1a2[:, 0]
-        a2 = a1a2[:, 1]
-        # TODO maybe perturb/randomise a1,a2. Test if that makes it faster when running on LC.
-        # Loop through all vertices; try to find one vertex for each quadrant
-        found_quadrant_gt_gt = found_quadrant_gt_lt = found_quadrant_lt_gt = found_quadrant_lt_lt = False
-        for k in vertices_not_on_face_indices:
-            q = Q[k]
-            violation1 = np.dot(q, a1)
-            if violation1 > violation_threshold and not (found_quadrant_gt_gt and found_quadrant_gt_lt):
-                violation2 = np.dot(q, a2)
-                if (not found_quadrant_gt_gt) and violation2 > violation_threshold:
-                    found_quadrant_gt_gt = True
-                elif (not found_quadrant_gt_lt) and violation2 < -violation_threshold:
-                    found_quadrant_gt_lt = True
-            elif violation1 < -violation_threshold and not (found_quadrant_lt_gt and found_quadrant_lt_lt):
-                violation2 = np.dot(q, a2)  # looks like copied code, but it's for efficiency (don't want to unnecessarily compute violation2)
-                if (not found_quadrant_lt_gt) and violation2 > violation_threshold:
-                    found_quadrant_lt_gt = True
-                elif (not found_quadrant_lt_lt) and violation2 < -violation_threshold:
-                    found_quadrant_lt_lt = True
+        ## Do quadrant method
+        # But don't do it if Q[i] is on one of the already found facets! Because then quadrant method will never work
+        if np.all(facets @ Q[i]):  # if for all m, facets[m] @ Q[i] != 0
+            time1 = time.time()
+            a1a2 = scipy.linalg.null_space(P_qi)
+            a1 = a1a2[:, 0]
+            a2 = a1a2[:, 1]
+            # TODO maybe perturb/randomise a1,a2. Test if that makes it faster when running on LC.
+            # Loop through all vertices; try to find one vertex for each quadrant
+            found_quadrant_gt_gt = found_quadrant_gt_lt = found_quadrant_lt_gt = found_quadrant_lt_lt = False
+            for k in vertices_not_on_face_indices:  # TODO can try fewer vertices here?
+                q = Q[k]
+                violation1 = np.dot(q, a1)
+                if violation1 > violation_threshold and not (found_quadrant_gt_gt and found_quadrant_gt_lt):
+                    violation2 = np.dot(q, a2)
+                    if (not found_quadrant_gt_gt) and violation2 > violation_threshold:
+                        found_quadrant_gt_gt = True
+                    elif (not found_quadrant_gt_lt) and violation2 < -violation_threshold:
+                        found_quadrant_gt_lt = True
+                elif violation1 < -violation_threshold and not (found_quadrant_lt_gt and found_quadrant_lt_lt):
+                    violation2 = np.dot(q, a2)  # looks like copied code, but it's for efficiency (don't want to unnecessarily compute violation2)
+                    if (not found_quadrant_lt_gt) and violation2 > violation_threshold:
+                        found_quadrant_lt_gt = True
+                    elif (not found_quadrant_lt_lt) and violation2 < -violation_threshold:
+                        found_quadrant_lt_lt = True
+                if found_quadrant_gt_gt and found_quadrant_gt_lt and found_quadrant_lt_gt and found_quadrant_lt_lt:
+                    # Found that Q[i] is a 'secant vertex'!
+                    break
+            total_quadrant_time += time.time() - time1
             if found_quadrant_gt_gt and found_quadrant_gt_lt and found_quadrant_lt_gt and found_quadrant_lt_lt:
-                # Found that Q[i] is a 'secant vertex'!
-                break
-        total_quadrant_time += time.time() - time1
-        if found_quadrant_gt_gt and found_quadrant_gt_lt and found_quadrant_lt_gt and found_quadrant_lt_lt:
-            vertex_candidate_indices.remove(i)
-            secant_vertices_caught += 1
-            continue
+                vertex_candidate_indices.remove(i)
+                secant_vertices_caught += 1
+                _i += 1
+                continue
+        else:
+            times_not_done_quadrant += 1
 
         # Quadrant method didn't rule out Q[i]; proceed by checking if there's j s.t. P,Q[i],Q[j] span a facet.
         for _j in range(0, len(vertex_candidate_indices)):
@@ -457,9 +488,9 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
                 # Maybe move quadrant method to here, and use qj instead of random ONB of null space
 
                 if _j % update_frequency_j == 0 and j != 0:
-                    print("%s; (i,j)=(%d,%d); facets=%d; candidates=%d; sympy=%.1fs; secant=%.3fs; secant vertices caught=%d; duplicate facets caught=%d"
+                    print("%s; (i,j)=(%d,%d); facets=%d; candidates=%d; sympy=%.1fs; secant=%.1fs; secant vertices caught=%d; duplicate facets caught=%d; avoided quadrant=%d   "
                           % (datetime.timedelta(seconds=int(time.time() - start_time)), i, j, len(facets), len(vertex_candidate_indices), total_sympy_time, total_quadrant_time, secant_vertices_caught,
-                             duplicate_facets_caught),
+                             duplicate_facets_caught, times_not_done_quadrant),
                           end=end)
                     sys.stdout.flush()
 
@@ -491,17 +522,30 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
                     if np.dot(a, (found_gt0 or found_lt0)) > 0:  # Flip sign of inequality appropriately. Note that sympy `a` might differ from scipy `a`.
                         a = -1 * a
 
-                    facets.append(a)
+                    facets = np.r_[facets, [a]]
                     a_str = ' '.join(map(str, a))
                     print(a_str)
-                    if output_file is not None:
+                    if output_file:
                         with open(output_file, 'a') as f:
-                            f.write(a_str + '\n')
-        i += 1
+                            f.write('+' + a_str + '\n')
+
+        # Save snapshot
+        if _i % snapshot_frequency == 0 and output_file:
+            with open(output_file + '_snapshot', 'w') as f:
+                f.write('vertex_candidate_indices:\n')
+                f.write(' '.join(map(str, vertex_candidate_indices)) + '\n')
+                f.write('vertices_not_on_face_indices:\n')
+                f.write(' '.join(map(str, vertices_not_on_face_indices)) + '\n')
+                f.write('checked i (up to and including):\n%d\n' % i)
+                f.write('facets:\n')
+                for facet in facets:
+                    f.write(' '.join(map(str, facet)) + '\n')
+
+        _i += 1
 
     print("All vertices in Q checked. Found %d facets!" % len(facets))
-    print("Summary:\n Elapsed time: %s\n sympy time: %.3fs\n secant time: %.3fs\n vertices caught by quadrant method: %d\n duplicate facets caught: %d\n"
-          % (datetime.timedelta(seconds=int(time.time() - start_time)), total_sympy_time, total_quadrant_time, secant_vertices_caught, duplicate_facets_caught))
+    print("Summary:\n Elapsed time: %s\n sympy time: %.1fs\n secant time: %.1fs\n vertices caught by quadrant method: %d\n duplicate facets caught: %d\n times not done quadrant method: %d"
+          % (datetime.timedelta(seconds=int(time.time() - start_time)), total_sympy_time, total_quadrant_time, secant_vertices_caught, duplicate_facets_caught, times_not_done_quadrant))
     print("WARNING: recall that the returned facets are only confirmed to be valid up to a tolerance of " + str(violation_threshold))
     return facets
 
@@ -703,6 +747,49 @@ def generate_all_positivity_inequalities(output_filename):
             f.write(' '.join(map(str, -p_i_nss)) + '0\n')
 
 
+def count_LC_vertices_on_facets(facets):
+    """ not entirely finished. commented bit is more efficient than current code """
+    vertex_counts = [0] * len(facets)
+    vertices_not_on_a_facet = []
+    facets = np.array(facets)
+
+    with open('panda-files/results/8 all LC vertices') as f:
+        batch_size = 10000
+        line = f.readline()
+        while line:
+            """# load batch
+            current_batch = []
+            while line and len(current_batch) < batch_size:
+                if line.strip():
+                    current_batch.append(list(map(int, line.split())))
+                line = f.readline()
+            current_batch = np.array(current_batch).T
+
+            # process batch
+            violations = facets @ current_batch   # will be  len(facets) x batch_size  matrix
+            for i in range(0, len(facets)):
+                vertex_counts[i] += np.sum(violations[i] == 0)   # the i-th row of violations has all the violations of facets[i]
+            # the vertices that are on none of the facets correspond to the columns of violations with all non-zero entries
+            for i in np.where(np.all(violations, axis=0)):   # np.where(np.all([[1,2,3,0],[1,2,3,4]], axis=0)) gives [0,1,2]
+                vertices_not_on_a_facet.append(current_batch[:,i])"""
+
+            if line.strip():
+                vertex = list(map(int, line.split()))
+                on_a_facet = False
+                for i in range(0, len(facets)):
+                    if np.dot(facets[i], vertex) == 0:
+                        vertex_counts[i] += 1
+                        on_a_facet = True
+                if not on_a_facet:
+                    vertices_not_on_a_facet.append(vertex)
+            print('not on a facet: %d, on each facet: %s' % (len(vertices_not_on_a_facet), str(vertex_counts)), end='\r')
+            sys.stdout.flush()
+            line = f.readline()
+            if len(vertices_not_on_a_facet) > 100:
+                break
+    return vertex_counts, vertices_not_on_a_facet
+
+
 if __name__ == '__main__':
     # qm_cor_str = qm.quantum_cor_in_panda_format_nss(
     #     rho_ctb = proj(kron(ket0, phi_plus).reshape(2,2,2).swapaxes(1,2).reshape(8)), # rho_ctb=proj(kron(ket_plus, phi_plus)),
@@ -749,6 +836,19 @@ if __name__ == '__main__':
     # test_find_facets_adjacent_to_d_minus_3_dim_face()
     # assert 2 + 2 == 5
 
+    known_facets = [list(map(int,
+                             "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0 0"
+                             .split())),
+                    list(map(int,
+                             "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0"
+                             .split())),
+                    list(map(int,
+                             "1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 -1"
+                             .split())),
+                    list(map(int,
+                             "1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 0 -1"
+                             .split()))]
+
     # P = result file 10 but homogenised
     with open('panda-files/results/10 lin indep on GYNI') as result_file_10:
         P = np.concatenate(([list(map(int, line.split())) for line in result_file_10.readlines()[13:]], np.ones((84, 1), 'int8')), axis=1)
@@ -756,7 +856,13 @@ if __name__ == '__main__':
     Q = []
     with open('panda-files/results/8 all LC vertices') as all_LC_vertices:
         line = all_LC_vertices.readline()
+        i = 0
         while line:
+            i += 1
+            if i >= 100000:
+                line = all_LC_vertices.readline()
+                break
+                # continue
             if line.strip():  # ignore empty lines
                 Q.append(list(map(int, line.split())))
             line = all_LC_vertices.readline()
@@ -764,10 +870,12 @@ if __name__ == '__main__':
                 print("loading Q: %d elements till now" % len(Q))
     print("Loaded P and Q into memory")
     # run the facet-finding algorithm
-    facets = find_facets_adjacent_to_d_minus_3_dim_face(inequality_GYNI(), P, Q,
+    facets = find_facets_adjacent_to_d_minus_3_dim_face(inequality_GYNI(), P, Q, known_facets,
                                                         output_file='panda-files/results/12 facets adjacent to GYNI',
-                                                        update_frequency_j=500,
-                                                        carriage_return=False)
+                                                        snapshot_file='panda-files/results/12 facets adjacent to GYNI_snapshot',
+                                                        snapshot_frequency=1,
+                                                        update_frequency_j=1,
+                                                        carriage_return=True)
 
     ## To get all LC vertices NOT on GYNI (but maybe they _are_ on a face that is mapped to GYNI under a symmetry of LC!):
     """
@@ -776,15 +884,6 @@ if __name__ == '__main__':
     """
 
     """
-    lc_facet1 = list(map(int,
-                         "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0 0".split()))
-    lc_facet2 = list(map(int,
-                         "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0".split()))
-    lc_facet3 = list(map(int,
-                         "1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 -1".split()))
-    lc_facet4 = list(map(int,
-                         "1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 0 -1".split()))
-
     # is_facet_of_LC(lc_facet1)
     # is_facet_of_LC(lc_facet2)
     # is_facet_of_LC(lc_facet3)
