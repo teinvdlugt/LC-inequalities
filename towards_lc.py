@@ -359,7 +359,7 @@ def find_affinely_independent_point(points, file_to_search, constraint=None, upd
     print("Reached end of file. No affinely independent point found!")
 
 
-def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on_face=True, violation_tol=1e-10, output_file=None, update_frequency_j=100, carriage_return=True):
+def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on_face=True, violation_threshold=1e-10, output_file=None, update_frequency_j=100, carriage_return=True):
     """ TODO can I use integer arithmetic? Calculating nullspaces with homogeneous coordinates etc?
     NOTE I think this function only works for full-dimensional polytopes.
     :param face: length-(d+1) vector representing an inequality that is valid for Q.
@@ -367,7 +367,7 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
     :param Q: list of vertices to search, sorted according to how likely you think it is that they will span a facet together with P (more likely first).
               This is also the list that will be used to determine which hyperplanes constitute valid inequalities (in the sense that all pts of Q lie in one halfspace).
     :param check_vertices_are_on_face: set to False if you already know that all vertices in Q are NOT on the face defined by P.
-    :param violation_tol: when checking whether a hyperplane constitutes a valid inequality, violation of the inequality is only taken seriously when
+    :param violation_threshold: when checking whether a hyperplane constitutes a valid inequality, violation of the inequality is only taken seriously when
                           abs(violation) > violation_tol. A higher violation_tol will reduce the chance of missing facets, but increases the chance of returning false facets.
                           (so do check if all facets are indeed valid for LC afterwards).
     :return: array of shape (?,d+1); each row represents a facet (not symmetry-reduced!) adjacent to the face specified by P. (also prints these rows)
@@ -383,7 +383,10 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
     assert d == P.shape[1] - 1
 
     total_sympy_time = 0
+    total_quadrant_time = 0
+    secant_vertices_caught = 0  # 'secant vertices': vertices q s.t. <P,q1> passes through the interior of the polytope
     duplicate_facets_caught = 0
+    start_time = time.time()
 
     vertex_candidate_indices = list(range(0, len(Q)))  # Use this instead of removing elements from Q
     for i in range(0, len(Q)):
@@ -393,10 +396,43 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
 
         P_qi = np.r_[P, [Q[i]]]
 
-        print("Processing i=%d;\tlen(vertex_candidate_indices)=%d\ttotal_sympy_time=%.1fs\tduplicate_facets_caught=%d"
-              % (i, len(vertex_candidate_indices), total_sympy_time, duplicate_facets_caught), end=end)
+        print("%s; i=%d; candidates=%d; sympy=%.1fs; secant=%.3fs; secant vertices caught=%d; duplicate facets caught=%d"
+              % (datetime.timedelta(seconds=int(time.time() - start_time)), i, len(vertex_candidate_indices), total_sympy_time, total_quadrant_time, secant_vertices_caught, duplicate_facets_caught),
+              end=end)
         sys.stdout.flush()
 
+        # Do quadrant method
+        time1 = time.time()
+        a1a2 = scipy.linalg.null_space(P_qi)
+        a1 = a1a2[:, 0]
+        a2 = a1a2[:, 1]
+        # TODO maybe perturb/randomise a1,a2. Test if that makes it faster when running on LC.
+        # Loop through all vertices; try to find one vertex for each quadrant
+        found_quadrant_gt_gt = found_quadrant_gt_lt = found_quadrant_lt_gt = found_quadrant_lt_lt = False
+        for q in Q:
+            violation1 = np.dot(q, a1)
+            if violation1 > violation_threshold and not (found_quadrant_gt_gt and found_quadrant_gt_lt):
+                violation2 = np.dot(q, a2)
+                if (not found_quadrant_gt_gt) and violation2 > violation_threshold:
+                    found_quadrant_gt_gt = True
+                elif (not found_quadrant_gt_lt) and violation2 < -violation_threshold:
+                    found_quadrant_gt_lt = True
+            elif violation1 < -violation_threshold and not (found_quadrant_lt_gt and found_quadrant_lt_lt):
+                violation2 = np.dot(q, a2)  # looks like copied code, but it's for efficiency (don't want to unnecessarily compute violation2)
+                if (not found_quadrant_lt_gt) and violation2 > violation_threshold:
+                    found_quadrant_lt_gt = True
+                elif (not found_quadrant_lt_lt) and violation2 < -violation_threshold:
+                    found_quadrant_lt_lt = True
+            if found_quadrant_gt_gt and found_quadrant_gt_lt and found_quadrant_lt_gt and found_quadrant_lt_lt:
+                # Found that Q[i] is a 'secant vertex'!
+                break
+        total_quadrant_time += time.time() - time1
+        if found_quadrant_gt_gt and found_quadrant_gt_lt and found_quadrant_lt_gt and found_quadrant_lt_lt:
+            vertex_candidate_indices.remove(i)
+            secant_vertices_caught += 1
+            continue
+
+        # Quadrant method didn't rule out Q[i]; proceed by checking if there's j s.t. P,Q[i],Q[j] span a facet.
         for _j in range(0, len(vertex_candidate_indices)):
             j = vertex_candidate_indices[_j]
             if j >= i:
@@ -408,16 +444,20 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
                 # This takes O(len(facets)) but potentially saves us O(len(Q)) time
                 already_found_this_facet = False
                 for facet in facets:
-                    if np.dot(facet, Q[i]) == np.dot(facet, Q[j]) == 0:  # TODO maybe abs(np.dot(...)) < violation_tol? But using sympy this might not be necessary
+                    if np.dot(facet, Q[i]) == np.dot(facet, Q[j]) == 0:  # TODO maybe abs(np.dot(...)) < violation_threshold? But using sympy this might not be necessary
                         already_found_this_facet = True
                         duplicate_facets_caught += 1
                         break
                 if already_found_this_facet:
                     continue
 
-                if _j % 100 == 0:
-                    print("Processing pair (i,j)=(%d,%d);\tlen(vertex_candidate_indices)=%d\ttotal_sympy_time=%.1fs\tduplicate_facets_caught=%d"
-                          % (i, j, len(vertex_candidate_indices), total_sympy_time, duplicate_facets_caught), end=end)
+                # Maybe move quadrant method to here, and use qj instead of random ONB of null space
+
+                if _j % update_frequency_j == 0 and j != 0:
+                    print("%s; (i,)=(%d,%d); candidates=%d; sympy=%.1fs; secant=%.3fs; secant vertices caught=%d; duplicate facets caught=%d"
+                          % (datetime.timedelta(seconds=int(time.time() - start_time)), i, j, len(vertex_candidate_indices), total_sympy_time, total_quadrant_time, secant_vertices_caught,
+                             duplicate_facets_caught),
+                          end=end)
                     sys.stdout.flush()
 
                 # Find normal vector to plane through P,qi,qj:
@@ -426,11 +466,11 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
                 found_gt0, found_lt0 = None, None
                 for q3 in Q:  # using here that the only vertices popped from Q are those on the face P, so will satisfy `a` with equality - hence can indeed be ignored.
                     violation = np.dot(a, q3)
-                    if violation > violation_tol:  # a will likely involve numerical errors - it looks like they're about 1e-16 but let's be careful - o/w we might miss facets of LC
+                    if violation > violation_threshold:  # a will likely involve numerical errors - it looks like they're about 1e-16 but let's be careful - o/w we might miss facets of LC
                         found_gt0 = q3
                         if found_lt0:
                             break  # `a` does not support a valid inequality. Move on to next `m`
-                    if violation < -violation_tol:
+                    if violation < -violation_threshold:
                         found_lt0 = q3
                         if found_gt0:
                             break  # sim.
@@ -457,7 +497,9 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
         i += 1
 
     print("All vertices in Q checked. Found %d facets!" % len(facets))
-    print("WARNING: recall that the returned facets are only confirmed to be valid up to a tolerance of " + str(violation_tol))
+    print("Summary:\n Elapsed time: %s\n sympy time: %.3fs\n secant time: %.3fs\n vertices caught by quadrant method: %d\n duplicate facets caught: %d\n"
+          % (datetime.timedelta(seconds=int(time.time() - start_time)), total_sympy_time, total_quadrant_time, secant_vertices_caught, duplicate_facets_caught))
+    print("WARNING: recall that the returned facets are only confirmed to be valid up to a tolerance of " + str(violation_threshold))
     return facets
 
 
@@ -517,7 +559,7 @@ def test_find_facets_adjacent_to_d_minus_3_dim_face():
     assert [0, 0, 2, -1] in facets
 
     ## Try the d-simplex
-    d = 12  # dimension of the simplex. I'm embedding in R^d here, not in R^{d+1} as usual.
+    d = 30  # dimension of the simplex. I'm embedding in R^d here, not in R^{d+1} as usual.
     def make_Q():
         Q = np.zeros((d + 1, d + 1), 'int8')
         Q[0][-1] = 1  # first vertex: the origin
@@ -550,6 +592,7 @@ def test_find_facets_adjacent_to_d_minus_3_dim_face():
             assert facets[i + 1] in found_facets
             assert facets[j + 1] in found_facets
             print("Success!")  # ✓ (lijkt te werken voor alle d)
+            return
     # Let's now check the case where the three facets are all 'x_d >= 0' facets.
     i, j, k = 0, 1, 2
     face = np.zeros(d + 1, 'int8')
@@ -700,8 +743,8 @@ if __name__ == '__main__':
     print(result)
     """
 
-    test_find_facets_adjacent_to_d_minus_3_dim_face()
-    assert 2 + 2 == 5
+    # test_find_facets_adjacent_to_d_minus_3_dim_face()
+    # assert 2 + 2 == 5
 
     # P = result file 10 but homogenised
     with open('panda-files/results/10 lin indep on GYNI') as result_file_10:
@@ -710,7 +753,7 @@ if __name__ == '__main__':
     Q = []
     with open('panda-files/results/8 all LC vertices') as all_LC_vertices:
         line = all_LC_vertices.readline()
-        while line:  # TODO REMOVE BEFORE RUNNING ON ARC
+        while line and len(Q) < 10:
             if line.strip():  # ignore empty lines
                 Q.append(list(map(int, line.split())))
             line = all_LC_vertices.readline()
@@ -718,7 +761,10 @@ if __name__ == '__main__':
                 print("loading Q: %d elements till now" % len(Q))
     print("Loaded P and Q into memory")
     # run the facet-finding algorithm
-    facets = find_facets_adjacent_to_d_minus_3_dim_face(inequality_GYNI(), P, Q, output_file='panda-files/results/12 facets adjacent to GYNI')
+    facets = find_facets_adjacent_to_d_minus_3_dim_face(inequality_GYNI(), P, Q,
+                                                        output_file='panda-files/results/12 facets adjacent to GYNI',
+                                                        update_frequency_j=500,
+                                                        carriage_return=False)
 
     ## To get all LC vertices NOT on GYNI (but maybe they _are_ on a face that is mapped to GYNI under a symmetry of LC!):
     """
