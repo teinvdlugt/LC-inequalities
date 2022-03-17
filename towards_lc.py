@@ -389,9 +389,11 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
     start_time = time.time()
 
     vertex_candidate_indices = list(range(0, len(Q)))  # Use this instead of removing elements from Q
+    vertices_not_on_face_indices = list(range(0, len(Q)))
     for i in range(0, len(Q)):
         if check_vertices_are_on_face and np.dot(face, Q[i]) == 0:  # if Q[i] is already on the face
             vertex_candidate_indices.remove(i)
+            vertices_not_on_face_indices.remove(i)
             continue
 
         P_qi = np.r_[P, [Q[i]]]
@@ -409,7 +411,8 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
         # TODO maybe perturb/randomise a1,a2. Test if that makes it faster when running on LC.
         # Loop through all vertices; try to find one vertex for each quadrant
         found_quadrant_gt_gt = found_quadrant_gt_lt = found_quadrant_lt_gt = found_quadrant_lt_lt = False
-        for q in Q:
+        for k in vertices_not_on_face_indices:
+            q = Q[k]
             violation1 = np.dot(q, a1)
             if violation1 > violation_threshold and not (found_quadrant_gt_gt and found_quadrant_gt_lt):
                 violation2 = np.dot(q, a2)
@@ -464,14 +467,14 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
                 a = scipy.linalg.null_space(P_qi_qj)[:, 0]
                 # Check if it defines a valid hyperplane
                 found_gt0, found_lt0 = None, None
-                for q3 in Q:  # using here that the only vertices popped from Q are those on the face P, so will satisfy `a` with equality - hence can indeed be ignored.
-                    violation = np.dot(a, q3)
+                for k in vertices_not_on_face_indices:
+                    violation = np.dot(a, Q[k])
                     if violation > violation_threshold:  # a will likely involve numerical errors - it looks like they're about 1e-16 but let's be careful - o/w we might miss facets of LC
-                        found_gt0 = q3
+                        found_gt0 = Q[k]
                         if found_lt0:
                             break  # `a` does not support a valid inequality. Move on to next `m`
                     if violation < -violation_threshold:
-                        found_lt0 = q3
+                        found_lt0 = Q[k]
                         if found_gt0:
                             break  # sim.
 
