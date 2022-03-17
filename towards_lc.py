@@ -376,7 +376,10 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
     """
     end = '\r' if carriage_return else '\n'
 
-    facets = np.array(known_facets if known_facets else [], dtype='int64')
+    d = len(Q[0]) - 1
+    assert d == P.shape[1] - 1
+
+    facets = np.array(known_facets, dtype='int64') if known_facets else np.empty((0, d + 1), dtype='int64')
 
     if output_file is not None:
         with open(output_file, 'a') as f:
@@ -403,14 +406,13 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
         _i = 0
 
     P_sympy = sympy.Matrix(P)
-    d = len(Q[0]) - 1
-    assert d == P.shape[1] - 1
 
     total_sympy_time = 0
     total_quadrant_time = 0
     secant_vertices_caught = 0  # 'secant vertices': vertices q s.t. <P,q1> passes through the interior of the polytope
     duplicate_facets_caught = 0
     times_not_done_quadrant = 0
+    mak__k = 0
     start_time = time.time()
 
     while _i < len(vertex_candidate_indices):
@@ -423,25 +425,23 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
 
         P_qi = np.r_[P, [Q[i]]]
 
-        print("%s; i=%d; facets=%d; candidates=%d; sympy=%.1fs; secant=%.1fs; secant vertices caught=%d; duplicate facets caught=%d; avoided quadrant=%d"
-              % (datetime.timedelta(seconds=int(time.time() - start_time)), i, len(facets), len(vertex_candidate_indices), total_sympy_time, total_quadrant_time, secant_vertices_caught,
-                 duplicate_facets_caught, times_not_done_quadrant),
-              end=end)
-        sys.stdout.flush()
-
         ## Do quadrant method
         # But don't do it if Q[i] is on one of the already found facets! Because then quadrant method will never work
-        if np.all(facets @ Q[i]) or True:  # if for all m, facets[m] @ Q[i] != 0
+        if np.all(facets @ Q[i]):  # if for all m, facets[m] @ Q[i] != 0
             time1 = time.time()
             a1a2 = scipy.linalg.null_space(P_qi)
             a1 = a1a2[:, 0]
             a2 = a1a2[:, 1]
             # TODO maybe perturb/randomise a1,a2. Test if that makes it faster when running on LC.
             # Loop through a selection of vertices. I have reason to believe that the first couple vertices in vertices_not_on_face_indices are already sufficient. Also take some random ones.
-            indices_to_try = np.r_[vertices_not_on_face_indices[0:min(1024, len(vertices_not_on_face_indices))], np.random.choice(vertices_not_on_face_indices, 800, replace=False)]
+            indices_to_try = np.r_[
+                vertices_not_on_face_indices[0:min(1024, len(vertices_not_on_face_indices))], np.random.choice(vertices_not_on_face_indices, min(800, len(vertices_not_on_face_indices)),
+                                                                                                               replace=False)]
             # Try to find one vertex for each quadrant.
             found_quadrant_gt_gt = found_quadrant_gt_lt = found_quadrant_lt_gt = found_quadrant_lt_lt = False
-            for k in indices_to_try:  # TODO can try fewer vertices here?
+            _k = 0  # counting number of iterations in quadrant method
+            for k in indices_to_try:
+                _k += 1
                 q = Q[k]
                 violation1 = np.dot(q, a1)
                 if violation1 > violation_threshold and not (found_quadrant_gt_gt and found_quadrant_gt_lt):
@@ -460,6 +460,13 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
                     # Found that Q[i] is a 'secant vertex'!
                     break
             total_quadrant_time += time.time() - time1
+
+            print("%s; i=%d; facets=%d; candidates=%d; sympy=%.1fs; secant=%.1fs; secant vertices caught=%d; duplicate facets caught=%d; avoided quadrant=%d; quadrant iters=%d"
+                  % (datetime.timedelta(seconds=int(time.time() - start_time)), i, len(facets), len(vertex_candidate_indices), total_sympy_time, total_quadrant_time, secant_vertices_caught,
+                     duplicate_facets_caught, times_not_done_quadrant, k),
+                  end=end)
+            sys.stdout.flush()
+
             if found_quadrant_gt_gt and found_quadrant_gt_lt and found_quadrant_lt_gt and found_quadrant_lt_lt:
                 vertex_candidate_indices.remove(i)
                 secant_vertices_caught += 1
@@ -467,6 +474,11 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
                 continue
         else:
             times_not_done_quadrant += 1
+            print("%s; i=%d; facets=%d; candidates=%d; sympy=%.1fs; secant=%.1fs; secant vertices caught=%d; duplicate facets caught=%d; avoided quadrant=%d"
+                  % (datetime.timedelta(seconds=int(time.time() - start_time)), i, len(facets), len(vertex_candidate_indices), total_sympy_time, total_quadrant_time, secant_vertices_caught,
+                     duplicate_facets_caught, times_not_done_quadrant),
+                  end=end)
+            sys.stdout.flush()
 
         # Quadrant method didn't rule out Q[i]; proceed by checking if there's j s.t. P,Q[i],Q[j] span a facet.
         for _j in range(0, len(vertex_candidate_indices)):
@@ -534,12 +546,13 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
         # Save snapshot
         if _i % snapshot_frequency == 0 and output_file:
             with open(output_file + '_snapshot', 'w') as f:
-                f.write('vertex_candidate_indices:\n')
-                f.write(' '.join(map(str, vertex_candidate_indices)) + '\n')
-                f.write('vertices_not_on_face_indices:\n')
-                f.write(' '.join(map(str, vertices_not_on_face_indices)) + '\n')
-                f.write('checked i (up to and including):\n%d\n' % i)
-                f.write('facets:\n')
+                f.write('vertex_candidate_indices:\n'
+                        + ' '.join(map(str, vertex_candidate_indices)) + '\n'
+                        + 'vertices_not_on_face_indices:\n'
+                        + ' '.join(map(str, vertices_not_on_face_indices)) + '\n'
+                        + 'checked i (up to and including):\n%d\n'
+                        % i
+                        + 'facets:\n')
                 for facet in facets:
                     f.write(' '.join(map(str, facet)) + '\n')
 
@@ -579,7 +592,7 @@ def test_find_facets_adjacent_to_d_minus_3_dim_face():
     face = [-1, -1, -1, 0]  # x + y + z >= 0, a plane touching the vertex of Q that is the origin
     P = np.array([[0, 0, 0, 1]])
     print("\nCube (should yield 3 facets):")
-    facets = list(map(list, find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q)))
+    facets = list(map(list, find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, carriage_return=False)))
     assert len(facets) == 3
     assert [-1, 0, 0, 0] in facets
     assert [0, -1, 0, 0] in facets
@@ -853,7 +866,7 @@ if __name__ == '__main__':
 
     # P = result file 10 but homogenised
     with open('panda-files/results/10 lin indep on GYNI') as result_file_10:
-        P = np.concatenate(([list(map(int, line.split())) for line in result_file_10.readlines()[13:]], np.ones((84, 1), 'int8')), axis=1)
+        P = np.concatenate(([list(map(int, line.split())) for line in result_file_10.readlines()[13:]], np.ones((84, 1), 'int64')), axis=1)  # [13:] for GYNI
     # Q = vertices to search = result file 8
     Q = []
     with open('panda-files/results/8 all LC vertices') as all_LC_vertices:
@@ -887,4 +900,21 @@ if __name__ == '__main__':
     print(does_quantum_violate_ineq(lc_facet2))
     print(does_quantum_violate_ineq(lc_facet3))
     print(does_quantum_violate_ineq(lc_facet4))
+    """
+
+    """
+    maybe_facets = [list(map(int,
+                             "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 0 1 0 1 0 -1 0 0 0 1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0 0".split())),
+                    list(map(int,
+                             "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 0 1 0 1 0 -1 0 0 0 1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0".split())),
+                    list(map(int,
+                             "0 1 1 -1 0 1 1 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 0 1 0 0 0 -1 0 -1 0 1 0 0 0 -1 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 -1".split())),
+                    list(map(int,
+                             "0 1 1 -1 0 1 1 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 1 0 0 0 -1 0 -1 0 1 0 0 0 -1 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 0 -1".split()))
+                    ]
+
+    for facet in maybe_facets:
+        # print("checking facet %s" % ' '.join(map(str, facet)))
+        # is_facet_of_LC(facet)
+        print(does_quantum_violate_ineq(facet))
     """
