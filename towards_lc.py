@@ -3,7 +3,7 @@ import sys
 import scipy.linalg
 import sympy
 from scipy.optimize import linprog
-import time
+import time, datetime
 
 import panda
 import polytope_utils
@@ -359,7 +359,7 @@ def find_affinely_independent_point(points, file_to_search, constraint=None, upd
     print("Reached end of file. No affinely independent point found!")
 
 
-def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on_face=True, violation_tol=1e-10):
+def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on_face=True, violation_tol=1e-10, output_file=None, update_frequency_j=100, carriage_return=True):
     """ TODO can I use integer arithmetic? Calculating nullspaces with homogeneous coordinates etc?
     NOTE I think this function only works for full-dimensional polytopes.
     :param face: length-(d+1) vector representing an inequality that is valid for Q.
@@ -372,6 +372,11 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
                           (so do check if all facets are indeed valid for LC afterwards).
     :return: array of shape (?,d+1); each row represents a facet (not symmetry-reduced!) adjacent to the face specified by P. (also prints these rows)
     """
+    end = '\r' if carriage_return else '\n'
+    if output_file is not None:
+        with open(output_file, 'a') as f:
+            f.write("\n\n--- NEW RUN, %s ---\n" % str(datetime.datetime.now()))
+
     facets = []
     P_sympy = sympy.Matrix(P)
     d = len(Q[0]) - 1
@@ -388,22 +393,32 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
 
         P_qi = np.r_[P, [Q[i]]]
 
+        print("Processing i=%d;\tlen(vertex_candidate_indices)=%d\ttotal_sympy_time=%.1fs\tduplicate_facets_caught=%d"
+              % (i, len(vertex_candidate_indices), total_sympy_time, duplicate_facets_caught), end=end)
+        sys.stdout.flush()
+
         for _j in range(0, len(vertex_candidate_indices)):
             j = vertex_candidate_indices[_j]
             if j >= i:
                 break  # only check the 'upper triangle' in (j,i)-space
+
             P_qi_qj = np.r_[P_qi, [Q[j]]]
             if np.linalg.matrix_rank(P_qi_qj) == d:
                 # First check if we don't already have found the facet that contains these two points qi,qj. Doing this should also avoid any duplicates in the facets output
                 # This takes O(len(facets)) but potentially saves us O(len(Q)) time
                 already_found_this_facet = False
                 for facet in facets:
-                    if np.dot(facet, Q[i]) == 0 and np.dot(facet, Q[j]) == 0:  # TODO maybe abs(np.dot(...)) < violation_tol? But using sympy this might not be necessary
+                    if np.dot(facet, Q[i]) == np.dot(facet, Q[j]) == 0:  # TODO maybe abs(np.dot(...)) < violation_tol? But using sympy this might not be necessary
                         already_found_this_facet = True
                         duplicate_facets_caught += 1
                         break
                 if already_found_this_facet:
                     continue
+
+                if _j % 100 == 0:
+                    print("Processing pair (i,j)=(%d,%d);\tlen(vertex_candidate_indices)=%d\ttotal_sympy_time=%.1fs\tduplicate_facets_caught=%d"
+                          % (i, j, len(vertex_candidate_indices), total_sympy_time, duplicate_facets_caught), end=end)
+                    sys.stdout.flush()
 
                 # Find normal vector to plane through P,qi,qj:
                 a = scipy.linalg.null_space(P_qi_qj)[:, 0]
@@ -421,7 +436,7 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
                             break  # sim.
 
                 if not (found_gt0 and found_lt0):
-                    # Success! Found a facet.
+                    # Success! Found a new facet.
                     # Pretty-print `a` (the inequality) using sympy:   (col_join is like np.r_)
                     time1 = time.time()
                     a = P_sympy.col_join(sympy.Matrix([Q[i], Q[j]])).nullspace()[0]
@@ -432,13 +447,13 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, check_vertices_are_on
 
                     if np.dot(a, (found_gt0 or found_lt0)) > 0:  # Flip sign of inequality appropriately. Note that sympy `a` might differ from scipy `a`.
                         a = -1 * a
-                    print(' '.join(map(str, a)))
-                    facets.append([k for k in a])
 
-            if _j % 100 == 0:
-                print("i = %d \t j = %d \t # remaining vertex candidates = %d \t total_sympy_time = %.3f \t duplicate_facets_caught = %d"
-                      % (i, j, len(vertex_candidate_indices), total_sympy_time, duplicate_facets_caught), end='\r')
-            sys.stdout.flush()
+                    facets.append(a)
+                    a_str = ' '.join(map(str, a))
+                    print(a_str)
+                    if output_file is not None:
+                        with open(output_file, 'a') as f:
+                            f.write(a_str + '\n')
         i += 1
 
     print("All vertices in Q checked. Found %d facets!" % len(facets))
@@ -461,7 +476,7 @@ def test_find_facets_adjacent_to_d_minus_3_dim_face():
     P = np.array([[1, 0, 0, 1]])
     # Run algorithm
     print("Octahedron (should yield 4 facets):")
-    facets = find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q)
+    facets = list(map(list, find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, output_file='panda-files/test_find_facets')))
     assert len(facets) == 4
     assert [1, 1, 1, -1] in facets
     assert [1, 1, -1, -1] in facets
@@ -473,7 +488,7 @@ def test_find_facets_adjacent_to_d_minus_3_dim_face():
     face = [-1, -1, -1, 0]  # x + y + z >= 0, a plane touching the vertex of Q that is the origin
     P = np.array([[0, 0, 0, 1]])
     print("\nCube (should yield 3 facets):")
-    facets = find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q)
+    facets = list(map(list, find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q)))
     assert len(facets) == 3
     assert [-1, 0, 0, 0] in facets
     assert [0, -1, 0, 0] in facets
@@ -484,7 +499,7 @@ def test_find_facets_adjacent_to_d_minus_3_dim_face():
     face = [1, 1, 1, -3]  # x + y + z >= 0, a plane touching the vertex of Q that is the origin
     P = np.array([[1, 1, 1, 1]])
     print("\nCube opposite vertex:")
-    facets = find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q)
+    facets = list(map(list, find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q)))
     assert len(facets) == 3
     assert [1, 0, 0, -1] in facets
     assert [0, 1, 0, -1] in facets
@@ -495,7 +510,7 @@ def test_find_facets_adjacent_to_d_minus_3_dim_face():
     face = [[2, 2, 2, -3]]  # x + y + z >= 0, a plane touching the vertex of Q that is the origin
     P = np.array([[1, 1, 1, 2]])
     print("\nCube with side-lengths 1/2:")
-    facets = find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q)
+    facets = list(map(list, find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q)))
     assert len(facets) == 3
     assert [2, 0, 0, -1] in facets
     assert [0, 2, 0, -1] in facets
@@ -528,7 +543,7 @@ def test_find_facets_adjacent_to_d_minus_3_dim_face():
             P.pop(0)
             P = np.array(P)
             print("\n%d-simplex, face with (i,j)=(%d,%d):" % (d, i, j))
-            found_facets = find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q)
+            found_facets = list(map(list, find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q)))
 
             assert len(found_facets) == 3
             assert facets[0] in found_facets  # the 'diagonal facet'
@@ -547,7 +562,7 @@ def test_find_facets_adjacent_to_d_minus_3_dim_face():
     P.pop(i + 1)
     P = np.array(P)
     print("\n%d-simplex, face with (i,j,k)=(%d,%d,%d):" % (d, i, j, k))
-    found_facets = find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q)
+    found_facets = list(map(list, find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q)))
     assert len(found_facets) == 3
     for l in [i, j, k]:
         assert facets[l + 1] in found_facets
@@ -638,9 +653,8 @@ def does_quantum_violate_ineq(ineq):
 def generate_all_positivity_inequalities(output_filename):
     with open(output_filename, 'w') as f:
         for i in range(0, 128):
-            p_i_nss = vector_space_utils.construct_full_to_NSS_matrix(8,2,4,2)[:,i]
+            p_i_nss = vector_space_utils.construct_full_to_NSS_matrix(8, 2, 4, 2)[:, i]
             f.write(' '.join(map(str, -p_i_nss)) + '0\n')
-
 
 
 if __name__ == '__main__':
@@ -686,33 +700,25 @@ if __name__ == '__main__':
     print(result)
     """
 
-    # test_find_facets_adjacent_to_d_minus_3_dim_face()
-    # assert 2 + 2 == 5
+    test_find_facets_adjacent_to_d_minus_3_dim_face()
+    assert 2 + 2 == 5
 
     # P = result file 10 but homogenised
-    """\with open('panda-files/results/10 lin indep on GYNI') as result_file_10:
-    P = np.concatenate(([list(map(int, line.split())) for line in result_file_10.readlines()[13:]], np.ones((84, 1), 'int8')), axis=1)
+    with open('panda-files/results/10 lin indep on GYNI') as result_file_10:
+        P = np.concatenate(([list(map(int, line.split())) for line in result_file_10.readlines()[13:]], np.ones((84, 1), 'int8')), axis=1)
     # Q = vertices to search = result file 8
     Q = []
     with open('panda-files/results/8 all LC vertices') as all_LC_vertices:
         line = all_LC_vertices.readline()
-        while line and len(Q) <= 1000:  # TODO REMOVE BEFORE RUNNING ON ARC
+        while line:  # TODO REMOVE BEFORE RUNNING ON ARC
             if line.strip():  # ignore empty lines
                 Q.append(list(map(int, line.split())))
             line = all_LC_vertices.readline()
-            print("loading Q: %d elements till now" % len(Q), end='\r')
-            # sys.stdout.flush()
+            if len(Q) % 1e6 == 0:
+                print("loading Q: %d elements till now" % len(Q))
     print("Loaded P and Q into memory")
     # run the facet-finding algorithm
-    facets = find_facets_adjacent_to_d_minus_3_dim_face(inequality_GYNI(), P, Q)
-    # write results to output file
-    print("Saving result...")
-    output_filename = 'panda-files/results/12 facets adjacent to GYNI'
-    with open(output_filename, 'w') as output_file:
-        for facet in facets:
-            output_file.write(' '.join(map(str, facet)) + '\n')
-    print("Saved result to " + output_filename)
-    """
+    facets = find_facets_adjacent_to_d_minus_3_dim_face(inequality_GYNI(), P, Q, output_file='panda-files/results/12 facets adjacent to GYNI')
 
     ## To get all LC vertices NOT on GYNI (but maybe they _are_ on a face that is mapped to GYNI under a symmetry of LC!):
     """
@@ -720,6 +726,7 @@ if __name__ == '__main__':
     vector_space_utils.filter_row_file('panda-files/results/8 all LC vertices', 'panda-files/lc_vertices_not_satisfying_random_ineq', lambda row: np.dot(random_ineq, row) > 0)
     """
 
+    """
     lc_facet1 = list(map(int,
                          "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0 0".split()))
     lc_facet2 = list(map(int,
@@ -738,3 +745,4 @@ if __name__ == '__main__':
     print(does_quantum_violate_ineq(lc_facet2))
     print(does_quantum_violate_ineq(lc_facet3))
     print(does_quantum_violate_ineq(lc_facet4))
+    """
