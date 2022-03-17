@@ -431,15 +431,17 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
 
         ## Do quadrant method
         # But don't do it if Q[i] is on one of the already found facets! Because then quadrant method will never work
-        if np.all(facets @ Q[i]):  # if for all m, facets[m] @ Q[i] != 0
+        if np.all(facets @ Q[i]) or True:  # if for all m, facets[m] @ Q[i] != 0
             time1 = time.time()
             a1a2 = scipy.linalg.null_space(P_qi)
             a1 = a1a2[:, 0]
             a2 = a1a2[:, 1]
             # TODO maybe perturb/randomise a1,a2. Test if that makes it faster when running on LC.
-            # Loop through all vertices; try to find one vertex for each quadrant
+            # Loop through a selection of vertices. I have reason to believe that the first couple vertices in vertices_not_on_face_indices are already sufficient. Also take some random ones.
+            indices_to_try = np.r_[vertices_not_on_face_indices[0:min(1024, len(vertices_not_on_face_indices))], np.random.choice(vertices_not_on_face_indices, 800, replace=False)]
+            # Try to find one vertex for each quadrant.
             found_quadrant_gt_gt = found_quadrant_gt_lt = found_quadrant_lt_gt = found_quadrant_lt_lt = False
-            for k in vertices_not_on_face_indices:  # TODO can try fewer vertices here?
+            for k in indices_to_try:  # TODO can try fewer vertices here?
                 q = Q[k]
                 violation1 = np.dot(q, a1)
                 if violation1 > violation_threshold and not (found_quadrant_gt_gt and found_quadrant_gt_lt):
@@ -856,13 +858,7 @@ if __name__ == '__main__':
     Q = []
     with open('panda-files/results/8 all LC vertices') as all_LC_vertices:
         line = all_LC_vertices.readline()
-        i = 0
         while line:
-            i += 1
-            if i >= 100000:
-                line = all_LC_vertices.readline()
-                break
-                # continue
             if line.strip():  # ignore empty lines
                 Q.append(list(map(int, line.split())))
             line = all_LC_vertices.readline()
@@ -872,9 +868,7 @@ if __name__ == '__main__':
     # run the facet-finding algorithm
     facets = find_facets_adjacent_to_d_minus_3_dim_face(inequality_GYNI(), P, Q, known_facets,
                                                         output_file='panda-files/results/12 facets adjacent to GYNI',
-                                                        snapshot_file='panda-files/results/12 facets adjacent to GYNI_snapshot',
-                                                        snapshot_frequency=1,
-                                                        update_frequency_j=1,
+                                                        # snapshot_file='panda-files/results/12 facets adjacent to GYNI_snapshot',
                                                         carriage_return=True)
 
     ## To get all LC vertices NOT on GYNI (but maybe they _are_ on a face that is mapped to GYNI under a symmetry of LC!):
