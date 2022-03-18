@@ -513,14 +513,14 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
                     violation = np.dot(a, Q[k])
                     if violation > violation_threshold:  # a will likely involve numerical errors - it looks like they're about 1e-16 but let's be careful - o/w we might miss facets of LC
                         found_gt0 = Q[k]
-                        if found_lt0:
+                        if found_lt0 is not None:
                             break  # `a` does not support a valid inequality. Move on to next `m`
                     if violation < -violation_threshold:
                         found_lt0 = Q[k]
-                        if found_gt0:
+                        if found_gt0 is not None:
                             break  # sim.
 
-                if not (found_gt0 and found_lt0):
+                if found_gt0 is None or found_lt0 is None:
                     # Success! Found a new facet.
                     # Pretty-print `a` (the inequality) using sympy:   (col_join is like np.r_)
                     time1 = time.time()
@@ -530,7 +530,8 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
                     # using sympy rather than scipy.linalg.null_space here because scipy normalises the vectors, leading to nasty round-off errors
                     # But sympy does cost a lot of time
 
-                    if np.dot(a, (found_gt0 or found_lt0)) > 0:  # Flip sign of inequality appropriately. Note that sympy `a` might differ from scipy `a`.
+                    found_vertex = found_gt0 if found_gt0 is not None else found_lt0
+                    if np.dot(a, found_vertex) > 0:  # Flip sign of inequality appropriately. Note that sympy `a` might differ from scipy `a`.
                         a = -1 * a
 
                     facets = np.r_[facets, [a]]
