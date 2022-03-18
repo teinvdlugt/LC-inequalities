@@ -69,7 +69,7 @@ def read_vertex_range_from_file(filename, start_at_incl=0, stop_at_excl=np.infty
                 if i >= start_at_incl:
                     batch.append(list(map(int, line.split())))
                 if len(batch) >= batch_size:
-                    Q = np.r_[Q, batch]
+                    Q = np.r_[Q, batch].astype(dtype)
                     batch = []
                     if len(Q) > len_at_last_update + update_freq:
                         print("Loading vertices from file: %d elements till now" % len(Q), end='\r')

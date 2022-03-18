@@ -863,13 +863,12 @@ if __name__ == '__main__':
 
     # P = result file 10 but homogenised
     P = np.concatenate((utils.read_vertex_range_from_file('panda-files/results/10 lin indep on GYNI'), np.ones((84, 1), 'int16')), axis=1)
-    # with open('panda-files/results/10 lin indep on GYNI') as result_file_10:
-    #     P = np.concatenate(([list(map(int, line.split())) for line in result_file_10.readlines()[13:]], np.ones((84, 1), 'int64')), axis=1)  # [13:] for GYNI
     # Q = vertices to search = result file 8
     Q = utils.read_vertex_range_from_file('panda-files/results/8 all LC vertices')
-    print("Loaded P and Q into memory")
-    Q = np.array(Q)
+    # or
+    # Q = np.load('panda-files/results/lc_vertices.npy')
     # Q = np.flipud(Q)  # if you want to go through Q in reverse order
+    print("Loaded P and Q into memory")
     facets = find_facets_adjacent_to_d_minus_3_dim_face(inequality_GYNI(), P, Q, known_facets,
                                                         # output_file='panda-files/results/12 facets adjacent to GYNI',
                                                         # snapshot_file='panda-files/results/12 facets adjacent to GYNI_snapshot',
