@@ -128,8 +128,10 @@ phi_plus_un = np.array([1, 0, 0, 1])  # unnormalised
 ket_ghz = 1 / sqrt2 * np.array([1, 0, 0, 0, 0, 0, 0, 1])
 ctb_ghz = 1 / 2 * proj(np.array([1, 0, 0, 0, 0, 0, 0, 1]))
 
+
 def random_real_3_qubit_pure_density_matrix():
     return proj(normalise_vec(np.random.rand(8)))
+
 
 # Some common ONBs
 def onb_from_direction(theta, phi=0.):
@@ -470,38 +472,60 @@ def quantum_cor_nss_definitive(rho_ctb, X1, X2, Y, c_onb, common_multiple_of_den
 
 
 def generate_some_quantum_cors():
-    qm_cor1 = quantum_cor_nss_definitive(
-        rho_ctb=proj(kron(ket_plus, phi_plus)),  # CTB = |+> |phi+>
-        X1=[z_onb, x_onb],
-        X2=[z_onb, x_onb],
-        Y=[z_onb, x_onb],
-        c_onb=x_onb,
-        common_multiple_of_denominators=32)
-    qm_cor2 = quantum_cor_nss_definitive(
-        rho_ctb=proj(kron(ket0, phi_plus).reshape(2, 2, 2).swapaxes(1, 2).reshape(8)),  # TCB = |0> |phi+>
-        X1=[z_onb, x_onb],
-        X2=[z_onb, x_onb],
-        Y=[z_onb, x_onb],
-        c_onb=x_onb,
-        common_multiple_of_denominators=32)
-    qm_cor3 = quantum_cor_nss_definitive(
-        rho_ctb=ctb_ghz,  # CTB = |GHZ>
-        X1=[z_onb, x_onb],
-        X2=[z_onb, x_onb],
-        Y=[z_onb, x_onb],
-        c_onb=x_onb,
-        common_multiple_of_denominators=32)
+    qm_cors = [
+        quantum_cor_nss_definitive(
+            rho_ctb=proj(kron(ket_plus, phi_plus)),  # CTB = |+> |phi+>
+            X1=[z_onb, x_onb],
+            X2=[z_onb, x_onb],
+            Y=[z_onb, x_onb],
+            c_onb=x_onb,
+            common_multiple_of_denominators=32),
+        quantum_cor_nss_definitive(
+            rho_ctb=proj(kron(ket0, phi_plus).reshape(2, 2, 2).swapaxes(1, 2).reshape(8)),  # TCB = |0> |phi+>
+            X1=[z_onb, x_onb],
+            X2=[z_onb, x_onb],
+            Y=[diag1_onb, diag2_onb],
+            c_onb=x_onb,
+            common_multiple_of_denominators=32),
+        quantum_cor_nss_definitive(
+            rho_ctb=proj(kron(ket0, phi_plus).reshape(2, 2, 2).swapaxes(1, 2).reshape(8)),  # TCB = |0> |phi+>
+            X1=[z_onb, x_onb],
+            X2=[z_onb, x_onb],
+            Y=[z_onb, x_onb],
+            c_onb=diag1_onb,
+            common_multiple_of_denominators=32),
+        quantum_cor_nss_definitive(
+            rho_ctb=proj(kron(ket0, phi_plus).reshape(2, 2, 2).swapaxes(1, 2).reshape(8)),  # TCB = |0> |phi+>
+            X1=[diag1_onb, diag2_onb],
+            X2=[z_onb, x_onb],
+            Y=[z_onb, x_onb],
+            c_onb=diag2_onb,
+            common_multiple_of_denominators=32),
+        quantum_cor_nss_definitive(
+            rho_ctb=ctb_ghz,  # CTB = |GHZ>
+            X1=[diag1_onb, diag2_onb],
+            X2=[diag1_onb, diag2_onb],
+            Y=[diag1_onb, diag2_onb],
+            c_onb=x_onb,
+            common_multiple_of_denominators=32),
+        quantum_cor_nss_definitive(
+            rho_ctb=ctb_ghz,  # CTB = |GHZ>
+            X1=[z_onb, x_onb],
+            X2=[z_onb, x_onb],
+            Y=[z_onb, x_onb],
+            c_onb=diag1_onb,
+            common_multiple_of_denominators=32)]
+    num_of_random_cors = 100
     def random_quantum_setup():
         return random_real_3_qubit_pure_density_matrix(), \
                [random_real_onb(), random_real_onb()], \
                [random_real_onb(), random_real_onb()], \
                [random_real_onb(), random_real_onb()], \
                random_real_onb()
-    qm_cor4 = quantum_cor_nss_definitive(*random_quantum_setup(), common_multiple_of_denominators=1000)
-    qm_cor5 = quantum_cor_nss_definitive(*random_quantum_setup(), common_multiple_of_denominators=1000)
-    qm_cor6 = quantum_cor_nss_definitive(*random_quantum_setup(), common_multiple_of_denominators=1000)
+    for i in range(0, num_of_random_cors):
+        qm_cors.append(quantum_cor_nss_definitive(*random_quantum_setup(), common_multiple_of_denominators=10000))
 
-    return qm_cor1, qm_cor2, qm_cor3, qm_cor4, qm_cor5, qm_cor6
+    return qm_cors
 
 
 if __name__ == '__main__':
@@ -553,5 +577,11 @@ if __name__ == '__main__':
     # rho_ctb = GHZ              : gives 0.0347 and 0.283 ✓
 
     # NOTE See [p93] for the results with non-random X1,X2,Y.
+
+    qm_cors = generate_some_quantum_cors()
+    print("done. now writing")
+    with open('panda-files/some_quantum_cors2', 'w') as f:
+        for cor in qm_cors:
+            f.write(' '.join(map(str, cor)))
 
     print('ready')
