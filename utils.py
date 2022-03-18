@@ -1,3 +1,4 @@
+import sys
 import time
 
 import numpy as np
@@ -16,7 +17,7 @@ def almost_equal(array1, array2, tol=1e-16):
 
 
 def not_almost_equal(array1, array2, tol=1e-16):
-    return np.ones_like(array1.shape) - almost_equal(array1, array2, tol=tol)#
+    return np.ones_like(array1.shape) - almost_equal(array1, array2, tol=tol)  #
 
 
 def eliminate_duplicate_rows(array):
@@ -26,6 +27,7 @@ def eliminate_duplicate_rows(array):
     indices_sorted = np.sort(indices)
     print(indices)
     return np.array([array[i] for i in indices_sorted])
+
 
 def assert_soft(statement):
     try:
@@ -47,3 +49,34 @@ def approximate(vector, allowed_values):
             argmax_dev = i
     print('Largest error in utils.approximate(): %s at index %i' % (str(max_dev), argmax_dev))
     return approx_vector
+
+
+def read_vertex_range_from_file(filename, start_at_incl=0, stop_at_excl=np.infty, update_freq=1e6, batch_size=10000, dtype='int16'):
+    with open(filename, 'r') as f:
+        # skip empty lines and commented lines at start of file
+        line = f.readline()
+        while line and (line[0] == '#' or not line.strip()):
+            line = f.readline()
+
+        # find out dimension of vertices
+        d = len(line.split())
+        Q = np.empty((0, d), dtype)
+        batch = []
+        i = 0
+        len_at_last_update = 0
+        while line and i < stop_at_excl:
+            if line.strip():
+                if i >= start_at_incl:
+                    batch.append(list(map(int, line.split())))
+                if len(batch) >= batch_size:
+                    Q = np.r_[Q, batch]
+                    batch = []
+                    if len(Q) > len_at_last_update + update_freq:
+                        print("Loading vertices from file: %d elements till now" % len(Q), end='\r')
+                        sys.stdout.flush()
+                        len_at_last_update = len(Q)
+                i += 1
+            line = f.readline()
+        Q = np.r_[Q, batch]
+        print()
+    return Q

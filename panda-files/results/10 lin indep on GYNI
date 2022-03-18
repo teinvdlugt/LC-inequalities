@@ -5,10 +5,10 @@
 # intersection of GYNI and LGYNI is high-dimensional - for one, because they're both lifted from 12 into 86 dimensions.
 
 # Code used to generate this file:
-        gyni = inequality_GYNI()
-        vector_space_utils.reduce_file_to_lin_indep_subset("panda-files/results/8 all LC vertices", 2, 86,
-                                                           constraint=lambda row: np.dot(gyni, row) == 0,
-                                                           output_filename='panda-files/results/11 lin indep on GYNI, not LGYNI')
+#        gyni = inequality_GYNI()
+#        vector_space_utils.reduce_file_to_lin_indep_subset("panda-files/results/8 all LC vertices", 2, 86,
+#                                                           constraint=lambda row: np.dot(gyni, row) == 0,
+#                                                           output_filename='panda-files/results/11 lin indep on GYNI, not LGYNI')
 
 
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
