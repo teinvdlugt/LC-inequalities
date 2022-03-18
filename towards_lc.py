@@ -412,7 +412,6 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
     secant_vertices_caught = 0  # 'secant vertices': vertices q s.t. <P,q1> passes through the interior of the polytope
     duplicate_facets_caught = 0
     times_not_done_quadrant = 0
-    mak__k = 0
     start_time = time.time()
 
     while _i < len(vertex_candidate_indices):
@@ -420,7 +419,6 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
         if check_vertices_are_on_face and np.dot(face, Q[i]) == 0:  # if Q[i] is already on the face
             vertex_candidate_indices.remove(i)
             vertices_not_on_face_indices.remove(i)
-            _i += 1
             continue
 
         P_qi = np.r_[P, [Q[i]]]
@@ -446,7 +444,7 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
                 violation1 = np.dot(q, a1)
                 if violation1 > violation_threshold and not (found_quadrant_gt_gt and found_quadrant_gt_lt):
                     violation2 = np.dot(q, a2)
-                    if (not found_quadrant_gt_gt) and violation2 > violation_threshold:
+                    if (not found_quadrant_gt_gt) and violation2 > violation_threshold:  # TODO remove 'not found_...' etc.?
                         found_quadrant_gt_gt = True
                     elif (not found_quadrant_gt_lt) and violation2 < -violation_threshold:
                         found_quadrant_gt_lt = True
@@ -463,14 +461,13 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
 
             print("%s; i=%d; facets=%d; candidates=%d; sympy=%.1fs; secant=%.1fs; secant vertices caught=%d; duplicate facets caught=%d; avoided quadrant=%d; quadrant iters=%d"
                   % (datetime.timedelta(seconds=int(time.time() - start_time)), i, len(facets), len(vertex_candidate_indices), total_sympy_time, total_quadrant_time, secant_vertices_caught,
-                     duplicate_facets_caught, times_not_done_quadrant, k),
+                     duplicate_facets_caught, times_not_done_quadrant, _k),
                   end=end)
             sys.stdout.flush()
 
             if found_quadrant_gt_gt and found_quadrant_gt_lt and found_quadrant_lt_gt and found_quadrant_lt_lt:
-                vertex_candidate_indices.remove(i)
+                vertex_candidate_indices.remove(i)  # NOTE Don't increment _i because that'd result in skipping every other vertex
                 secant_vertices_caught += 1
-                _i += 1
                 continue
         else:
             times_not_done_quadrant += 1
@@ -868,21 +865,26 @@ if __name__ == '__main__':
     with open('panda-files/results/10 lin indep on GYNI') as result_file_10:
         P = np.concatenate(([list(map(int, line.split())) for line in result_file_10.readlines()[13:]], np.ones((84, 1), 'int64')), axis=1)  # [13:] for GYNI
     # Q = vertices to search = result file 8
-    Q = []
+    Q = np.empty((0, 87), dtype='int16')
     with open('panda-files/results/8 all LC vertices') as all_LC_vertices:
         line = all_LC_vertices.readline()
-        while line:
-            if line.strip():  # ignore empty lines
-                Q.append(list(map(int, line.split())))
+        start_reading_at = 0  # 0   # inclusive
+        stop_reading_at = np.infty  # np.infty   # exclusive
+        i = 0
+        while line and i < stop_reading_at:
+            if line.strip():
+                if i >= start_reading_at:
+                    Q = np.r_[Q, [list(map(int, line.split()))]]
+                i += 1
             line = all_LC_vertices.readline()
-            if len(Q) % 1e6 == 0:
+            if len(Q) % 1e6 == 0 and len(Q) != 0:
                 print("loading Q: %d elements till now" % len(Q))
     print("Loaded P and Q into memory")
-    # run the facet-finding algorithm
+    # Q = np.flipud(Q)  # if you want to go through Q in reverse order
     facets = find_facets_adjacent_to_d_minus_3_dim_face(inequality_GYNI(), P, Q, known_facets,
-                                                        output_file='panda-files/results/12 facets adjacent to GYNI',
+                                                        # output_file='panda-files/results/12 facets adjacent to GYNI',
                                                         # snapshot_file='panda-files/results/12 facets adjacent to GYNI_snapshot',
-                                                        carriage_return=True)
+                                                        carriage_return=False)
 
     ## To get all LC vertices NOT on GYNI (but maybe they _are_ on a face that is mapped to GYNI under a symmetry of LC!):
     """
