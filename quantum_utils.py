@@ -479,42 +479,42 @@ def generate_some_quantum_cors():
             X2=[z_onb, x_onb],
             Y=[z_onb, x_onb],
             c_onb=x_onb,
-            common_multiple_of_denominators=32),
+            common_multiple_of_denominators=2**14),
         quantum_cor_nss_definitive(
             rho_ctb=proj(kron(ket0, phi_plus).reshape(2, 2, 2).swapaxes(1, 2).reshape(8)),  # TCB = |0> |phi+>
             X1=[z_onb, x_onb],
             X2=[z_onb, x_onb],
             Y=[diag1_onb, diag2_onb],
             c_onb=x_onb,
-            common_multiple_of_denominators=32),
+            common_multiple_of_denominators=2**14),
         quantum_cor_nss_definitive(
             rho_ctb=proj(kron(ket0, phi_plus).reshape(2, 2, 2).swapaxes(1, 2).reshape(8)),  # TCB = |0> |phi+>
             X1=[z_onb, x_onb],
             X2=[z_onb, x_onb],
             Y=[z_onb, x_onb],
             c_onb=diag1_onb,
-            common_multiple_of_denominators=32),
+            common_multiple_of_denominators=2**14),
         quantum_cor_nss_definitive(
             rho_ctb=proj(kron(ket0, phi_plus).reshape(2, 2, 2).swapaxes(1, 2).reshape(8)),  # TCB = |0> |phi+>
             X1=[diag1_onb, diag2_onb],
             X2=[z_onb, x_onb],
             Y=[z_onb, x_onb],
             c_onb=diag2_onb,
-            common_multiple_of_denominators=32),
+            common_multiple_of_denominators=2**14),
         quantum_cor_nss_definitive(
             rho_ctb=ctb_ghz,  # CTB = |GHZ>
             X1=[diag1_onb, diag2_onb],
             X2=[diag1_onb, diag2_onb],
             Y=[diag1_onb, diag2_onb],
             c_onb=x_onb,
-            common_multiple_of_denominators=32),
+            common_multiple_of_denominators=2**14),
         quantum_cor_nss_definitive(
             rho_ctb=ctb_ghz,  # CTB = |GHZ>
             X1=[z_onb, x_onb],
             X2=[z_onb, x_onb],
             Y=[z_onb, x_onb],
             c_onb=diag1_onb,
-            common_multiple_of_denominators=32)]
+            common_multiple_of_denominators=2**14)]
     num_of_random_cors = 100
     def random_quantum_setup():
         return random_real_3_qubit_pure_density_matrix(), \
@@ -523,7 +523,7 @@ def generate_some_quantum_cors():
                [random_real_onb(), random_real_onb()], \
                random_real_onb()
     for i in range(0, num_of_random_cors):
-        qm_cors.append(quantum_cor_nss_definitive(*random_quantum_setup(), common_multiple_of_denominators=10000))
+        qm_cors.append(quantum_cor_nss_definitive(*random_quantum_setup(), common_multiple_of_denominators=2**14))
 
     return qm_cors
 
@@ -582,6 +582,6 @@ if __name__ == '__main__':
     print("done. now writing")
     with open('panda-files/some_quantum_cors2', 'w') as f:
         for cor in qm_cors:
-            f.write(' '.join(map(str, cor)))
+            f.write(' '.join(map(str, cor)) + '\n')
 
     print('ready')
