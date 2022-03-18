@@ -528,6 +528,17 @@ def generate_some_quantum_cors():
     return qm_cors
 
 
+def does_quantum_violate_ineq(ineq, quantum_cor_file='panda-files/some_quantum_cors2'):
+    """ Test some sensibly chosen and some randomly generated quantum correlations against the inequality. """
+    qm_cors = utils.read_vertex_range_from_file(quantum_cor_file, dtype='float64')
+
+    violations = np.matmul(ineq, qm_cors.T)
+    for i in range(0, len(qm_cors)):
+        violations[i] /= qm_cors[i][-1]
+    print(violations)
+    return np.any(violations > 0)
+
+
 if __name__ == '__main__':
     ## Showing that p(c | x_1, x_2, y) can generally depend on y (i.e. 'disproving (iii)'):
     """

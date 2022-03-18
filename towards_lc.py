@@ -9,7 +9,6 @@ import panda
 import polytope_utils
 import quantum_utils as qm
 import utils
-from quantum_utils import proj, kron, ket_plus, phi_plus, z_onb, x_onb, ket0
 import symmetry_utils
 import itertools
 import numpy as np
@@ -735,24 +734,6 @@ def is_facet_of_LC(ineq):
         return False
 
 
-def does_quantum_violate_ineq(ineq):
-    """ Test some sensibly chosen and some randomly generated quantum correlations against the inequality. """
-    qm_cors = []
-    with open('panda-files/some_quantum_cors') as f:
-        lines = f.readlines()
-        for line in lines:
-            if line.strip():
-                qm_cors.append(list(map(int, line.split())))
-
-    there_is_violation = False
-    for i in range(0, len(qm_cors)):
-        violation = np.dot(qm_cors[i], ineq) / qm_cors[i][-1]
-        print("violation of qm_cor%d: %f" % (i, violation))
-        if not there_is_violation and violation > 0:
-            there_is_violation = True
-    return there_is_violation
-
-
 def generate_all_positivity_inequalities(output_filename):
     with open(output_filename, 'w') as f:
         for i in range(0, 128):
@@ -849,18 +830,27 @@ if __name__ == '__main__':
     # test_find_facets_adjacent_to_d_minus_3_dim_face()
     # assert 2 + 2 == 5
 
-    known_facets = [list(map(int,
-                             "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0 0"
-                             .split())),
-                    list(map(int,
-                             "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0"
-                             .split())),
-                    list(map(int,
-                             "1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 -1"
-                             .split())),
-                    list(map(int,
-                             "1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 0 -1"
-                             .split()))]
+    known_gyni_facets = [list(map(int,
+                                  "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0 0"
+                                  .split())),
+                         list(map(int,
+                                  "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0"
+                                  .split())),
+                         list(map(int,
+                                  "1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 -1"
+                                  .split())),
+                         list(map(int,
+                                  "1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 0 -1"
+                                  .split()))]
+    known_lgyni_facets = [list(map(int,  # TODO actually didn't fully check these yet!
+                                   "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 0 1 0 1 0 -1 0 0 0 1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0 0".split())),
+                          list(map(int,
+                                   "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 0 1 0 1 0 -1 0 0 0 1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0".split())),
+                          list(map(int,
+                                   "0 1 1 -1 0 1 1 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 0 1 0 0 0 -1 0 -1 0 1 0 0 0 -1 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 -1".split())),
+                          list(map(int,
+                                   "0 1 1 -1 0 1 1 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 1 0 0 0 -1 0 -1 0 1 0 0 0 -1 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 0 -1".split()))
+                          ]
 
     # P = result file 10 but homogenised
     P = np.concatenate((utils.read_vertex_range_from_file('panda-files/results/10 lin indep on GYNI'), np.ones((84, 1), 'int16')), axis=1)
@@ -870,7 +860,7 @@ if __name__ == '__main__':
     # Q = np.load('panda-files/results/lc_vertices.npy')
     # Q = np.flipud(Q)  # if you want to go through Q in reverse order
     print("Loaded P and Q into memory")
-    facets = find_facets_adjacent_to_d_minus_3_dim_face(inequality_GYNI(), P, Q, known_facets,
+    facets = find_facets_adjacent_to_d_minus_3_dim_face(inequality_GYNI(), P, Q, known_gyni_facets,
                                                         # output_file='panda-files/results/12 facets adjacent to GYNI',
                                                         # snapshot_file='panda-files/results/12 facets adjacent to GYNI_snapshot',
                                                         carriage_return=False)
@@ -882,28 +872,13 @@ if __name__ == '__main__':
     """
 
     """
-    # is_facet_of_LC(lc_facet1)
-    # is_facet_of_LC(lc_facet2)
-    # is_facet_of_LC(lc_facet3)
-    # is_facet_of_LC(lc_facet4) TODO still check! maybe also 3
-
-    print(does_quantum_violate_ineq(lc_facet1))
-    print(does_quantum_violate_ineq(lc_facet2))
-    print(does_quantum_violate_ineq(lc_facet3))
-    print(does_quantum_violate_ineq(lc_facet4))
+    for facet in [*known_gyni_facets, *known_lgyni_facets]:
+        if does_quantum_violate_ineq(facet):
+            print("VIOLATION!!!")
+            raise Exception('Found a violation!')
     """
 
     """
-    maybe_facets = [list(map(int,
-                             "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 0 1 0 1 0 -1 0 0 0 1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0 0".split())),
-                    list(map(int,
-                             "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 0 1 0 1 0 -1 0 0 0 1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0".split())),
-                    list(map(int,
-                             "0 1 1 -1 0 1 1 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 0 1 0 0 0 -1 0 -1 0 1 0 0 0 -1 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 -1".split())),
-                    list(map(int,
-                             "0 1 1 -1 0 1 1 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 1 0 0 0 -1 0 -1 0 1 0 0 0 -1 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 0 -1".split()))
-                    ]
-
     for facet in maybe_facets:
         # print("checking facet %s" % ' '.join(map(str, facet)))
         # is_facet_of_LC(facet)

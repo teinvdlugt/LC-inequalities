@@ -78,5 +78,6 @@ def read_vertex_range_from_file(filename, start_at_incl=0, stop_at_excl=np.infty
                 i += 1
             line = f.readline()
         Q = np.r_[Q, batch]
-        print()
+        if len(Q) >= batch_size:
+            print()
     return Q
