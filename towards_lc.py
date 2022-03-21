@@ -7,6 +7,7 @@ import time, datetime
 
 import panda
 import polytope_utils
+import quantum_utils
 import quantum_utils as qm
 import utils
 import symmetry_utils
@@ -855,12 +856,15 @@ if __name__ == '__main__':
     # P = result file 10 but homogenised
     P = np.concatenate((utils.read_vertex_range_from_file('panda-files/results/10 lin indep on GYNI'), np.ones((84, 1), 'int16')), axis=1)
     # Q = vertices to search = result file 8
-    Q = utils.read_vertex_range_from_file('panda-files/results/8 all LC vertices')
+    # Q = np.r_[
+    #     utils.read_vertex_range_from_file('panda-files/results/8 all LC vertices', 50176, 54272),
+    #     utils.read_vertex_range_from_file('panda-files/results/8 all LC vertices', 0, 1024)
+    # ]
     # or
-    # Q = np.load('panda-files/results/lc_vertices.npy')
+    Q = np.load('panda-files/results/lc_vertices.npy')
     # Q = np.flipud(Q)  # if you want to go through Q in reverse order
     print("Loaded P and Q into memory")
-    facets = find_facets_adjacent_to_d_minus_3_dim_face(inequality_GYNI(), P, Q, known_gyni_facets,
+    facets = find_facets_adjacent_to_d_minus_3_dim_face(inequality_GYNI(), P, Q, # known_gyni_facets,
                                                         # output_file='panda-files/results/12 facets adjacent to GYNI',
                                                         # snapshot_file='panda-files/results/12 facets adjacent to GYNI_snapshot',
                                                         carriage_return=False)
@@ -873,14 +877,25 @@ if __name__ == '__main__':
 
     """
     for facet in [*known_gyni_facets, *known_lgyni_facets]:
-        if does_quantum_violate_ineq(facet):
+        qm_violations = qm.some_quantum_violations(facet)
+        print("Maximum violation found: %f" % np.max(qm_violations))
+        if np.any(qm_violations > 0):
             print("VIOLATION!!!")
             raise Exception('Found a violation!')
     """
 
-    """
-    for facet in maybe_facets:
-        # print("checking facet %s" % ' '.join(map(str, facet)))
-        # is_facet_of_LC(facet)
-        print(does_quantum_violate_ineq(facet))
-    """
+    # maybe_facets = [list(map(int,
+    #                          "-1 0 0 1 -1 0 0 1 0 0 -1 1 0 0 -1 1 0 -1 0 1 0 -1 0 1 0 0 0 0 -2 -2 2 2 0 0 0 0 -2 -2 2 2 0 0 0 0 -2 -2 0 0 0 0 2 2 -2 -2 0 0 0 0 2 2 -2 -2 0 0 2 2 0 0 -2 -2 0 0 2 2 0 0 -2 -2 0 0 0 0 0 0 0 0 1".split())),
+    #                 list(map(int,
+    #                          "1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 -2 2 2 -2 0 0 0 0 -2 2 2 -2 0 0 0 0 -2 2 0 0 0 0 2 -2 -2 2 0 0 0 0 2 -2 -2 2 0 0 2 -2 0 0 -2 2 0 0 2 -2 0 0 -2 2 0 0 0 0 0 0 0 0 -1".split())),
+    #                 list(map(int,
+    #                          "1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 2 -2 -2 2 0 0 0 0 2 -2 -2 2 0 0 0 0 2 -2 0 0 0 0 -2 2 2 -2 0 0 0 0 -2 2 2 -2 0 0 -2 2 0 0 2 -2 0 0 -2 2 0 0 2 -2 0 0 0 0 0 0 0 0 -1".split())),
+    #                 # list(map(int,
+    #                 #          "1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 2/3 2/3 -2/3 -2/3 0 0 0 0 2/3 2/3 -2/3 -2/3 0 0 0 0 2/3 2/3 0 0 0 0 -2/3 -2/3 2/3 2/3 0 0 0 0 -2/3 -2/3 2/3 2/3 0 0 -2/3 -2/3 0 0 2/3 2/3 0 0 -2/3 -2/3 0 0 2/3 2/3 0 0 0 0 0 0 0 0 -1".split()))
+    #                 ]
+    #
+    #
+    # for facet in maybe_facets:
+    #     print("checking facet %s" % ' '.join(map(str, facet)))
+    #     is_facet_of_LC(facet)
+

@@ -2,6 +2,7 @@ import cmath
 import functools
 import math
 import random
+import time
 from math import pi, cos, sin, sqrt
 import numpy as np
 import itertools
@@ -129,8 +130,12 @@ ket_ghz = 1 / sqrt2 * np.array([1, 0, 0, 0, 0, 0, 0, 1])
 ctb_ghz = 1 / 2 * proj(np.array([1, 0, 0, 0, 0, 0, 0, 1]))
 
 
-def random_real_3_qubit_pure_density_matrix():
-    return proj(normalise_vec(np.random.rand(8)))
+def random_3_qubit_pure_density_matrix(allow_complex=False):
+    if allow_complex:
+        random_ket = np.random.rand(8) + np.random.rand(8) * 1j
+    else:
+        random_ket = np.random.rand(8)
+    return proj(normalise_vec(random_ket))
 
 
 # Some common ONBs
@@ -140,11 +145,8 @@ def onb_from_direction(theta, phi=0.):
      :param phi: azimuthal angle of direction, in (0,2π)
      :return a tuple (v1, v2) of orthogonal, normalised 2d complex vectors.
     """
-    if phi != 0:
-        print("Code (not just onb_from_direction()) might not yet work with complex ONBs!")
-
     # The other vector will be given by the opposite direction in the Bloch sphere:
-    theta_opp, phi_opp = pi - theta, phi + pi
+    theta_opp, phi_opp = pi - theta, phi + pi  # TODO why does this not work? Why don't I get an orthogonal state?
     # Pick out some special cases to reduce error. Because python thinks cos(pi/2) = 6.123234e-17
     cos_theta_half = 0 if theta == pi else cos(theta / 2.)
     cos_theta_opp_half = 0 if theta_opp == pi else cos(theta_opp / 2.)
@@ -378,7 +380,39 @@ def III(rho_ctb, X1, X2, Y, c_onb):
 
 def make_pabc_xy(rho_ctb, X1, X2, Y, c_onb):
     proc_op_total = process_operator_1switch_1mmt()
-    pabc_xy = np.empty((2,) * 7)
+    pabc_xy = np.zeros((2,) * 7)
+
+    # Make the needed taus
+    tau_dtype = 'complex128' if X1[0].dtype == 'complex' or X1[1].dtype == 'complex' \
+                                or X2[0].dtype == 'complex' or X2[1].dtype == 'complex' \
+                                or Y[0].dtype == 'complex' or Y[1].dtype == 'complex' \
+                                or rho_ctb.dtype == 'complex' or c_onb.dtype == 'complex' \
+        else 'float64'
+    tau_ctb = rho_ctb.T
+    def make_taus_from_settings(X):
+        tau = np.empty((2, 2, 4, 4), dtype=tau_dtype)  # a family of 4x4 matrices indexed by two binary indices
+        for x, a in itertools.product((0, 1), repeat=2):
+            tau[x][a] = kron(proj(X[x][a]), proj(X[x][a])).T
+        return tau
+    taus_a1 = make_taus_from_settings(X1)
+    taus_a2 = make_taus_from_settings(X2)
+    taus_Btilde = np.empty((2, 2, 2, 2), dtype=tau_dtype)
+    for y, b in itertools.product((0, 1), repeat=2):
+        taus_Btilde[y][b] = proj(Y[y][b]).T
+    taus_Ctilde = np.array([proj(c_onb[c]).T for c in (0, 1)])
+    tau_Ttilde = np.identity(2, dtype=tau_dtype)
+
+    # Make correlation
+    for a_1, a_2, b, c, x_1, x_2, y in itertools.product((0, 1), repeat=7):
+        taus = kron(tau_ctb, taus_a1[x_1, a_1], taus_a2[x_2, a_2], taus_Ctilde[c], tau_Ttilde, taus_Btilde[y, b])
+        born_prob = np.trace(np.matmul(proc_op_total, taus))
+        if np.imag(born_prob) > 1e-15:
+            print("WARNING - DETECTED A LARGE IMAGINARY VALUE IN PROBABILITY: p(%d,%d,b=%d,c=%d,%d,%d,%d) = %s" % (a_1, a_2, b, c, x_1, x_2, y, str(born_prob)))
+        pabc_xy[a_1, a_2, b, c, x_1, x_2, y] = np.real(born_prob)
+
+    # Old code (but more straightforward), of which the above is an optimisation:
+    """
+    pabc_xy_control = np.zeros((2,) * 7)
     for a_1, a_2, b, c, x_1, x_2, y in itertools.product((0, 1), repeat=7):
         tau_ctb = rho_ctb.T
         tau_a_1 = kron(proj(X1[x_1][a_1]), proj(X1[x_1][a_1])).T
@@ -387,22 +421,14 @@ def make_pabc_xy(rho_ctb, X1, X2, Y, c_onb):
         tau_Ctilde = proj(c_onb[c]).T
         tau_Ttilde = np.identity(2)
         taus = kron(tau_ctb, tau_a_1, tau_a_2, tau_Ctilde, tau_Ttilde, tau_Btilde)
-        pabc_xy[a_1, a_2, b, c, x_1, x_2, y] = np.trace(np.matmul(proc_op_total, taus))
+        pabc_xy_control[a_1, a_2, b, c, x_1, x_2, y] = np.trace(np.matmul(proc_op_total, taus))
+    assert np.all(pabc_xy_control == pabc_xy)
+    """
     return pabc_xy
 
 
 def make_pacb_xy(rho_ctb, X1, X2, Y, c_onb):
     return make_pabc_xy(rho_ctb, X1, X2, Y, c_onb).swapaxes(2, 3)
-
-
-def make_pabc_xy_NSS_coords(rho_ctb, X1, X2, Y, c_onb):
-    print("THIS FUNCTION IS PROBABLY WRONG")  # because abc instead of acb
-    full_coords = make_pabc_xy(rho_ctb, X1, X2, Y, c_onb).reshape(2 ** 7)
-    return vector_space_utils.construct_full_to_NSS_matrix(8, 2, 4, 2) @ full_coords
-
-
-def print_pabc_xy_NSS_coords(rho_ctb, X1, X2, Y, c_onb):
-    print(' '.join(map(str, make_pabc_xy_NSS_coords(rho_ctb, X1, X2, Y, c_onb))))
 
 
 def make_p1ab_xy_unnormalised(rho_ctb, X1, X2, Y):
@@ -458,6 +484,7 @@ def quantum_cor_in_panda_format_nss(rho_ctb, X1, X2, Y, c_onb):
 def quantum_cor_nss_definitive(rho_ctb, X1, X2, Y, c_onb, common_multiple_of_denominators):
     cor = make_pacb_xy(rho_ctb, X1, X2, Y, c_onb).reshape((128,))
     cor_nss = vector_space_utils.construct_full_to_NSS_matrix(8, 2, 4, 2) @ cor
+    assert np.all(cor_nss <= 1)
     cor_nss_rescaled = common_multiple_of_denominators * cor_nss
     cor_nss_rescaled_approx = utils.approximate(cor_nss_rescaled, [n for n in range(common_multiple_of_denominators + 1)])
     cor_nss_approx_homog = np.r_[cor_nss_rescaled_approx, [common_multiple_of_denominators]]
@@ -467,7 +494,7 @@ def quantum_cor_nss_definitive(rho_ctb, X1, X2, Y, c_onb, common_multiple_of_den
     cor_nss_approx_homog_normalised = (1 / gcd) * cor_nss_approx_homog
     cor_nss_approx_homog_normalised_int = cor_nss_approx_homog_normalised.astype('int64')
     if not np.all(cor_nss_approx_homog_normalised == cor_nss_approx_homog_normalised_int):
-        print("Warning: your value of common_multiple_of_denominators was not correct")
+        print("Warning: your value of common_multiple_of_denominators was not correct")  # wrong?
     return cor_nss_approx_homog_normalised_int
 
 
@@ -479,64 +506,63 @@ def generate_some_quantum_cors():
             X2=[z_onb, x_onb],
             Y=[z_onb, x_onb],
             c_onb=x_onb,
-            common_multiple_of_denominators=2**14),
+            common_multiple_of_denominators=2 ** 17),
         quantum_cor_nss_definitive(
             rho_ctb=proj(kron(ket0, phi_plus).reshape(2, 2, 2).swapaxes(1, 2).reshape(8)),  # TCB = |0> |phi+>
             X1=[z_onb, x_onb],
             X2=[z_onb, x_onb],
             Y=[diag1_onb, diag2_onb],
             c_onb=x_onb,
-            common_multiple_of_denominators=2**14),
+            common_multiple_of_denominators=2 ** 17),
         quantum_cor_nss_definitive(
             rho_ctb=proj(kron(ket0, phi_plus).reshape(2, 2, 2).swapaxes(1, 2).reshape(8)),  # TCB = |0> |phi+>
             X1=[z_onb, x_onb],
             X2=[z_onb, x_onb],
             Y=[z_onb, x_onb],
             c_onb=diag1_onb,
-            common_multiple_of_denominators=2**14),
+            common_multiple_of_denominators=2 ** 17),
         quantum_cor_nss_definitive(
             rho_ctb=proj(kron(ket0, phi_plus).reshape(2, 2, 2).swapaxes(1, 2).reshape(8)),  # TCB = |0> |phi+>
             X1=[diag1_onb, diag2_onb],
             X2=[z_onb, x_onb],
             Y=[z_onb, x_onb],
             c_onb=diag2_onb,
-            common_multiple_of_denominators=2**14),
+            common_multiple_of_denominators=2 ** 17),
         quantum_cor_nss_definitive(
             rho_ctb=ctb_ghz,  # CTB = |GHZ>
             X1=[diag1_onb, diag2_onb],
             X2=[diag1_onb, diag2_onb],
             Y=[diag1_onb, diag2_onb],
             c_onb=x_onb,
-            common_multiple_of_denominators=2**14),
+            common_multiple_of_denominators=2 ** 17),
         quantum_cor_nss_definitive(
             rho_ctb=ctb_ghz,  # CTB = |GHZ>
             X1=[z_onb, x_onb],
             X2=[z_onb, x_onb],
             Y=[z_onb, x_onb],
             c_onb=diag1_onb,
-            common_multiple_of_denominators=2**14)]
-    num_of_random_cors = 100
+            common_multiple_of_denominators=2 ** 17)]
+    num_of_random_cors = 1000
     def random_quantum_setup():
-        return random_real_3_qubit_pure_density_matrix(), \
-               [random_real_onb(), random_real_onb()], \
-               [random_real_onb(), random_real_onb()], \
-               [random_real_onb(), random_real_onb()], \
-               random_real_onb()
+        return random_3_qubit_pure_density_matrix(True), \
+               [random_onb(), random_onb()], \
+               [random_onb(), random_onb()], \
+               [random_onb(), random_onb()], \
+               random_onb()
     for i in range(0, num_of_random_cors):
-        qm_cors.append(quantum_cor_nss_definitive(*random_quantum_setup(), common_multiple_of_denominators=2**14))
-
+        print("Generated %d / %d random qm cors" % (i, num_of_random_cors))
+        qm_cors.append(quantum_cor_nss_definitive(*random_quantum_setup(), common_multiple_of_denominators=2 ** 17))
     return qm_cors
 
 
-def does_quantum_violate_ineq(ineq, quantum_cor_file='panda-files/some_quantum_cors2'):
-    """ Test some sensibly chosen and some randomly generated quantum correlations against the inequality. """
+def some_quantum_violations(ineq, quantum_cor_file='panda-files/some_quantum_cors2'):
+    """ Tests some sensibly & randomly generated quantum correlations against the provided inequality and returns the largest violation found. """
     qm_cors = utils.read_vertex_range_from_file(quantum_cor_file, dtype='float64')
 
     violations = np.matmul(ineq, qm_cors.T)
     for i in range(0, len(qm_cors)):
         violations[i] /= qm_cors[i][-1]
-    print(violations)
-    return np.any(violations > 0)
+    return np.max(violations)
 
 
 if __name__ == '__main__':
@@ -589,10 +615,7 @@ if __name__ == '__main__':
 
     # NOTE See [p93] for the results with non-random X1,X2,Y.
 
-    qm_cors = generate_some_quantum_cors()
+    qm_cors = np.array(generate_some_quantum_cors())
     print("done. now writing")
-    with open('panda-files/some_quantum_cors2', 'w') as f:
-        for cor in qm_cors:
-            f.write(' '.join(map(str, cor)) + '\n')
-
-    print('ready')
+    np.save('panda-files/some_quantum_cors3.npy', qm_cors)
+    print('done writing')
