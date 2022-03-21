@@ -405,6 +405,10 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
         vertices_not_on_face_indices = list(range(0, len(Q)))
         _i = 0
 
+    indices_to_try_in_quadrant_method = np.r_[   # I have reason to believe that the first couple vertices in vertices_not_on_face_indices are already sufficient. Also take some random ones.
+        vertices_not_on_face_indices[0:min(100, len(vertices_not_on_face_indices))], np.random.choice(vertices_not_on_face_indices, min(100, len(vertices_not_on_face_indices)),
+                                                                                                      replace=False)]
+
     P_sympy = sympy.Matrix(P)
 
     total_sympy_time = 0
@@ -431,14 +435,11 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
             a1 = a1a2[:, 0]
             a2 = a1a2[:, 1]
             # TODO maybe perturb/randomise a1,a2. Test if that makes it faster when running on LC.
-            # Loop through a selection of vertices. I have reason to believe that the first couple vertices in vertices_not_on_face_indices are already sufficient. Also take some random ones.
-            indices_to_try = np.r_[
-                vertices_not_on_face_indices[0:min(1024, len(vertices_not_on_face_indices))], np.random.choice(vertices_not_on_face_indices, min(800, len(vertices_not_on_face_indices)),
-                                                                                                               replace=False)]
+            # Loop through a selection of vertices.
             # Try to find one vertex for each quadrant.
             found_quadrant_gt_gt = found_quadrant_gt_lt = found_quadrant_lt_gt = found_quadrant_lt_lt = False
             _k = 0  # counting number of iterations in quadrant method
-            for k in indices_to_try:
+            for k in indices_to_try_in_quadrant_method:
                 _k += 1
                 q = Q[k]
                 violation1 = np.dot(q, a1)
@@ -863,8 +864,9 @@ if __name__ == '__main__':
     # or
     Q = np.load('panda-files/results/lc_vertices.npy')
     # Q = np.flipud(Q)  # if you want to go through Q in reverse order
+    # np.random.shuffle(Q)  # if you want to go through Q in random order
     print("Loaded P and Q into memory")
-    facets = find_facets_adjacent_to_d_minus_3_dim_face(inequality_GYNI(), P, Q, # known_gyni_facets,
+    facets = find_facets_adjacent_to_d_minus_3_dim_face(inequality_GYNI(), P, Q, known_gyni_facets,
                                                         # output_file='panda-files/results/12 facets adjacent to GYNI',
                                                         # snapshot_file='panda-files/results/12 facets adjacent to GYNI_snapshot',
                                                         carriage_return=False)
@@ -898,4 +900,3 @@ if __name__ == '__main__':
     # for facet in maybe_facets:
     #     print("checking facet %s" % ' '.join(map(str, facet)))
     #     is_facet_of_LC(facet)
-
