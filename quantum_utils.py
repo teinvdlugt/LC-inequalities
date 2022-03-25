@@ -555,14 +555,15 @@ def generate_some_quantum_cors():
     return qm_cors
 
 
-def some_quantum_violations(ineq, quantum_cor_file='panda-files/some_quantum_cors2'):
+def some_quantum_violations(ineq, quantum_cor_file='panda-files/some_quantum_cors3.npy'):
     """ Tests some sensibly & randomly generated quantum correlations against the provided inequality and returns the largest violation found. """
-    qm_cors = utils.read_vertex_range_from_file(quantum_cor_file, dtype='float64')
+    # qm_cors2 = utils.read_vertex_range_from_file('panda-files/some_quantum_cors2', dtype='float64')
+    qm_cors = np.load(quantum_cor_file).astype('float64')
 
     violations = np.matmul(ineq, qm_cors.T)
     for i in range(0, len(qm_cors)):
-        violations[i] /= qm_cors[i][-1]
-    return np.max(violations)
+        violations[i] /= float(qm_cors[i][-1])
+    return violations
 
 
 if __name__ == '__main__':

@@ -854,6 +854,7 @@ if __name__ == '__main__':
                                    "0 1 1 -1 0 1 1 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 1 0 0 0 -1 0 -1 0 1 0 0 0 -1 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 0 -1".split()))
                           ]
 
+    """
     # P = result file 10 but homogenised
     P = np.concatenate((utils.read_vertex_range_from_file('panda-files/results/10 lin indep on GYNI'), np.ones((84, 1), 'int16')), axis=1)
     # Q = vertices to search = result file 8
@@ -870,6 +871,7 @@ if __name__ == '__main__':
                                                         # output_file='panda-files/results/12 facets adjacent to GYNI',
                                                         # snapshot_file='panda-files/results/12 facets adjacent to GYNI_snapshot',
                                                         carriage_return=False)
+    """
 
     ## To get all LC vertices NOT on GYNI (but maybe they _are_ on a face that is mapped to GYNI under a symmetry of LC!):
     """
@@ -877,14 +879,13 @@ if __name__ == '__main__':
     vector_space_utils.filter_row_file('panda-files/results/8 all LC vertices', 'panda-files/lc_vertices_not_satisfying_random_ineq', lambda row: np.dot(random_ineq, row) > 0)
     """
 
-    """
+
     for facet in [*known_gyni_facets, *known_lgyni_facets]:
         qm_violations = qm.some_quantum_violations(facet)
         print("Maximum violation found: %f" % np.max(qm_violations))
         if np.any(qm_violations > 0):
             print("VIOLATION!!!")
-            raise Exception('Found a violation!')
-    """
+
 
     # maybe_facets = [list(map(int,
     #                          "-1 0 0 1 -1 0 0 1 0 0 -1 1 0 0 -1 1 0 -1 0 1 0 -1 0 1 0 0 0 0 -2 -2 2 2 0 0 0 0 -2 -2 2 2 0 0 0 0 -2 -2 0 0 0 0 2 2 -2 -2 0 0 0 0 2 2 -2 -2 0 0 2 2 0 0 -2 -2 0 0 2 2 0 0 -2 -2 0 0 0 0 0 0 0 0 1".split())),
