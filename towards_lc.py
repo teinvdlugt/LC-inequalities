@@ -736,11 +736,11 @@ def is_facet_of_LC(ineq):
         return False
 
 
-def generate_all_positivity_inequalities(output_filename):
+def generate_all_positivity_inequalities(output_filename):  # todo WRONG - doesn't work for e.g. final 8 full probs
     with open(output_filename, 'w') as f:
         for i in range(0, 128):
-            p_i_nss = vector_space_utils.construct_full_to_NSS_matrix(8, 2, 4, 2)[:, i]
-            f.write(' '.join(map(str, -p_i_nss)) + '0\n')
+            p_i_nss = vector_space_utils.construct_full_to_NSS_matrix(8, 2, 4, 2)[:, i]   # todo WRONG - doesn't work for e.g. final 8 full probs
+            f.write(' '.join(map(str, -p_i_nss)) + ' 0\n')
 
 
 def count_LC_vertices_on_facets(facets):
