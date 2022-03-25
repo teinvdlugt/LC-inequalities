@@ -1,0 +1,8 @@
+PANDA -- vertex enumeration with adjacency decomposition
+Warning: validity of input inequalities cannot be checked for reduced input.
+Warning: expanding the reduced input will be invalid, if the polytope is not full dimension (i.e. there are equations).
+/var/spool/slurmd/job1753793/slurm_script: line 9: 2316657 Segmentation fault      (core dumped) $DATA/cpanda -c -i safe -s reverse caus2_facets.pi
+
+real	0m0.462s
+user	0m0.027s
+sys	0m0.014s
