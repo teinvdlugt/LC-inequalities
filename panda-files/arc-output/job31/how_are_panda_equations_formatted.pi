@@ -1,0 +1,12 @@
+DIM=3
+Names:
+x y z
+Equations:
+0 0 1 -1
+Inequalities:
+-1 0 0 0
+0 -1 0 0
+0 0 -1 0
+1 0 0 -1
+0 1 0 -1
+0 0 1 -2

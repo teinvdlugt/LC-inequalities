@@ -27,7 +27,7 @@ def construct_NSS_to_full_matrix_but_weird(na, nb, nx, ny):
     # Define dimensions
     full_dim = na * nb * nx * ny
     NSS_dim = dim_NSS(na, nb, nx, ny)
-    matrix = np.zeros((full_dim, NSS_dim))
+    matrix = np.zeros((full_dim, NSS_dim), dtype='int')
 
     # Define ranges of variables
     ra = range(0, na)
@@ -71,6 +71,13 @@ def construct_NSS_to_full_matrix_but_weird(na, nb, nx, ny):
     return matrix
 
 
+def construct_NSS_to_full_matrix_homogeneous():
+    return np.block([
+        [construct_NSS_to_full_matrix_but_weird(8, 2, 4, 2), beta().reshape((128, 1)).astype('int')],
+        [np.zeros(dim_NSS(8, 2, 4, 2), dtype='int'), 1]
+    ])
+
+
 def construct_full_to_NSS_matrix(na, nb, nx, ny):
     """
     Make and return matrix that converts shape (na*nb*nx*ny) vectors (full dimension) to shape (dim_NSS(na, nb, nx, ny),)
@@ -111,6 +118,64 @@ def construct_full_to_NSS_matrix(na, nb, nx, ny):
         current_row += 1
 
     return matrix
+
+
+def construct_full_to_NSS_homog(na, nb, nx, ny):
+    return np.block([[construct_full_to_NSS_matrix(na, nb, nx, ny), np.zeros((dim_NSS(na, nb, nx, ny), 1), dtype='int')],
+                     [np.zeros(na * nb * nx * ny, dtype='int'), 1]])
+
+
+def is_in_NSS_aff_hull(cor, na, nb, nx, ny, tol=1e-12):
+    if len(cor) == na * nb * nx * ny + 1:
+        assert cor[-1] != 0
+        cor = cor[:-1]  # actually doing the rescaling is unnecessary as it does not impact signalling
+    else:
+        assert len(cor) == na * nb * nx * ny
+
+    cor_ab_xy = cor.reshape((na, nb, nx, ny))
+    cor_b_xy = np.einsum('ijkl->jkl', cor_ab_xy)
+    cor_a_xy = np.einsum('ijkl->ikl', cor_ab_xy)
+
+    # Check for signalling A -> B
+    for b, y in cart(range(0, nb), range(0, ny)):
+        pby = cor_b_xy[b, 0, y]
+        for x in range(1, nx):
+            if abs(pby - cor_b_xy[b, x, y]) > tol:
+                return False
+    for a, x in cart(range(0, na), range(0, nx)):
+        pax = cor_a_xy[a, x, 0]
+        for y in range(1, ny):
+            if abs(pax - cor_a_xy[a, x, y]) > tol:
+                return False
+    return True
+
+
+def is_in_NSCO1_aff_hull(cor, tol=1e-12):
+    if len(cor) == 129:
+        assert cor[-1] != 0
+        cor = cor[:-1]  # actually doing the rescaling is unnecessary as it does not impact signalling
+    else:
+        assert len(cor) == 128
+
+    # First check if in NSS
+    if not is_in_NSS_aff_hull(cor, 8, 2, 4, 2, tol):
+        return False
+
+    # Left to check: a1b independent of x2
+    cor = cor.reshape((2,) * 7)
+    cor_a1b_x1x2y = np.einsum('ijklmno->ilmno', cor)
+    for a1, b, x1, y in itertools.product((0, 1), repeat=4):
+        if abs(cor_a1b_x1x2y[a1, b, x1, 0, y] - cor_a1b_x1x2y[a1, b, x1, 1, y]) > tol:
+            return False
+    return True
+
+
+def generate_dictionary_of_full_probs_in_NSS_coords(filename=None):
+    with open(filename, 'w') as f:
+        NtoF = construct_NSS_to_full_matrix_but_weird(8, 2, 4, 2).astype('int8')
+        for a1, a2, c, b, x1, x2, y in itertools.product((0, 1), repeat=7):
+            i = concatenate_bits(a1, a2, c, b, x1, x2, y)
+            f.write('p(%d%d%d%d|%d%d%d): ' % (a1, a2, c, b, x1, x2, y) + ' '.join(map(str, -NtoF[i])) + (' 0' if i < 120 else ' -1') + '\n')
 
 
 ## NSCO1 stuff (strong version, i.e. dim=80).
@@ -164,6 +229,13 @@ def construct_full_to_NSCO1_matrix():
         current_row += 1
 
     return matrix  # I tested this function, see __main__ below
+
+
+def construct_full_to_NSCO1_homog():
+    return np.block([
+        [construct_full_to_NSCO1_matrix(), np.zeros((80, 1), dtype='int')],
+        [np.zeros(128, dtype='int'), 1]
+    ])
 
 
 def construct_NSCO1_to_full_weird_matrix():
@@ -235,6 +307,13 @@ def construct_NSCO1_to_full_weird_matrix():
     return matrix  # I tested this function, see __main__ below
 
 
+def construct_NSCO1_to_full_homogeneous():
+    return np.block([
+        [construct_NSCO1_to_full_weird_matrix(), beta().reshape((128, 1)).astype('int')],
+        [np.zeros(80, dtype='int'), 1]
+    ])
+
+
 def beta():
     """ Returns the length-128 vector that has a 1 in every position corresponding to p(1111|x1x2y) for some x1,x2,y. """
     result = np.zeros(128)
@@ -250,8 +329,8 @@ def construct_NSCO1_to_NSS_matrix():
     # p(1111|x1x2y); always either b != 1 or a1a2c != 111 or both.
 
 
-def NSCO1_to_NSS_with_denominator(row, dtype='int8'):
-    return np.r_[construct_NSCO1_to_NSS_matrix() @ np.array(row[:-1], dtype=dtype), [row[-1]]]
+def NSCO1_to_NSS_with_denominator(row):
+    return np.r_[construct_NSCO1_to_NSS_matrix() @ np.array(row[:-1]), [row[-1]]]
 
 
 ## GENERAL UTILS

@@ -81,3 +81,9 @@ def read_vertex_range_from_file(filename, start_at_incl=0, stop_at_excl=np.infty
         if len(Q) >= batch_size:
             print()
     return Q
+
+
+def one_hot_vector(size, position, dtype='int'):
+    if position < 0:
+        position = size + position
+    return np.r_[np.zeros(position, dtype=dtype), [1], np.zeros(size - position - 1, dtype=dtype)]

@@ -228,6 +228,74 @@ def nsco1_characterise_deterministic_vertex(vertex):
         print('b = 1')
 
 
+## LCO1* stuff (weak version)
+def lco1st_H_symms_write_panda_input(readable=False, filename=None):
+    """ Like nsco1_write_panda_input, but now for the 'weak version' LCO1*. This time, I won't use a LCO1* parameterisation (which would be 84-dim), but
+    instead will work in NSS parameterisation and will provide PANDA with 'Equations' to specify the subspace LCO1*. The inequalities are then
+    the inequalities of NSS, i.e. the positivity inequalities.
+    :param filename: if None, then automatically generated.
+    :param readable: if True, use human-readable variable names (which are however longer). """
+    lines = []  # Store lines here, then write all lines at once at the end of this function.
+
+    # 1) Dimension information
+    dim_NSS = 86
+    lines.append('DIM=%d' % dim_NSS)
+
+    # 2) Names of coordinates
+    lines.append('Names:')
+    if readable:
+        var_names = nss_readable_var_names(8, 2, 4, 2)
+    else:
+        var_names = ['x' + str(i) for i in range(0, dim_NSS)]
+    lines.append(' '.join(var_names))
+
+    # 3) Symmetry information. The symmetries of LCO1* are the same as those of NSCO1, but now we want to express them in NSS rather than NSCO1 coords.
+    lines.append('Maps:')
+    for perm in [
+        lambda a1, a2, c, b, x1, x2, y: (a1, a2, c, b, (x1 + 1) % 2, x2, y),  # x1 -> x1 + 1
+        lambda a1, a2, c, b, x1, x2, y: ((a1 + x1) % 2, a2, c, b, x1, x2, y),  # a1 -> a1 + x1
+        lambda a1, a2, c, b, x1, x2, y: (a1, a2, c, b, x1, (x2 + 1) % 2, y),  # x2 -> x2 + 1
+        # NOTE x2 + x1*a1 would be a symmetry of LCO1* but not of NSS, and we're working in NSS coords so not allowed
+        lambda a1, a2, c, b, x1, x2, y: (a1, (a2 + x1 * a1 * x2) % 2, c, b, x1, x2, y),  # a2 -> a2 + x1*a1*x2
+        lambda a1, a2, c, b, x1, x2, y: (a1, a2, (c + x1 * a1 * x2 * a2) % 2, b, x1, x2, y),  # c -> c + x1*a1*x2*a2
+        lambda a1, a2, c, b, x1, x2, y: (a1, a2, c, b, x1, x2, (y + 1) % 2),  # y  -> y  + 1
+        lambda a1, a2, c, b, x1, x2, y: (a1, a2, c, (b + y) % 2, x1, x2, y)  # b  -> b  + y
+    ]:
+        lines.append(symmetry_utils.symm_matrix_to_string(symmetry_utils.nss_var_perm_to_symm(perm), var_names))
+
+    # 4) Equations
+    lines.append('Equations:')
+    # "for all x1: p(a1=0 | x1 0) - p(a1=0 | x1 1) = 0" (result for a1=1 follows from prob sum = 1)
+    NtoF = vs.construct_NSS_to_full_matrix_but_weird(8, 2, 4, 2).astype('int')
+    for a1, x1 in vs.cart((0,), (0, 1)):
+        vector_nss = np.zeros((dim_NSS,), dtype='int')
+        # need to sum over a2, b, c and set y to 0
+        for a2, b, c, y in vs.cart((0, 1), (0, 1), (0, 1), (0,)):
+            vector_nss += NtoF[vs.concatenate_bits(a1, a2, c, b, x1, 0, y)]
+            vector_nss -= NtoF[vs.concatenate_bits(a1, a2, c, b, x1, 1, y)]
+            # We don't need to 'correct for weirdness' bc the weirdness in the two lines above (p(a1 | x1 0) and -p(a1 | x1 1)) cancels.
+            # Otherwise would have had to do
+            # vector_nss[:1] += (a1, a2, c, b) == (1, 1, 1, 1) and
+            # vector_nss[:1] -= (a1, a2, c, b) == (1, 1, 1, 1)
+        lines.append(' '.join(map(str, vector_nss)) + ' 0')
+
+    # 5) Inequalities
+    lines.append('Inequalities:')
+    # the ineqs are -p(a1a2cb|x1x2y) <= 0 for all a1,a2,c,b,x1,x2,y. For the final 8 rows, note that this means -(p(1111|x1x2y) - 1) - 1 <= 0.
+    # TODO could clean this up by using homogeneous coords in all relevant functions
+    NtoF = vs.construct_NSS_to_full_matrix_but_weird(8, 2, 4, 2).astype('int8')
+    dim_full = 128
+    for i in range(0, dim_full):
+        lines.append(' '.join(map(str, -NtoF[i])) + (' 0' if i < 120 else ' -1'))
+
+    # Write to file
+    if filename is None:
+        filename = 'panda-files/arc-output/job31/tmp.pi'
+    file = open(filename, 'w')
+    file.write('\n'.join(lines))
+    file.close()
+
+
 def convert_panda_output_vertex_to_input_vertex_format(old_filename, new_filename):
     old_file = open(old_filename, 'r')
     new_lines = []
@@ -252,8 +320,6 @@ def row_with_denom_to_vector_str(row):
         vector[i] = str(Fraction(vector[i] / denominator))
     return ' '.join(vector)
 
-def row_with_denom_to_vector(row):
-    return 1/row[-1] * np.array(row[:-1])
 
-if __name__ == '__main__':
-    pass
+def row_with_denom_to_vector(row):
+    return 1 / row[-1] * np.array(row[:-1])
