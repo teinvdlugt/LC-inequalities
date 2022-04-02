@@ -405,7 +405,7 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
         vertices_not_on_face_indices = list(range(0, len(Q)))
         _i = 0
 
-    indices_to_try_in_quadrant_method = np.r_[   # I have reason to believe that the first couple vertices in vertices_not_on_face_indices are already sufficient. Also take some random ones.
+    indices_to_try_in_quadrant_method = np.r_[  # I have reason to believe that the first couple vertices in vertices_not_on_face_indices are already sufficient. Also take some random ones.
         vertices_not_on_face_indices[0:min(100, len(vertices_not_on_face_indices))], np.random.choice(vertices_not_on_face_indices, min(100, len(vertices_not_on_face_indices)),
                                                                                                       replace=False)]
 
@@ -779,6 +779,36 @@ def count_LC_vertices_on_facets(facets):
     return vertex_counts, vertices_not_on_a_facet
 
 
+def violations_of_known_lc_facets(cor_nss, known_lc_facets_file='panda-files/results/14 lc_known_facets'):
+    """
+    :param cor_nss: length-87 vector of homogeneous NSS coordinates.
+    :param known_lc_facets_file: filename of file to load known LC facets from.
+    :return: list of violations of all known LC facets by cor_nss.
+    """
+    known_lc_facets = utils.read_vertex_range_from_file(known_lc_facets_file)
+    assert len(known_lc_facets == 8)
+
+    return known_lc_facets @ cor_nss
+
+def maximum_violation_of_known_lc_facets(cors, known_lc_facets_file='panda-files/results/14 lc_known_facets'):
+    """
+    :param cors: each element should have length 87: NSS representation, homogeneous vector
+    """
+    known_lc_facets = utils.read_vertex_range_from_file(known_lc_facets_file)
+    cors = cors.astype('float')
+    for i in range(0, len(cors)):  # normalise the qm cors
+        cors[i] = (1. / cors[i][-1]) * cors[i]
+    return np.max(known_lc_facets @ cors.T)
+
+
+def maximum_violation_of_caus2_facets(cors):
+    caus2_facets = utils.read_vertex_range_from_file('panda-files/results/15 Caus2/all_caus2_facets')
+    cors = cors.astype('float')
+    for i in range(0, len(cors)):  # normalise the qm cors
+        cors[i] = (1. / cors[i][-1]) * cors[i]
+    return np.max(caus2_facets @ cors.T)
+
+
 if __name__ == '__main__':
     # qm_cor_str = qm.quantum_cor_in_panda_format_nss(
     #     rho_ctb = proj(kron(ket0, phi_plus).reshape(2,2,2).swapaxes(1,2).reshape(8)), # rho_ctb=proj(kron(ket_plus, phi_plus)),
@@ -825,28 +855,6 @@ if __name__ == '__main__':
     # test_find_facets_adjacent_to_d_minus_3_dim_face()
     # assert 2 + 2 == 5
 
-    known_gyni_facets = [list(map(int,
-                                  "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0 0"
-                                  .split())),
-                         list(map(int,
-                                  "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0"
-                                  .split())),
-                         list(map(int,
-                                  "1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 -1"
-                                  .split())),
-                         list(map(int,
-                                  "1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 0 -1"
-                                  .split()))]
-    known_lgyni_facets = [list(map(int,  # TODO actually didn't fully check these yet!
-                                   "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 0 1 0 1 0 -1 0 0 0 1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0 0".split())),
-                          list(map(int,
-                                   "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 0 1 0 1 0 -1 0 0 0 1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0".split())),
-                          list(map(int,
-                                   "0 1 1 -1 0 1 1 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 0 1 0 0 0 -1 0 -1 0 1 0 0 0 -1 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 -1".split())),
-                          list(map(int,
-                                   "0 1 1 -1 0 1 1 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 1 0 0 0 -1 0 -1 0 1 0 0 0 -1 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 0 -1".split()))
-                          ]
-
     """
     # P = result file 10 but homogenised
     P = np.concatenate((utils.read_vertex_range_from_file('panda-files/results/10 lin indep on GYNI'), np.ones((84, 1), 'int16')), axis=1)
@@ -872,12 +880,29 @@ if __name__ == '__main__':
     vector_space_utils.filter_row_file('panda-files/results/8 all LC vertices', 'panda-files/lc_vertices_not_satisfying_random_ineq', lambda row: np.dot(random_ineq, row) > 0)
     """
 
-
+    """
     for facet in [*known_gyni_facets, *known_lgyni_facets]:
         qm_violations = qm.some_quantum_violations(facet)
         print("Maximum violation found: %f" % np.max(qm_violations))
         if np.any(qm_violations > 0):
             print("VIOLATION!!!")
+    """
+
+    """
+    # Try the following distr which I thought of in notes [around p201]
+    p1 = np.zeros((2,) * 7, 'int')
+    p2 = np.zeros((2,) * 7, 'int')
+    for a1, a2, c, b, x1, x2, y in itertools.product((0, 1), repeat=7):
+        if c == 0 and a2 == x1 and a1 == 0 and b == x1:
+            p1[a1, a2, c, b, x1, x2, y] = 1
+        if c == 0 and a2 == 0 and a1 == x2 and b == 1 - x1:
+            p2[a1, a2, c, b, x1, x2, y] = 1
+
+    p = 1 / 2 * (p1 + p2)
+    p_homog = np.r_[p.reshape(128), [1]]
+    assert vs.is_in_NSS_aff_hull(p_homog, 8, 2, 4, 2)
+    violations = violations_of_known_lc_facets(vs.construct_full_to_NSS_homog(8, 2, 4, 2) @ p_homog)
+    """
 
 
     # maybe_facets = [list(map(int,

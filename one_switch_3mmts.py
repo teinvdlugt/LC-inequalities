@@ -104,7 +104,7 @@ def qm_corr_one_switch_3mmts(X1, X2, Y, rho_ctb, process_operator=None):
 
     # Construct the process operator once
     if process_operator is None:
-        process_operator = qm.process_operator_1switch_1mmt()
+        process_operator = qm.process_operator_switch()
 
     # The array that we'll fill & return:
     correlation = np.empty(one_switch_3mmts_dim)
@@ -190,10 +190,10 @@ if __name__ == '__main__':
     #     X1=[z_onb, x_onb], X2=[z_onb, x_onb], Y=[diag1_onb, diag2_onb], rho_ctb=ctb_cb_entangled_t_diag),
     #               tol=1e-14))  # Returns True
     # print(in_hull(one_switch_vertices, qm_corr_one_switch_3mmts(
-    #     X1=[z_onb, x_onb], X2=[z_onb, x_onb], Y=[diag1_onb, diag2_onb], rho_ctb=ctb_ghz), tol=1e-14))  # Returns True
+    #     X1=[z_onb, x_onb], X2=[z_onb, x_onb], Y=[diag1_onb, diag2_onb], rho_ctb=rho_ctb_ghz), tol=1e-14))  # Returns True
     # print(in_hull(one_switch_vertices, np.random.rand(64)))  # False, as expected
     # print(in_hull(one_switch_vertices, qm_corr_one_switch_3mmts(
-    #     X1=[z_onb, x_onb], X2=[z_onb, x_onb], Y=[diag1_onb, diag2_onb], rho_ctb=ctb_ghz), tol=1e-14))  # Returns True
+    #     X1=[z_onb, x_onb], X2=[z_onb, x_onb], Y=[diag1_onb, diag2_onb], rho_ctb=rho_ctb_ghz), tol=1e-14))  # Returns True
     # print(in_hull(one_switch_vertices, qm_corr_one_switch_3mmts(
     #     X1=[z_onb, x_onb], X2=[z_onb, x_onb], Y=[diag1_onb, diag2_onb], rho_ctb=ctb_tb_entangled_c_plus),
     #               tol=1e-14))  # Returns True (as expected)
@@ -207,7 +207,7 @@ if __name__ == '__main__':
                                  tol=1e-13))  # Returns True but only until precision 1e-13
 
     ## Try a bunch of random configurations
-    # process_op = qm.process_operator_1switch_1mmt()
+    # process_op = qm.process_operator_switch()
     # for i in range(20):
     #     ctb_rand = np.random.rand(8)
     #     ctb_rand = proj(1 / np.linalg.norm(ctb_rand) * ctb_rand)

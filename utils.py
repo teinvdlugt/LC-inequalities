@@ -55,7 +55,7 @@ def read_vertex_range_from_file(filename, start_at_incl=0, stop_at_excl=np.infty
     with open(filename, 'r') as f:
         # skip empty lines and commented lines at start of file
         line = f.readline()
-        while line and (line[0] == '#' or not line.strip()):
+        while line and (line.strip()[0] == '#' or not line.strip()):
             line = f.readline()
 
         # find out dimension of vertices
@@ -65,7 +65,7 @@ def read_vertex_range_from_file(filename, start_at_incl=0, stop_at_excl=np.infty
         i = 0
         len_at_last_update = 0
         while line and i < stop_at_excl:
-            if line.strip():
+            if line.strip() and not line.strip()[0] == '#':
                 if i >= start_at_incl:
                     batch.append(list(map(int, line.split())))
                 if len(batch) >= batch_size:
@@ -87,3 +87,7 @@ def one_hot_vector(size, position, dtype='int'):
     if position < 0:
         position = size + position
     return np.r_[np.zeros(position, dtype=dtype), [1], np.zeros(size - position - 1, dtype=dtype)]
+
+
+def reciprocal_or_zero(array):
+    return np.reciprocal(array, out=np.zeros_like(array), where=array != 0)

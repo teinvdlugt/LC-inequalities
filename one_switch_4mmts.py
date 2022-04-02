@@ -116,7 +116,7 @@ def qm_corr_one_switch_4mmts(X1, X2, Y, Z, rho_ctb, process_operator=None):
 
     # Construct the process operator once
     if process_operator is None:
-        process_operator = qm.process_operator_1switch_1mmt()
+        process_operator = qm.process_operator_switch()
 
     # The array that we'll fill & return:
     correlation = np.empty(one_switch_4mmts_dim)
@@ -134,7 +134,7 @@ def qm_corr_one_switch_4mmts_3stngs(X1, X2, Y, c_onb, rho_ctb, process_operator=
     :return Shape (2,)*7 array. """
     # Construct the process operator once
     if process_operator is None:
-        process_operator = qm.process_operator_1switch_1mmt()
+        process_operator = qm.process_operator_switch()
 
     # The array that we'll fill & return:
     correlation = np.empty((2,) * 7)
@@ -213,7 +213,7 @@ if __name__ == '__main__':
                                  tol=1e-13))  # Returns True but only until precision 1e-13
 
     ## Try a bunch of random configurations
-    # process_op = qm.process_operator_1switch_1mmt()
+    # process_op = qm.process_operator_switch()
     # for i in range(20):
     #     ctb_rand = np.random.rand(8)
     #     ctb_rand = proj(1 / np.linalg.norm(ctb_rand) * ctb_rand)
