@@ -197,6 +197,15 @@ def generate_dictionary_of_full_probs_in_NSS_coords(filename=None):
             f.write('p(%d%d%d%d|%d%d%d): ' % (a1, a2, c, b, x1, x2, y) + ' '.join(map(str, -NtoF[i])) + (' 0' if i < 120 else ' -1') + '\n')
 
 
+def write_cor_to_file(cor, filename):
+    with open(filename, 'w') as f:
+        f.write('p(a1 a2 c b | x1 x2 y)\n')
+        for a1, a2, c, b, x1, x2, y in itertools.product((0, 1), repeat=7):
+            i = concatenate_bits(a1, a2, c, b, x1, x2, y)
+            f.write('p(%d%d%d%d|%d%d%d): %s' % (a1, a2, c, b, x1, x2, y, str(cor[i])) + '\n')
+
+
+
 ## NSCO1 stuff (strong version, i.e. dim=80).
 def dim_NSCO1(nabcxy):
     na1, na2, nc, nb, nx1, nx2, ny = nabcxy

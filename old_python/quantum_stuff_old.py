@@ -261,3 +261,54 @@ def make_pabc_xy(rho_ctb, X1, X2, Y, c_onb):
     assert np.all(pabc_xy_control == pabc_xy)
     """
     return pabc_xy
+
+
+
+## Showing that p(c | x_1, x_2, y) can generally depend on y (i.e. 'disproving (iii)'):
+    """
+    tau_ctb = proj(kron(ket_plus, ket0, ket0))
+    tau_a_1 = (proj(np.array([1, 0, 0, 0])) + proj(np.array([0, 0, 0, 1]))).T
+    # tau_a_2 = (proj(np.array([1, 0, 0, 0])) + proj(np.array([0, 0, 0, 1]))).T
+    tau_a_2 = (proj(1 / 2 * np.array([1, 1, 1, 1])) + proj(1 / 2 * np.array([1, -1, -1, 1]))).T
+    # tau_a_1 = (proj(1 / 2 * np.array([1, 1, 1, 1])) + proj(1 / 2 * np.array([1, -1, -1, 1]))).T
+    tau_Ctilde = proj(ket_plus).T
+    tau_Ttilde = np.identity(2)
+    tau_Btilde = np.identity(2)
+    taus = kron(tau_ctb, tau_a_1, tau_a_2, tau_Ctilde, tau_Ttilde, tau_Btilde)
+    process_op = process_operator_switch()
+    print(np.trace(np.matmul(process_op, taus)))
+    """
+
+    ## Trying to see if p~^1(a_1, a_2, c | x_1, x_2, y) depends on y:
+
+    """phacek1abc_xy, dep = dependence_of_ac_on_y_in_phacek1(
+        rho_ctb=proj(kron(ket_plus, phi_plus)),
+        # rho_ctb=proj(normalise_vec(np.random.rand(8))),
+        X1=[z_onb, x_onb],  # X1 = [random_real_onb(), random_real_onb()] # TODO see below
+        X2=[z_onb, x_onb],  # TODO change back to z_onb, x_onb when NaN problem resolved
+        Y=[z_onb, x_onb],  # Y = [random_real_onb(), random_real_onb()]
+        c_onb=x_onb)  # c_onb = x_onb
+    print(dep)"""  # NOTE this code takes 10-11 seconds on my laptop, 13-14 seconds on google cloud c2 VM
+
+    # III(rho_ctb=proj(kron(ket_plus, phi_plus)),
+    #     X1=[z_onb, x_onb],
+    #     X2=[z_onb, x_onb],
+    #     Y=[z_onb, x_onb],
+    #     c_onb=x_onb)
+
+    # Gave 0.2972878186211555 for some random ONBs. So definitely dependence between y and c! (If code is correct)
+    # For X1=Z,X, X2=diag1,2, Y=Z,X, c_onb=x_onb, and some random rho_ctb, I got 0.2535096933657037.
+
+    # Using X1,X2,Y = random and c_onb = x_onb:
+    # rho_ctb = ket0,ket0,ket0: gives 4e-16 ✓
+    # rho_ctb = ket+,ket0,ket0: gives 3e-16 ✓
+    # rho_ctb = phi+     ,ket0: gives 1.5e-16 ✓ all as expected
+    # Now entangle c and b:
+    # rho_ctb = 'ikj',phi_plus,ket0: gives 0.0804 and 0.0885 and 0.378.  ✓ NOTE Yay, gives dependence! So this is a candidate for LDCO violation---because the 'Method (I)' proof on [p91] doesn't work for it.
+    # TODO left to check this for non-random X1,X2,Y. First solve div by 0 problem
+    # Now entangle t and b:
+    # rho_ctb = ket+,phi_+          : gives 0.224 and 0.0555 and 0.112 and 0.0997. NOTE Unexpected! But actually makes sense? Maybe?
+    # Now try GHZ state (should logically also work, following from fact that CB entangled already works, let alone TB entangled).
+    # rho_ctb = GHZ              : gives 0.0347 and 0.283 ✓
+
+    # NOTE See [p93] for the results with non-random X1,X2,Y.

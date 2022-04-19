@@ -1,13 +1,11 @@
 import cmath
 import functools
-import math
 import random
 from math import pi, cos, sin, sqrt
 import numpy as np
 import itertools
 
 import towards_lc
-import utils
 import vector_space_utils
 
 
@@ -42,56 +40,7 @@ def process_operator_switch(dT=2, dB=2):
     return proj(W_CO1 + W_CO2)
 
 
-def make_pacb_xy(rho_ctb, X1, X2, Y, c_onb):
-    proc_op_total = process_operator_switch()
-    pacb_xy = np.zeros((2,) * 7)
-
-    # Make the needed taus
-    tau_dtype = 'complex128' if X1[0].dtype == 'complex' or X1[1].dtype == 'complex' \
-                                or X2[0].dtype == 'complex' or X2[1].dtype == 'complex' \
-                                or Y[0].dtype == 'complex' or Y[1].dtype == 'complex' \
-                                or rho_ctb.dtype == 'complex' or c_onb.dtype == 'complex' \
-        else 'float64'
-    tau_ctb = rho_ctb.T
-    def make_taus_from_settings(X):
-        tau = np.empty((2, 2, 4, 4), dtype=tau_dtype)  # a family of 4x4 matrices indexed by two binary indices
-        for x, a in itertools.product((0, 1), repeat=2):
-            tau[x][a] = kron(proj(X[x][a]), proj(X[x][a])).T
-        return tau
-    taus_a1 = make_taus_from_settings(X1)
-    taus_a2 = make_taus_from_settings(X2)
-    taus_Btilde = np.empty((2, 2, 2, 2), dtype=tau_dtype)
-    for y, b in itertools.product((0, 1), repeat=2):
-        taus_Btilde[y][b] = proj(Y[y][b]).T
-    taus_Ctilde = np.array([proj(c_onb[c]).T for c in (0, 1)])
-    tau_Ttilde = np.identity(2, dtype=tau_dtype)
-
-    # Make correlation
-    for a_1, a_2, c, b, x_1, x_2, y in itertools.product((0, 1), repeat=7):
-        taus = kron(tau_ctb, taus_a1[x_1, a_1], taus_a2[x_2, a_2], taus_Ctilde[c], tau_Ttilde, taus_Btilde[y, b])
-        born_prob = np.trace(np.matmul(proc_op_total, taus))
-        if np.imag(born_prob) > 1e-15:
-            print("WARNING - DETECTED A LARGE IMAGINARY VALUE IN PROBABILITY: p(%d,%d,b=%d,c=%d,%d,%d,%d) = %s" % (a_1, a_2, b, c, x_1, x_2, y, str(born_prob)))
-        pacb_xy[a_1, a_2, c, b, x_1, x_2, y] = np.real(born_prob)
-
-    # Old code (but more straightforward), of which the above is an optimisation:
-    """
-    pabc_xy_control = np.zeros((2,) * 7)
-    for a_1, a_2, b, c, x_1, x_2, y in itertools.product((0, 1), repeat=7):
-        tau_ctb = rho_ctb.T
-        tau_a_1 = kron(proj(X1[x_1][a_1]), proj(X1[x_1][a_1])).T
-        tau_a_2 = kron(proj(X2[x_2][a_2]), proj(X2[x_2][a_2])).T
-        tau_Btilde = proj(Y[y][b]).T
-        tau_Ctilde = proj(c_onb[c]).T
-        tau_Ttilde = np.identity(2)
-        taus = kron(tau_ctb, tau_a_1, tau_a_2, tau_Ctilde, tau_Ttilde, tau_Btilde)
-        pabc_xy_control[a_1, a_2, b, c, x_1, x_2, y] = np.trace(np.matmul(proc_op_total, taus))
-    assert np.all(pabc_xy_control == pabc_xy)
-    """
-    return pacb_xy
-
-
-def make_pacb_xy_new(rho_ctb, instrs_A1, instrs_A2, instrs_B, instr_C, dT, dB):
+def make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT, dB):
     """ All provided instruments should be CJ reps of instruments in the form of 4x4 matrices, NOT transposes of those (so not 'taus'). """
     # Check if all arguments are valid instruments
     for instr in np.r_[instrs_A1, instrs_A2]:
@@ -102,21 +51,15 @@ def make_pacb_xy_new(rho_ctb, instrs_A1, instrs_A2, instrs_B, instr_C, dT, dB):
     assert_is_quantum_instrument([rho_ctb], 1, 2 * dT * dB, num_of_outcomes=1)  # essentially checks that rho_ctb is a valid state (density matrix)
 
     # Make correlation
-    tau_dtype = 'complex128' if instrs_A1[0].dtype == 'complex' or instrs_A1[1].dtype == 'complex' \
-                                or instrs_A2[0].dtype == 'complex' or instrs_A2[1].dtype == 'complex' \
-                                or instrs_B[0].dtype == 'complex' or instrs_B[1].dtype == 'complex' \
-                                or rho_ctb.dtype == 'complex' or instr_C.dtype == 'complex' \
-        else 'float64'
-    tau_Ttilde = np.identity(2, dtype=tau_dtype)  # trace out the output target system
-
     proc_op_total = process_operator_switch()
     pacb_xy = np.zeros((2,) * 7)
-    for a_1, a_2, c, b, x_1, x_2, y in itertools.product((0, 1), repeat=7):
-        taus = kron(rho_ctb.T, instrs_A1[x_1][a_1].T, instrs_A2[x_2][a_2].T, instr_C[c].T, tau_Ttilde, instrs_B[y][b].T)
+    tau_Ttilde = np.identity(dT)  # trace out the output target system
+    for a1, a2, c, b, x1, x2, y in itertools.product((0, 1), repeat=7):
+        taus = kron(rho_ctb.T, instrs_A1[x1][a1].T, instrs_A2[x2][a2].T, instr_C[c].T, tau_Ttilde, instrs_B[y][b].T)
         born_prob = np.trace(np.matmul(proc_op_total, taus))
         if np.imag(born_prob) > 1e-15:
-            print("WARNING - DETECTED A LARGE IMAGINARY VALUE IN PROBABILITY: p(%d,%d,b=%d,c=%d,%d,%d,%d) = %s" % (a_1, a_2, b, c, x_1, x_2, y, str(born_prob)))
-        pacb_xy[a_1, a_2, c, b, x_1, x_2, y] = np.real(born_prob)
+            print("WARNING - DETECTED A LARGE IMAGINARY VALUE IN PROBABILITY: p(%d,%d,b=%d,c=%d,%d,%d,%d) = %s" % (a1, a2, b, c, x1, x2, y, str(born_prob)))
+        pacb_xy[a1, a2, c, b, x1, x2, y] = np.real(born_prob)
     return pacb_xy
 
 
@@ -129,113 +72,77 @@ def assert_is_quantum_instrument(instr, d_in, d_out, num_of_outcomes=2, tol=1e-1
     assert len(instr) == num_of_outcomes
     # Check that all maps are of the right dimension and are CP
     for _map in instr:
-        # assert _map.shape == (d_out, d_out, d_in, d_in)  # operator on H_out ⊗ H_in*
-        assert _map.shape == (d_out * d_in, d_out * d_in)
+        # assert _map.shape == (d_out, d_out, d_in, d_in)  # operator on H_in* ⊗ H_out
+        assert _map.shape == (d_in * d_out, d_in * d_out)
         # CP is equivalent to the CJ rep being positive semidefinite as an operator (d_out*d_in, d_out*d_in)
         # _map_as_kron_matrix = tns_to_kron_of_ops(_map)  # NOTE these 'out' and 'in' are not the same as in tns_to_kron_of_ops
         assert np.all(np.abs(_map - _map.conj().T) < tol)  # finding eigenvalues only works when self-adjoint. TODO right?
         assert np.all(np.linalg.eigvals(_map) > -tol)
 
-    # CPTP is equivalent to Tr_out(CJ rep) = Id_in
+    # CPTP is equivalent to Tr_out(CJ rep) == Id_in
     sum_of_maps = np.sum(instr, axis=0)
-    sum_tns = sum_of_maps.reshape((d_out, d_in, d_out, d_in))
-    assert np.all(np.abs(np.trace(sum_tns, axis1=0, axis2=2) - np.identity(d_in)) < tol)
+    sum_tns = sum_of_maps.reshape((d_in, d_out, d_in, d_out))  # tensor rather than kronecker rep
+    assert np.all(np.abs(np.trace(sum_tns, axis1=1, axis2=3) - np.identity(d_in)) < tol)
 
 
-def tns_to_kron_of_ops(tns):
-    """ Convert between ways of describing an operator H1in ⊗ H2in -> H1out ⊗ H2out.
-    :param tns: A 4-tensor with dimensions (d1out, d1in, d2out, d2in).
-    :return: A 2-tensor with dimensions (d1out * d2out, d1in * d2in).
-    """
-    d1out, d1in, d2out, d2in = tns.shape
-    # tns is an element of B(H1in, H1out) ⊗ B(H2in, H2out)
-    # so it is a finite sum of product elements A1 ⊗ A2,   Ai in B(Hiin, Hiout).
-    # if I can get the product elts then I just need to take their kron and add together.
-    # How to get product elements? In an easier scenario: how to get product elts of an a in H ⊗ K?
-    # a is a 2-tensor with dimensions (dH, dK). a = sum_ij a_ij |i>_H ⊗ |j>_K
-    # So the product elements are a_ij |i>_H ⊗ |j>_K == a[i,j] δij with δij the 2-tensor that only
-    # has a 1 at indices [i,j].
-    """
-    result = np.zeros((d1out * d2out, d1in * d2in))
-    original = np.zeros_like(tns)
-    for i, j, k, l in itertools.product(range(0, d1out), range(0, d1in), range(0, d2out), range(0, d2in)):
-        coeff = tns[i, j, k, l]
-        tns_factor1 = np.zeros((d1out, d1in))
-        tns_factor1[i, j] = 1
-        tns_factor2 = np.zeros((d2out, d2in))
-        tns_factor2[k, l] = 1
-        tensor_prod = np.einsum('ij,kl->ijkl', tns_factor1, tns_factor2)
-        assert np.all(np.argwhere(tensor_prod) == (i, j, k, l))
-        kron_prod = kron(tns_factor1, tns_factor2)
-        assert np.all(np.argwhere(kron_prod) == (i * d2out + k, j * d2in + l))
-        assert np.all(tensor_prod.swapaxes(1,2).reshape((d1out * d2out, d1in * d2in)) == kron_prod)
-        original += coeff * tensor_prod
-        result += coeff * kron_prod
-    assert np.all(original == tns)
-    assert np.all(result == tns.swapaxes(1,2).reshape((d1out * d2out, d1in * d2in)))
-    return result
-    """
-    return tns.swapaxes(1, 2).reshape((d1out * d2out, d1in * d2in))
-
-
-def quantum_cor_in_panda_format_nss(rho_ctb, X1, X2, Y, c_onb):
-    cor = make_pacb_xy(rho_ctb, X1, X2, Y, c_onb).reshape((128,))
-    cor_approx = utils.approximate(cor, [n / 32. for n in range(32 + 1)])
-    cor_approx_nss = vector_space_utils.construct_full_to_NSS_matrix(8, 2, 4, 2) @ cor_approx
-    from fractions import Fraction
-    return ' '.join([str(Fraction(value)) for value in cor_approx_nss])
-
-
-def quantum_cor_nss_definitive(rho_ctb, X1, X2, Y, c_onb, common_multiple_of_denominators):
-    cor_full = make_pacb_xy(rho_ctb, X1, X2, Y, c_onb).reshape((128,))
+def quantum_cor_nss(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT=2, dB=2, common_multiple_of_denominators=2 ** 17):
+    cor_full = make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT, dB).reshape((128,))
     return vector_space_utils.full_acb_to_nss_homog(cor_full, common_multiple_of_denominators)
 
 
-def generate_some_quantum_cors_complete_vn():
+def quantum_cor_nss_from_complete_vn_mmts(rho_ctb, X1, X2, Y, c_onb, common_multiple_of_denominators=2 ** 17):
+    return quantum_cor_nss(rho_ctb=rho_ctb,
+                               instrs_A1=[instr_vn_nondestr(onb) for onb in X1],
+                               instrs_A2=[instr_vn_nondestr(onb) for onb in X2],
+                               instr_C=instr_vn_destr(c_onb),
+                               instrs_B=[instr_vn_destr(onb) for onb in Y],
+                               dT=2, dB=2, common_multiple_of_denominators=common_multiple_of_denominators)
+
+
+def generate_some_quantum_cors_complete_vn(num_of_random_cors=1000):
     qm_cors = [
-        quantum_cor_nss_definitive(
-            rho_ctb=proj(kron(ket_plus, phi_plus)),  # CTB = |+> |phi+>
+        quantum_cor_nss_from_complete_vn_mmts(
+            rho_ctb=rho_ctb_plusphiplus,  # CTB = |+> |phi+>
             X1=[z_onb, x_onb],
             X2=[z_onb, x_onb],
             Y=[z_onb, x_onb],
             c_onb=x_onb,
             common_multiple_of_denominators=2 ** 17),
-        quantum_cor_nss_definitive(
+        quantum_cor_nss_from_complete_vn_mmts(
             rho_ctb=rho_tcb_0phi,  # TODO test violation with this corrected rho_ctb
             X1=[z_onb, x_onb],
             X2=[z_onb, x_onb],
             Y=[diag1_onb, diag2_onb],
             c_onb=x_onb,
             common_multiple_of_denominators=2 ** 17),
-        quantum_cor_nss_definitive(
+        quantum_cor_nss_from_complete_vn_mmts(
             rho_ctb=rho_tcb_0phi,
             X1=[z_onb, x_onb],
             X2=[z_onb, x_onb],
             Y=[z_onb, x_onb],
             c_onb=diag1_onb,
             common_multiple_of_denominators=2 ** 17),
-        quantum_cor_nss_definitive(
+        quantum_cor_nss_from_complete_vn_mmts(
             rho_ctb=rho_tcb_0phi,
             X1=[diag1_onb, diag2_onb],
             X2=[z_onb, x_onb],
             Y=[z_onb, x_onb],
             c_onb=diag2_onb,
             common_multiple_of_denominators=2 ** 17),
-        quantum_cor_nss_definitive(
+        quantum_cor_nss_from_complete_vn_mmts(
             rho_ctb=rho_ctb_ghz,  # CTB = |GHZ>
             X1=[diag1_onb, diag2_onb],
             X2=[diag1_onb, diag2_onb],
             Y=[diag1_onb, diag2_onb],
             c_onb=x_onb,
             common_multiple_of_denominators=2 ** 17),
-        quantum_cor_nss_definitive(
+        quantum_cor_nss_from_complete_vn_mmts(
             rho_ctb=rho_ctb_ghz,  # CTB = |GHZ>
             X1=[z_onb, x_onb],
             X2=[z_onb, x_onb],
             Y=[z_onb, x_onb],
             c_onb=diag1_onb,
             common_multiple_of_denominators=2 ** 17)]
-    num_of_random_cors = 1000
     def random_quantum_setup():
         return random_3_qubit_pure_density_matrix(True), \
                [random_onb(), random_onb()], \
@@ -244,7 +151,7 @@ def generate_some_quantum_cors_complete_vn():
                random_onb()
     for i in range(0, num_of_random_cors):
         print("Generated %d / %d random qm cors" % (i, num_of_random_cors))
-        qm_cors.append(quantum_cor_nss_definitive(*random_quantum_setup(), common_multiple_of_denominators=2 ** 17))
+        qm_cors.append(quantum_cor_nss_from_complete_vn_mmts(*random_quantum_setup(), common_multiple_of_denominators=2 ** 17))
     return qm_cors
 
 
@@ -342,6 +249,42 @@ def reshuffle_kron_vector(kron_vector, perm):
     return tens_vector.reshape((2 ** n,))  # tested
 
 
+def tns_to_kron_of_ops(tns):
+    """ Convert between ways of describing an operator H1in ⊗ H2in -> H1out ⊗ H2out.
+    :param tns: A 4-tensor with dimensions (d1out, d1in, d2out, d2in).
+    :return: A 2-tensor with dimensions (d1out * d2out, d1in * d2in).
+    """
+    d1out, d1in, d2out, d2in = tns.shape
+    # tns is an element of B(H1in, H1out) ⊗ B(H2in, H2out)
+    # so it is a finite sum of product elements A1 ⊗ A2,   Ai in B(Hiin, Hiout).
+    # if I can get the product elts then I just need to take their kron and add together.
+    # How to get product elements? In an easier scenario: how to get product elts of an a in H ⊗ K?
+    # a is a 2-tensor with dimensions (dH, dK). a = sum_ij a_ij |i>_H ⊗ |j>_K
+    # So the product elements are a_ij |i>_H ⊗ |j>_K == a[i,j] δij with δij the 2-tensor that only
+    # has a 1 at indices [i,j].
+    """
+    result = np.zeros((d1out * d2out, d1in * d2in))
+    original = np.zeros_like(tns)
+    for i, j, k, l in itertools.product(range(0, d1out), range(0, d1in), range(0, d2out), range(0, d2in)):
+        coeff = tns[i, j, k, l]
+        tns_factor1 = np.zeros((d1out, d1in))
+        tns_factor1[i, j] = 1
+        tns_factor2 = np.zeros((d2out, d2in))
+        tns_factor2[k, l] = 1
+        tensor_prod = np.einsum('ij,kl->ijkl', tns_factor1, tns_factor2)
+        assert np.all(np.argwhere(tensor_prod) == (i, j, k, l))
+        kron_prod = kron(tns_factor1, tns_factor2)
+        assert np.all(np.argwhere(kron_prod) == (i * d2out + k, j * d2in + l))
+        assert np.all(tensor_prod.swapaxes(1,2).reshape((d1out * d2out, d1in * d2in)) == kron_prod)
+        original += coeff * tensor_prod
+        result += coeff * kron_prod
+    assert np.all(original == tns)
+    assert np.all(result == tns.swapaxes(1,2).reshape((d1out * d2out, d1in * d2in)))
+    return result
+    """
+    return tns.swapaxes(1, 2).reshape((d1out * d2out, d1in * d2in))
+
+
 def complex_exp(phi):
     """
     :param phi: exponent
@@ -411,6 +354,7 @@ ket_plus = 1 / sqrt2 * np.array([1, 1])
 ket_minus = 1 / sqrt2 * np.array([1, -1])
 phi_plus = 1 / sqrt2 * np.array([1, 0, 0, 1])
 phi_plus_un = np.array([1, 0, 0, 1])  # unnormalised
+rho_ctb_plusphiplus = 1 / 2 * proj(kron(ket0, phi_plus_un))
 ket_ctb_ghz = 1 / sqrt2 * np.array([1, 0, 0, 0, 0, 0, 0, 1])
 rho_ctb_ghz = 1 / 2 * proj(np.array([1, 0, 0, 0, 0, 0, 0, 1]))
 ket_tcb_0phi = np.einsum('i,jk->jik', ket0, phi_plus.reshape((2, 2))).reshape(8)
@@ -445,73 +389,25 @@ def instr_measure_and_send_fixed_state(onb, fixed_ket):
     num_of_outcomes = len(onb)
     instr = np.empty((num_of_outcomes, 4, 4), dtype=onb.dtype)  # a family of 4x4 matrices indexed by two binary indices
     for a in range(0, num_of_outcomes):
-        instr[a] = kron(proj(fixed_ket), proj(onb[a]))
+        instr[a] = kron(proj(onb[a]), proj(fixed_ket))
     return instr
 
 
-instr_ignore = np.array([proj(phi_plus_un), np.zeros((4,4), dtype='int')])  # outcome is 0 with probability 1
+instr_do_nothing = np.array([proj(phi_plus_un), np.zeros((4, 4), dtype='int')])  # outcome is 0 with probability 1
 
 if __name__ == '__main__':
-    ## Showing that p(c | x_1, x_2, y) can generally depend on y (i.e. 'disproving (iii)'):
-    """
-    tau_ctb = proj(kron(ket_plus, ket0, ket0))
-    tau_a_1 = (proj(np.array([1, 0, 0, 0])) + proj(np.array([0, 0, 0, 1]))).T
-    # tau_a_2 = (proj(np.array([1, 0, 0, 0])) + proj(np.array([0, 0, 0, 1]))).T
-    tau_a_2 = (proj(1 / 2 * np.array([1, 1, 1, 1])) + proj(1 / 2 * np.array([1, -1, -1, 1]))).T
-    # tau_a_1 = (proj(1 / 2 * np.array([1, 1, 1, 1])) + proj(1 / 2 * np.array([1, -1, -1, 1]))).T
-    tau_Ctilde = proj(ket_plus).T
-    tau_Ttilde = np.identity(2)
-    tau_Btilde = np.identity(2)
-    taus = kron(tau_ctb, tau_a_1, tau_a_2, tau_Ctilde, tau_Ttilde, tau_Btilde)
-    process_op = process_operator_switch()
-    print(np.trace(np.matmul(process_op, taus)))
-    """
-
-    ## Trying to see if p~^1(a_1, a_2, c | x_1, x_2, y) depends on y:
-
-    """phacek1abc_xy, dep = dependence_of_ac_on_y_in_phacek1(
-        rho_ctb=proj(kron(ket_plus, phi_plus)),
-        # rho_ctb=proj(normalise_vec(np.random.rand(8))),
-        X1=[z_onb, x_onb],  # X1 = [random_real_onb(), random_real_onb()] # TODO see below
-        X2=[z_onb, x_onb],  # TODO change back to z_onb, x_onb when NaN problem resolved
-        Y=[z_onb, x_onb],  # Y = [random_real_onb(), random_real_onb()]
-        c_onb=x_onb)  # c_onb = x_onb
-    print(dep)"""  # NOTE this code takes 10-11 seconds on my laptop, 13-14 seconds on google cloud c2 VM
-
-    # III(rho_ctb=proj(kron(ket_plus, phi_plus)),
-    #     X1=[z_onb, x_onb],
-    #     X2=[z_onb, x_onb],
-    #     Y=[z_onb, x_onb],
-    #     c_onb=x_onb)
-
-    # Gave 0.2972878186211555 for some random ONBs. So definitely dependence between y and c! (If code is correct)
-    # For X1=Z,X, X2=diag1,2, Y=Z,X, c_onb=x_onb, and some random rho_ctb, I got 0.2535096933657037.
-
-    # Using X1,X2,Y = random and c_onb = x_onb:
-    # rho_ctb = ket0,ket0,ket0: gives 4e-16 ✓
-    # rho_ctb = ket+,ket0,ket0: gives 3e-16 ✓
-    # rho_ctb = phi+     ,ket0: gives 1.5e-16 ✓ all as expected
-    # Now entangle c and b:
-    # rho_ctb = 'ikj',phi_plus,ket0: gives 0.0804 and 0.0885 and 0.378.  ✓ NOTE Yay, gives dependence! So this is a candidate for LDCO violation---because the 'Method (I)' proof on [p91] doesn't work for it.
-    # TODO left to check this for non-random X1,X2,Y. First solve div by 0 problem
-    # Now entangle t and b:
-    # rho_ctb = ket+,phi_+          : gives 0.224 and 0.0555 and 0.112 and 0.0997. NOTE Unexpected! But actually makes sense? Maybe?
-    # Now try GHZ state (should logically also work, following from fact that CB entangled already works, let alone TB entangled).
-    # rho_ctb = GHZ              : gives 0.0347 and 0.283 ✓
-
-    # NOTE See [p93] for the results with non-random X1,X2,Y.
-
-    # To test make_pacb_xy_new:
+    # To test quantum_cor_from_complete_vn_mmts_new and make_pacb_xy_new:
     """rho_ctb, X1, X2, Y, c_onb = random_3_qubit_pure_density_matrix(True), \
                    [random_onb(), random_onb()], \
                    [random_onb(), random_onb()], \
                    [random_onb(), random_onb()], \
                    random_onb()
+    assert np.all(quantum_cor_from_complete_vn_mmts_new(rho_ctb, X1, X2, Y, c_onb) == quantum_cor_nss_definitive(rho_ctb, X1, X2, Y, c_onb))
     instrs_A1 = [instr_vn_nondestr(i) for i in X1]
     instrs_A2 = [instr_vn_nondestr(i) for i in X2]
     instrs_B = [instr_vn_destr(i) for i in Y]
     instr_C = instr_vn_destr(c_onb)
-    p_new = make_pacb_xy_new(rho_ctb, instrs_A1, instrs_A2, instrs_B, instr_C, 2, 2)
+    p_new = make_pacb_xy_new(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, 2, 2)
     p = make_pacb_xy(rho_ctb, X1, X2, Y, c_onb)
     print(np.all(p_new == p))  # Success!"""
 
@@ -521,14 +417,35 @@ if __name__ == '__main__':
         np.save('panda-files/some_quantum_cors3.npy', qm_cors)
         print('done writing')"""
 
-    cor = make_pacb_xy_new(rho_ctb=proj(kron(ket_plus, phi_plus)),   #rho_ctb=random_3_qubit_pure_density_matrix(True),
-                           instrs_A1=[instr_ignore, instr_measure_and_send_fixed_state(z_onb, ket0)],
-                           instrs_A2=[instr_ignore, instr_measure_and_send_fixed_state(z_onb, ket0)],
-                           instrs_B=[instr_vn_destr(z_onb), instr_vn_destr(x_onb)],
-                           instr_C=instr_vn_destr(x_onb),
-                           dT=2, dB=2)\
-        .reshape(128)
+    """rho_ctb = proj(np.array([1, 0, 0, 0, 0, 0, 0, 0]))
+    cp_A1 = proj(phi_plus_un)
+    cp_A2 = kron(proj(ket1), proj(ket0))
+    cp_C = proj(ket0)
+    tau_Ttilde = np.identity(2)
+    cp_B = proj(ket0)
+    taus = kron(rho_ctb.T, cp_A1.T, cp_A2.T, cp_C.T, tau_Ttilde, cp_B.T)
 
-    cor_nss_homog = vector_space_utils.full_acb_to_nss_homog(cor, 2 ** 17)
-    print(towards_lc.maximum_violation_of_known_lc_facets(np.array([cor_nss_homog])))
-    print(towards_lc.maximum_violation_of_caus2_facets(np.array([cor_nss_homog])))
+    phi_plus_dT = np.identity(2)
+    phi_plus_dB = np.identity(2)
+    # CO1 part of W. See [p72].  Tensor order before reordering of the Einstein indices: Bout*, B~in, Cout*, C~in, Tout*, A1in, A1out^*, A2in, A2out*, T~in
+    # and after reordering: Cout*, Tout*, Bout*, A1in, A1out*, A2in, A2out*, C~in, T~in, B~in.
+    W_CO1 = np.einsum('ij,k,l,mn,op,qr->kminopqlrj', phi_plus_dB, ket0, ket0, phi_plus_dT, phi_plus_dT, phi_plus_dT).reshape(1024)
+    taus_test = kron(proj(ket1), np.identity(512))
+    print(np.trace(np.matmul(proj(W_CO1), taus_test)))
+    print(np.trace(np.matmul(proj(W_CO1), taus)))"""
+
+    # TODO continue testing this:
+    cor = make_pacb_xy(rho_ctb=random_3_qubit_pure_density_matrix(True),
+                       # instrs_A1=[instr_do_nothing, instr_measure_and_send_fixed_state(z_onb, ket0)],
+                       # instrs_A2=[instr_do_nothing, instr_measure_and_send_fixed_state(z_onb, ket0)],
+                       instrs_A1=[instr_measure_and_send_fixed_state(random_onb(), random_onb()[0]), instr_measure_and_send_fixed_state(random_onb(), random_onb()[0])],
+                       instrs_A2=[instr_measure_and_send_fixed_state(random_onb(), random_onb()[0]), instr_measure_and_send_fixed_state(random_onb(), random_onb()[0])],
+                       instr_C=instr_vn_destr(x_onb),
+                       instrs_B=[instr_vn_destr(random_onb()), instr_vn_destr(random_onb())],
+                       dT=2, dB=2) \
+        .reshape(128)
+    vector_space_utils.write_cor_to_file(cor, 'tmp')
+
+    cor_nss_homog = vector_space_utils.full_acb_to_nss_homog(cor, 2 ** 18)
+    print('Largest known LC violation:', towards_lc.maximum_violation_of_known_lc_facets(np.array([cor_nss_homog])))
+    print('Largest Caus2 violation:', towards_lc.maximum_violation_of_caus2_facets(np.array([cor_nss_homog])))
