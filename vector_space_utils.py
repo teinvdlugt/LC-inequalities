@@ -10,6 +10,7 @@ import numpy.linalg
 import panda
 import towards_lc
 import utils
+import vector_space_utils
 
 B = (0, 1)
 
@@ -128,20 +129,25 @@ def construct_full_to_NSS_homog(na, nb, nx, ny):
                      [np.zeros(na * nb * nx * ny, dtype='int'), 1]])
 
 
-def full_acb_to_nss_homog(cor_full, common_multiple_of_denominators):
+def full_acb_to_nss_homog(cor_full, common_multiple_of_denominators=None):
+    """ If common_multiple_of_denominators is not None, the vector is approximated by an integer one. """
+    assert vector_space_utils.is_in_ahNSS(cor_full, 8, 2, 4, 2)
     cor_nss = construct_full_to_NSS_matrix(8, 2, 4, 2) @ cor_full
     assert np.all(cor_nss <= 1)
-    cor_nss_rescaled = common_multiple_of_denominators * cor_nss
-    cor_nss_rescaled_approx = utils.approximate(cor_nss_rescaled, [n for n in range(common_multiple_of_denominators + 1)])
-    cor_nss_approx_homog = np.r_[cor_nss_rescaled_approx, [common_multiple_of_denominators]]
-    cor_nss_approx_homog_int = cor_nss_approx_homog.astype('int64')
-    assert np.all(cor_nss_approx_homog == cor_nss_approx_homog_int)
-    gcd = functools.reduce(math.gcd, cor_nss_approx_homog_int)
-    cor_nss_approx_homog_normalised = (1 / gcd) * cor_nss_approx_homog
-    cor_nss_approx_homog_normalised_int = cor_nss_approx_homog_normalised.astype('int64')
-    if not np.all(cor_nss_approx_homog_normalised == cor_nss_approx_homog_normalised_int):
-        print("Warning: your value of common_multiple_of_denominators was not correct")  # wrong?
-    return cor_nss_approx_homog_normalised_int
+    if common_multiple_of_denominators is not None:
+        cor_nss_rescaled = common_multiple_of_denominators * cor_nss
+        cor_nss_rescaled_approx = utils.approximate(cor_nss_rescaled, [n for n in range(common_multiple_of_denominators + 1)])
+        cor_nss_approx_homog = np.r_[cor_nss_rescaled_approx, [common_multiple_of_denominators]]
+        cor_nss_approx_homog_int = cor_nss_approx_homog.astype('int64')
+        assert np.all(cor_nss_approx_homog == cor_nss_approx_homog_int)
+        gcd = functools.reduce(math.gcd, cor_nss_approx_homog_int)
+        cor_nss_approx_homog_normalised = (1 / gcd) * cor_nss_approx_homog
+        cor_nss_approx_homog_normalised_int = cor_nss_approx_homog_normalised.astype('int64')
+        if not np.all(cor_nss_approx_homog_normalised == cor_nss_approx_homog_normalised_int):
+            print("Warning: your value of common_multiple_of_denominators was not correct")  # wrong?
+        return cor_nss_approx_homog_normalised_int
+    else:
+        return np.r_[cor_nss, [1]]
 
 
 def is_in_ahNSS(cor, na, nb, nx, ny, tol=1e-12):
@@ -203,7 +209,6 @@ def write_cor_to_file(cor, filename):
         for a1, a2, c, b, x1, x2, y in itertools.product((0, 1), repeat=7):
             i = concatenate_bits(a1, a2, c, b, x1, x2, y)
             f.write('p(%d%d%d%d|%d%d%d): %s' % (a1, a2, c, b, x1, x2, y, str(cor[i])) + '\n')
-
 
 
 ## NSCO1 stuff (strong version, i.e. dim=80).

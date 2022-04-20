@@ -85,21 +85,25 @@ def assert_is_quantum_instrument(instr, d_in, d_out, num_of_outcomes=2, tol=1e-1
     assert np.all(np.abs(np.trace(sum_tns, axis1=1, axis2=3) - np.identity(d_in)) < tol)
 
 
-def quantum_cor_nss(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT=2, dB=2, common_multiple_of_denominators=2 ** 17):
+def quantum_cor_nss(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT=2, dB=2, common_multiple_of_denominators=None):
     cor_full = make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT, dB).reshape((128,))
     return vector_space_utils.full_acb_to_nss_homog(cor_full, common_multiple_of_denominators)
 
 
-def quantum_cor_nss_from_complete_vn_mmts(rho_ctb, X1, X2, Y, c_onb, common_multiple_of_denominators=2 ** 17):
+def quantum_cor_nss_from_complete_vn_mmts(rho_ctb, X1, X2, Y, c_onb, common_multiple_of_denominators=None):
     return quantum_cor_nss(rho_ctb=rho_ctb,
-                               instrs_A1=[instr_vn_nondestr(onb) for onb in X1],
-                               instrs_A2=[instr_vn_nondestr(onb) for onb in X2],
-                               instr_C=instr_vn_destr(c_onb),
-                               instrs_B=[instr_vn_destr(onb) for onb in Y],
-                               dT=2, dB=2, common_multiple_of_denominators=common_multiple_of_denominators)
+                           instrs_A1=[instr_vn_nondestr(onb) for onb in X1],
+                           instrs_A2=[instr_vn_nondestr(onb) for onb in X2],
+                           instr_C=instr_vn_destr(c_onb),
+                           instrs_B=[instr_vn_destr(onb) for onb in Y],
+                           dT=2, dB=2, common_multiple_of_denominators=common_multiple_of_denominators)
 
 
-def generate_some_quantum_cors_complete_vn(num_of_random_cors=1000):
+def generate_some_quantum_cors_complete_vn(file_to_save_to=None, num_of_random_cors=1000, common_multiple_of_denominators=None):
+    """
+    If common_multiple_of_denominators is not None, then the generated correlations are approximated by fractions with
+    the given denominator.
+    """
     qm_cors = [
         quantum_cor_nss_from_complete_vn_mmts(
             rho_ctb=rho_ctb_plusphiplus,  # CTB = |+> |phi+>
@@ -107,42 +111,44 @@ def generate_some_quantum_cors_complete_vn(num_of_random_cors=1000):
             X2=[z_onb, x_onb],
             Y=[z_onb, x_onb],
             c_onb=x_onb,
-            common_multiple_of_denominators=2 ** 17),
+            common_multiple_of_denominators=common_multiple_of_denominators),
         quantum_cor_nss_from_complete_vn_mmts(
             rho_ctb=rho_tcb_0phi,
             X1=[z_onb, x_onb],
             X2=[z_onb, x_onb],
             Y=[diag1_onb, diag2_onb],
             c_onb=x_onb,
-            common_multiple_of_denominators=2 ** 17),
+            common_multiple_of_denominators=common_multiple_of_denominators),
         quantum_cor_nss_from_complete_vn_mmts(
             rho_ctb=rho_tcb_0phi,
             X1=[z_onb, x_onb],
             X2=[z_onb, x_onb],
             Y=[z_onb, x_onb],
             c_onb=diag1_onb,
-            common_multiple_of_denominators=2 ** 17),
+            common_multiple_of_denominators=common_multiple_of_denominators),
         quantum_cor_nss_from_complete_vn_mmts(
             rho_ctb=rho_tcb_0phi,
             X1=[diag1_onb, diag2_onb],
             X2=[z_onb, x_onb],
             Y=[z_onb, x_onb],
             c_onb=diag2_onb,
-            common_multiple_of_denominators=2 ** 17),
+            common_multiple_of_denominators=common_multiple_of_denominators),
         quantum_cor_nss_from_complete_vn_mmts(
             rho_ctb=rho_ctb_ghz,  # CTB = |GHZ>
             X1=[diag1_onb, diag2_onb],
             X2=[diag1_onb, diag2_onb],
             Y=[diag1_onb, diag2_onb],
             c_onb=x_onb,
-            common_multiple_of_denominators=2 ** 17),
+            common_multiple_of_denominators=common_multiple_of_denominators),
         quantum_cor_nss_from_complete_vn_mmts(
             rho_ctb=rho_ctb_ghz,  # CTB = |GHZ>
             X1=[z_onb, x_onb],
             X2=[z_onb, x_onb],
             Y=[z_onb, x_onb],
             c_onb=diag1_onb,
-            common_multiple_of_denominators=2 ** 17)]
+            common_multiple_of_denominators=common_multiple_of_denominators)]
+    if file_to_save_to is not None:
+        np.save(file_to_save_to, qm_cors)
     def random_quantum_setup():
         return random_3_qubit_pure_density_matrix(True), \
                [random_onb(), random_onb()], \
@@ -152,6 +158,8 @@ def generate_some_quantum_cors_complete_vn(num_of_random_cors=1000):
     for i in range(0, num_of_random_cors):
         print("Generated %d / %d random qm cors" % (i, num_of_random_cors))
         qm_cors.append(quantum_cor_nss_from_complete_vn_mmts(*random_quantum_setup(), common_multiple_of_denominators=2 ** 17))
+        if file_to_save_to is not None:
+            np.save(file_to_save_to, qm_cors)
     return qm_cors
 
 
@@ -412,10 +420,8 @@ if __name__ == '__main__':
     print(np.all(p_new == p))  # Success!"""
 
     # TODO repeat this and see if same with new make_pacb_xy:
-    """qm_cors = np.array(generate_some_quantum_cors())
-        print("done. now writing")
-        np.save('panda-files/some_quantum_cors3.npy', qm_cors)
-        print('done writing')"""
+    qm_cors = np.array(generate_some_quantum_cors_complete_vn('some_quantum_cors4_not_approximated.npy', num_of_random_cors=5000))
+    print('Done.')
 
     """rho_ctb = proj(np.array([1, 0, 0, 0, 0, 0, 0, 0]))
     cp_A1 = proj(phi_plus_un)
