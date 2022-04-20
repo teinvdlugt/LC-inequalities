@@ -5,6 +5,8 @@
 import itertools
 import numpy as np
 import polytope_utils
+
+import one_switch_3mmts
 import quantum_utils as qm
 import utils
 from quantum_utils import kron, proj, reshuffle_kron_vector, phi_plus, ket0, ket_diag, ket_plus, z_onb, x_onb, \
@@ -26,10 +28,10 @@ def vertices_one_switch_4mmts():
     CO1_vertices = np.zeros((CO1_num_of_vertices,
                              one_switch_4mmts_dim))  # If encountering memory/speed problems, can look into if can make this dtype int32 or int16 instead of float.
     current_vertex = 0
-    for f_a_1 in polytope_utils.list_of_fns_from_n_to_m(2, 2):
-        for f_b in polytope_utils.list_of_fns_from_n_to_m(4, 2):
-            for f_a_2 in polytope_utils.list_of_fns_from_n_to_m(8, 2):
-                for f_c in polytope_utils.list_of_fns_from_n_to_m(16, 2):
+    for f_a_1 in one_switch_3mmts.list_of_fns_from_n_to_m(2, 2):
+        for f_b in one_switch_3mmts.list_of_fns_from_n_to_m(4, 2):
+            for f_a_2 in one_switch_3mmts.list_of_fns_from_n_to_m(8, 2):
+                for f_c in one_switch_3mmts.list_of_fns_from_n_to_m(16, 2):
                     # the vertex is specified by f_a_1, f_b, f_a_2 and f_c. Now feed it into our vertex list
                     current_component = 0  # the index in the numpy array will be given by [current_vertex][current_component]
                     for var_values in itertools.product((0, 1), repeat=8):
@@ -61,10 +63,10 @@ def vertices_one_switch_4mmts():
     CO2_vertices = np.zeros((CO1_num_of_vertices,
                              one_switch_4mmts_dim), dtype='int8')  # If encountering memory/speed problems, can look into if can make this dtype int32 or int16 instead of float.
     current_vertex = 0
-    for f_a_2 in polytope_utils.list_of_fns_from_n_to_m(2, 2):
-        for f_b in polytope_utils.list_of_fns_from_n_to_m(4, 2):
-            for f_a_1 in polytope_utils.list_of_fns_from_n_to_m(8, 2):
-                for f_c in polytope_utils.list_of_fns_from_n_to_m(16, 2):
+    for f_a_2 in one_switch_3mmts.list_of_fns_from_n_to_m(2, 2):
+        for f_b in one_switch_3mmts.list_of_fns_from_n_to_m(4, 2):
+            for f_a_1 in one_switch_3mmts.list_of_fns_from_n_to_m(8, 2):
+                for f_c in one_switch_3mmts.list_of_fns_from_n_to_m(16, 2):
                     # the vertex is specified by f_a_2, f_b, f_a_1 and f_c. Now feed it into our vertex list
                     current_component = 0  # the index in the numpy array will be given by [current_vertex][current_component]
                     for var_values in itertools.product((0, 1), repeat=8):
@@ -208,9 +210,9 @@ if __name__ == '__main__':
     one_switch_vertices = vertices_one_switch_4mmts()
 
     ## Testing for quantum violations
-    print(polytope_utils.in_hull(one_switch_vertices, qm_corr_one_switch_3mmts(
+    print(polytope_utils.in_convex_hull_lp(one_switch_vertices, qm_corr_one_switch_3mmts(
         X1=[z_onb, x_onb], X2=[diag1_onb, diag2_onb], Y=[z_onb, x_onb], rho_ctb=ctb_ghz),
-                                 tol=1e-13))  # Returns True but only until precision 1e-13
+                                           tol=1e-13))  # Returns True but only until precision 1e-13
 
     ## Try a bunch of random configurations
     # process_op = qm.process_operator_switch()
@@ -221,7 +223,7 @@ if __name__ == '__main__':
     #     X2_rand = [qm.random_onb(), qm.random_onb()]
     #     Y_rand = [qm.random_onb(), qm.random_onb()]
     #     tol = 1e-8
-    #     if not polytope_utils.in_hull(one_switch_vertices, qm_corr_one_switch_3mmts(X1_rand, X2_rand, Y_rand, ctb_rand, process_op), tol):
+    #     if not polytope_utils.in_convex_hull_lp(one_switch_vertices, qm_corr_one_switch_3mmts(X1_rand, X2_rand, Y_rand, ctb_rand, process_op), tol):
     #         print('Violated! With tolerance', tol)
     #         print('rho_ctb:', ctb_rand, 'X1:', X1_rand, '\nX2:', X2_rand, '\nY', Y_rand)
     #     print('Finished checking ' + str(i + 1) + ' random configs.')

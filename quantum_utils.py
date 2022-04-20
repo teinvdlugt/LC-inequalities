@@ -109,7 +109,7 @@ def generate_some_quantum_cors_complete_vn(num_of_random_cors=1000):
             c_onb=x_onb,
             common_multiple_of_denominators=2 ** 17),
         quantum_cor_nss_from_complete_vn_mmts(
-            rho_ctb=rho_tcb_0phi,  # TODO test violation with this corrected rho_ctb
+            rho_ctb=rho_tcb_0phi,
             X1=[z_onb, x_onb],
             X2=[z_onb, x_onb],
             Y=[diag1_onb, diag2_onb],

@@ -74,7 +74,7 @@ def construct_NSS_to_full_matrix_but_weird(na, nb, nx, ny):
     return matrix
 
 
-def construct_NSS_to_full_matrix_homogeneous():
+def construct_NSS_to_full_homogeneous():
     return np.block([
         [construct_NSS_to_full_matrix_but_weird(8, 2, 4, 2), beta().reshape((128, 1)).astype('int')],
         [np.zeros(dim_NSS(8, 2, 4, 2), dtype='int'), 1]
@@ -144,7 +144,7 @@ def full_acb_to_nss_homog(cor_full, common_multiple_of_denominators):
     return cor_nss_approx_homog_normalised_int
 
 
-def is_in_NSS_aff_hull(cor, na, nb, nx, ny, tol=1e-12):
+def is_in_ahNSS(cor, na, nb, nx, ny, tol=1e-12):
     if len(cor) == na * nb * nx * ny + 1:
         assert cor[-1] != 0
         cor = cor[:-1]  # actually doing the rescaling is unnecessary as it does not impact signalling
@@ -169,7 +169,7 @@ def is_in_NSS_aff_hull(cor, na, nb, nx, ny, tol=1e-12):
     return True
 
 
-def is_in_NSCO1_aff_hull(cor, tol=1e-12):
+def is_in_ahNSCO1(cor, tol=1e-12):
     if len(cor) == 129:
         assert cor[-1] != 0
         cor = cor[:-1]  # actually doing the rescaling is unnecessary as it does not impact signalling
@@ -177,7 +177,7 @@ def is_in_NSCO1_aff_hull(cor, tol=1e-12):
         assert len(cor) == 128
 
     # First check if in NSS
-    if not is_in_NSS_aff_hull(cor, 8, 2, 4, 2, tol):
+    if not is_in_ahNSS(cor, 8, 2, 4, 2, tol):
         return False
 
     # Left to check: a1b independent of x2

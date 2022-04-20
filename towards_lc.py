@@ -6,9 +6,6 @@ from scipy.optimize import linprog
 import time, datetime
 
 import panda
-import polytope_utils
-import quantum_utils
-import quantum_utils as qm
 import utils
 import symmetry_utils
 import itertools
@@ -347,7 +344,7 @@ def find_affinely_independent_point(points, file_to_search, constraint=None, upd
             b = np.r_[point, np.ones(1)]
             in_affine_hull = linprog(np.zeros(n), A_eq=A, b_eq=b, options={'tol': 1e-8}, bounds=(None, None)).success  # NOTE using the default tolerance value here. Might want to decrease
 
-            # if not polytope_utils.in_affine_hull(points, point):
+            # if not polytope_utils.in_affine_hull_lp(points, point):
             if not in_affine_hull:
                 print()
                 print("Affinely independent point found on line %d of file (counting from 1)" % (empty_line_count + point_count))
@@ -788,7 +785,8 @@ def violations_of_known_lc_facets(cor_nss, known_lc_facets_file='panda-files/res
     known_lc_facets = utils.read_vertex_range_from_file(known_lc_facets_file)
     assert len(known_lc_facets == 8)
 
-    return known_lc_facets @ cor_nss
+    return (1 / cor_nss[-1]) * known_lc_facets @ cor_nss
+
 
 def maximum_violation_of_known_lc_facets(cors, known_lc_facets_file='panda-files/results/14 lc_known_facets'):
     """
@@ -807,6 +805,22 @@ def maximum_violation_of_caus2_facets(cors):
     for i in range(0, len(cors)):  # normalise the qm cors
         cors[i] = (1. / cors[i][-1]) * cors[i]
     return np.max(caus2_facets @ cors.T)
+
+
+def a_p_that_is_not_in_LC():
+    """ Returns the correlation on [p200], in homogeneous NSS coordinates. """
+    p1 = np.zeros((2,) * 7, 'int')
+    p2 = np.zeros((2,) * 7, 'int')
+    for a1, a2, c, b, x1, x2, y in itertools.product((0, 1), repeat=7):
+        if c == 0 and a2 == x1 and a1 == 0 and b == x1:
+            p1[a1, a2, c, b, x1, x2, y] = 1
+        if c == 0 and a2 == 0 and a1 == x2 and b == 1 - x1:
+            p2[a1, a2, c, b, x1, x2, y] = 1
+
+    p = 1 / 2 * (p1 + p2)
+    p_homog = np.r_[p.reshape(128), [1]]
+    assert vs.is_in_ahNSS(p_homog, 8, 2, 4, 2)
+    return vs.construct_full_to_NSS_homog(8, 2, 4, 2) @ p_homog
 
 
 if __name__ == '__main__':
@@ -888,22 +902,8 @@ if __name__ == '__main__':
             print("VIOLATION!!!")
     """
 
-    """
-    # Try the following distr which I thought of in notes [around p201]
-    p1 = np.zeros((2,) * 7, 'int')
-    p2 = np.zeros((2,) * 7, 'int')
-    for a1, a2, c, b, x1, x2, y in itertools.product((0, 1), repeat=7):
-        if c == 0 and a2 == x1 and a1 == 0 and b == x1:
-            p1[a1, a2, c, b, x1, x2, y] = 1
-        if c == 0 and a2 == 0 and a1 == x2 and b == 1 - x1:
-            p2[a1, a2, c, b, x1, x2, y] = 1
-
-    p = 1 / 2 * (p1 + p2)
-    p_homog = np.r_[p.reshape(128), [1]]
-    assert vs.is_in_NSS_aff_hull(p_homog, 8, 2, 4, 2)
-    violations = violations_of_known_lc_facets(vs.construct_full_to_NSS_homog(8, 2, 4, 2) @ p_homog)
-    """
-
+    # Try the following distr which I thought of in notes [around p200]
+    """violations = violations_of_known_lc_facets(a_p_that_is_not_in_LC())"""
 
     # maybe_facets = [list(map(int,
     #                          "-1 0 0 1 -1 0 0 1 0 0 -1 1 0 0 -1 1 0 -1 0 1 0 -1 0 1 0 0 0 0 -2 -2 2 2 0 0 0 0 -2 -2 2 2 0 0 0 0 -2 -2 0 0 0 0 2 2 -2 -2 0 0 0 0 2 2 -2 -2 0 0 2 2 0 0 -2 -2 0 0 2 2 0 0 -2 -2 0 0 0 0 0 0 0 0 1".split())),

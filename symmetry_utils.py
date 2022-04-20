@@ -126,7 +126,7 @@ def nss_var_perm_to_symm(perm, dtype='int'):
             for var_tuple in itertools.product((0, 1), repeat=7)
         ]),
         [utils.one_hot_vector(129, -1, dtype=dtype)]]
-    return vs.construct_full_to_NSS_homog(8, 2, 4, 2) @ perm_matrix @ vs.construct_NSS_to_full_matrix_homogeneous()
+    return vs.construct_full_to_NSS_homog(8, 2, 4, 2) @ perm_matrix @ vs.construct_NSS_to_full_homogeneous()
 
 
 ## NSCO1 stuff
@@ -318,7 +318,7 @@ if __name__ == '__main__':
     # Tests on 26-27 Mar 2022
     ## NSS
     FtoN_h = vs.construct_full_to_NSS_homog(8, 2, 4, 2)
-    NtoF_h = vs.construct_NSS_to_full_matrix_homogeneous()
+    NtoF_h = vs.construct_NSS_to_full_homogeneous()
     assert np.all(FtoN_h @ NtoF_h == np.identity(87))
     perm = lambda a1, a2, c, b, x1, x2, y: (a1, (a2 + x1 * a1 * x2) % 2, c, b, x1, x2, y)
     symm = nss_var_perm_to_symm(perm)
@@ -333,8 +333,8 @@ if __name__ == '__main__':
     p_rand = NtoF_h @ np.r_[np.random.rand(86), [1]]
     p_rand_sigma = perm_matrix @ p_rand  # I checked that this is literally the pullback
 
-    assert vs.is_in_NSS_aff_hull(p_rand, 8, 2, 4, 2)
-    assert vs.is_in_NSS_aff_hull(p_rand_sigma, 8, 2, 4, 2)
+    assert vs.is_in_ahNSS(p_rand, 8, 2, 4, 2)
+    assert vs.is_in_ahNSS(p_rand_sigma, 8, 2, 4, 2)
     assert np.sum(np.abs((NtoF_h @ FtoN_h @ perm_matrix @ p_rand - perm_matrix @ p_rand))) < 1e-10  # False, because p_rand_sigma is not in NSS
 
     ## NSCO1
@@ -353,11 +353,11 @@ if __name__ == '__main__':
         [utils.one_hot_vector(129, -1, dtype='int')]]
 
     p_rand = NtoF_h @ np.r_[np.random.rand(80), [1]]
-    assert vs.is_in_NSS_aff_hull(p_rand, 8, 2, 4, 2)
-    assert vs.is_in_NSCO1_aff_hull(p_rand)
+    assert vs.is_in_ahNSS(p_rand, 8, 2, 4, 2)
+    assert vs.is_in_ahNSCO1(p_rand)
     p_rand_sigma = perm_matrix @ p_rand
-    assert vs.is_in_NSS_aff_hull(p_rand_sigma, 8, 2, 4, 2)
-    assert vs.is_in_NSCO1_aff_hull(p_rand_sigma)
+    assert vs.is_in_ahNSS(p_rand_sigma, 8, 2, 4, 2)
+    assert vs.is_in_ahNSCO1(p_rand_sigma)
     assert np.sum(np.abs(NtoF_h @ FtoN_h @ p_rand_sigma - p_rand_sigma)) < 1e-10
     assert np.sum(np.abs((NtoF_h @ FtoN_h @ perm_matrix @ p_rand - perm_matrix @ p_rand))) < 1e-10  # False, because p_rand_sigma is not in NSS
 
