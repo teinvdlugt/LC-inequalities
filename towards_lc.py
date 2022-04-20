@@ -819,7 +819,7 @@ def a_p_that_is_not_in_LC():
 
     p = 1 / 2 * (p1 + p2)
     p_homog = np.r_[p.reshape(128), [1]]
-    assert vs.is_in_ahNSS(p_homog, 8, 2, 4, 2)
+    assert vs.is_in_NSS(p_homog, 8, 2, 4, 2)
     return vs.construct_full_to_NSS_homog(8, 2, 4, 2) @ p_homog
 
 

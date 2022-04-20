@@ -1,10 +1,12 @@
 import cmath
 import functools
 import random
+import sys
 from math import pi, cos, sin, sqrt
 import numpy as np
 import itertools
 
+import lp_for_membership
 import towards_lc
 import vector_space_utils
 
@@ -30,10 +32,10 @@ def process_operator_switch(dT=2, dB=2):
     phi_plus_dB = np.identity(dB)
 
     # CO1 part of W. See [p72].  Tensor order before reordering of the Einstein indices: Bout*, B~in, Cout*, C~in, Tout*, A1in, A1out^*, A2in, A2out*, T~in
-    W_CO1 = np.einsum('ij,k,l,mn,op,qr->kminopqlrj', phi_plus_dB, ket0, ket0, phi_plus_dT, phi_plus_dT, phi_plus_dT).reshape(dB ** 2 * 2 * 2 * dT ** 6)
+    W_CO1 = np.einsum('ij,k,l,mn,op,qr->kminopqlrj', phi_plus_dB, ket0, ket0, phi_plus_dT, phi_plus_dT, phi_plus_dT).reshape((dB ** 2) * 2 * 2 * (dT ** 6))
 
     # CO2 part of W. See [p72].  Tensor order before reordering of the Einstein indices: Bout*, B~in, Cout*, C~in, Tout*, A2in, A2out^*, A1in, A1out*, T~in
-    W_CO2 = np.einsum('ij,k,l,mn,op,qr->kmipqnolrj', phi_plus_dB, ket1, ket1, phi_plus_dT, phi_plus_dT, phi_plus_dT).reshape(dB ** 2 * 2 * 2 * dT ** 6)
+    W_CO2 = np.einsum('ij,k,l,mn,op,qr->kmipqnolrj', phi_plus_dB, ket1, ket1, phi_plus_dT, phi_plus_dT, phi_plus_dT).reshape((dB ** 2) * 2 * 2 * (dT ** 6))
     # (Note: the only difference is that ket0 becomes ket1 for C and that A1 and A2, which correspond to no and pq, are interchanged.
 
     # Add together and return projection (which is the process operator)
@@ -51,7 +53,7 @@ def make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT, dB):
     assert_is_quantum_instrument([rho_ctb], 1, 2 * dT * dB, num_of_outcomes=1)  # essentially checks that rho_ctb is a valid state (density matrix)
 
     # Make correlation
-    proc_op_total = process_operator_switch()
+    proc_op_total = process_operator_switch(dT, dB)
     pacb_xy = np.zeros((2,) * 7)
     tau_Ttilde = np.identity(dT)  # trace out the output target system
     for a1, a2, c, b, x1, x2, y in itertools.product((0, 1), repeat=7):
@@ -150,7 +152,7 @@ def generate_some_quantum_cors_complete_vn(file_to_save_to=None, num_of_random_c
     if file_to_save_to is not None:
         np.save(file_to_save_to, qm_cors)
     def random_quantum_setup():
-        return random_3_qubit_pure_density_matrix(True), \
+        return random_pure_density_matrix(True), \
                [random_onb(), random_onb()], \
                [random_onb(), random_onb()], \
                [random_onb(), random_onb()], \
@@ -313,11 +315,11 @@ def normalise_vec(vector):
     return 1 / np.linalg.norm(vector) * vector
 
 
-def random_3_qubit_pure_density_matrix(allow_complex=False):
+def random_pure_density_matrix(dim=8, allow_complex=False):
     if allow_complex:
-        random_ket = np.random.rand(8) + np.random.rand(8) * 1j
+        random_ket = np.random.rand(dim) + np.random.rand(dim) * 1j
     else:
-        random_ket = np.random.rand(8)
+        random_ket = np.random.rand(dim)
     return proj(normalise_vec(random_ket))
 
 
@@ -401,11 +403,49 @@ def instr_measure_and_send_fixed_state(onb, fixed_ket):
     return instr
 
 
+def cp_prep(ket):
+    """Returns the CJ rep of a state preparation"""
+    dim = len(ket)
+    return kron(np.identity(dim), proj(ket))
+
+
 instr_do_nothing = np.array([proj(phi_plus_un), np.zeros((4, 4), dtype='int')])  # outcome is 0 with probability 1
+
+
+def two_channels_qm_instrs():
+    """ Returns the quantum instruments corresponding to the 'two channels' scenario, where the target system is
+     two qubits, each of which is used for a communication direction (i.e. A1->A2 and A2->A1, respectively).
+     Precisely: A1 measures target qubit 2 in computational basis and prepares target qubit 1 in computational basis state according to setting x1
+                A2 measures target qubit 1 in computational basis and prepares target qubit 2 in computational basis state according to setting x2
+                B measures his (single) qubit in Z or X basis depending on setting y
+                C measures control qubit in X basis
+    TODO generalise this?
+                no initial state is returned by this function
+    :returns instrs_A1, instrs_A2, instr_C, instrs_B
+    """
+    ## instrs_A1: prepare qubit 1 in |x1> and measure qubit 2
+    instrs_A1 = np.zeros((2, 2, 16, 16)) # 2 settings, 2 outcomes, and CP maps are 16x16 matrices
+    for x1 in (0,1):
+        x1_ket = [ket0, ket1][x1]
+        instrs_A1[x1] = [kron(np.identity(2), proj(ket0), proj(x1_ket), proj(ket0)),
+                         kron(np.identity(2), proj(ket1), proj(x1_ket), proj(ket1))]
+    ## instrs_A2: prepare qubit 2 in |x2> and measure qubit 1
+    instrs_A2 = np.zeros((2, 2, 16, 16))  # 2 settings, 2 outcomes, and CP maps are 16x16 matrices
+    for x2 in (0, 1):
+        x2_ket = [ket0, ket1][x2]
+        instrs_A2[x2] = [kron(proj(ket0), np.identity(2), proj(ket0), proj(x1_ket)),
+                         kron(proj(ket1), np.identity(2), proj(ket1), proj(x1_ket))]
+    ## instrs_B: measure in Z or X basis
+    instrs_B = [instr_vn_destr(z_onb), instr_vn_destr(x_onb)]
+    ## instr_C: measure in X basis
+    instr_C = instr_vn_destr(x_onb)
+
+    return instrs_A1, instrs_A2, instr_C, instrs_B
+
 
 if __name__ == '__main__':
     # To test quantum_cor_from_complete_vn_mmts_new and make_pacb_xy_new:
-    """rho_ctb, X1, X2, Y, c_onb = random_3_qubit_pure_density_matrix(True), \
+    """rho_ctb, X1, X2, Y, c_onb = random_pure_density_matrix(True), \
                    [random_onb(), random_onb()], \
                    [random_onb(), random_onb()], \
                    [random_onb(), random_onb()], \
@@ -420,8 +460,8 @@ if __name__ == '__main__':
     print(np.all(p_new == p))  # Success!"""
 
     # TODO repeat this and see if same with new make_pacb_xy:
-    qm_cors = np.array(generate_some_quantum_cors_complete_vn('some_quantum_cors4_not_approximated.npy', num_of_random_cors=5000))
-    print('Done.')
+    # qm_cors = np.array(generate_some_quantum_cors_complete_vn('some_quantum_cors4_not_approximated.npy', num_of_random_cors=5000))
+    # print('Done.')
 
     """rho_ctb = proj(np.array([1, 0, 0, 0, 0, 0, 0, 0]))
     cp_A1 = proj(phi_plus_un)
@@ -441,7 +481,7 @@ if __name__ == '__main__':
     print(np.trace(np.matmul(proj(W_CO1), taus)))"""
 
     # TODO continue testing this:
-    cor = make_pacb_xy(rho_ctb=random_3_qubit_pure_density_matrix(True),
+    """cor = make_pacb_xy(rho_ctb=random_pure_density_matrix(True),
                        # instrs_A1=[instr_do_nothing, instr_measure_and_send_fixed_state(z_onb, ket0)],
                        # instrs_A2=[instr_do_nothing, instr_measure_and_send_fixed_state(z_onb, ket0)],
                        instrs_A1=[instr_measure_and_send_fixed_state(random_onb(), random_onb()[0]), instr_measure_and_send_fixed_state(random_onb(), random_onb()[0])],
@@ -454,4 +494,18 @@ if __name__ == '__main__':
 
     cor_nss_homog = vector_space_utils.full_acb_to_nss_homog(cor, 2 ** 18)
     print('Largest known LC violation:', towards_lc.maximum_violation_of_known_lc_facets(np.array([cor_nss_homog])))
-    print('Largest Caus2 violation:', towards_lc.maximum_violation_of_caus2_facets(np.array([cor_nss_homog])))
+    print('Largest Caus2 violation:', towards_lc.maximum_violation_of_caus2_facets(np.array([cor_nss_homog])))"""
+
+    assert 1+1==3
+    instrs_A1, instrs_A2, instr_C, instrs_B = two_channels_qm_instrs()
+    # sample random initial states
+    for i in range(100):
+        rho_ctb_random = random_pure_density_matrix(dim=16, allow_complex=True)
+        cor = make_pacb_xy(rho_ctb_random, instrs_A1, instrs_A2, instr_C, instrs_B, 4, 2)
+        cor_nss = vector_space_utils.full_acb_to_nss_homog(cor)
+        if not lp_for_membership.lp_without_vertices_nss_coords(cor_nss, method='highs').success:
+            print('\nFound violation!')
+            break
+        else:
+            print('Checked %d random initial states' % i, end='\r')
+            sys.stdout.flush()
