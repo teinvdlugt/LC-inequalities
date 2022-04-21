@@ -53,7 +53,6 @@ def make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT, dB):
     assert_is_quantum_instrument([rho_ctb], 1, 2 * dT * dB, num_of_outcomes=1)  # essentially checks that rho_ctb is a valid state (density matrix)
 
     # Make correlation
-    proc_op = process_operator_switch(dT, dB)
     tau_Ttilde = np.identity(dT)
     # Bundle all possible '⊗tau's for all settings and outcomes together into one tensor 'all_taus':
     # all_taus[a1,a2,c,b,x1,x2,y] should give be the same as kron(rho_ctb.T, instrs_A1[x1][a1].T, instrs_A2[x2][a2].T, instr_C[c].T, tau_Ttilde, instrs_B[y][b].T)
@@ -64,7 +63,6 @@ def make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT, dB):
 
     # For given settings and outcomes, ⊗tau is an operator (square matrix) on the space with the following dimension:
     tau_dim = rho_ctb.shape[0] * instrs_A1[0, 0].shape[0] * instrs_A2[0, 0].shape[0] * instr_C[0].shape[0] * tau_Ttilde.shape[0] * instrs_B[0, 0].shape[0]
-    assert proc_op.shape == (tau_dim, tau_dim)
 
     # Define some index labels:
     _a1, _a2, _c, _b, _x1, _x2, _y = 0, 1, 2, 3, 4, 5, 6
@@ -77,7 +75,8 @@ def make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT, dB):
         .reshape((2, 2, 2, 2, 2, 2, 2, tau_dim, tau_dim))
 
     # Born rule:
-    pacb_xy = np.einsum('ij,...ji->...', proc_op, all_taus)  # This is trace(matmul(proc_op, all_taus)): 'ij,...jk->...ik' followed by '...ii->...'
+    pacb_xy = np.einsum('ij,...ji->...', process_operator_switch(dT, dB), all_taus, optimize='optimal')  # This is trace(matmul(proc_op, all_taus)): 'ij,...jk->...ik' followed by '...ii->...'
+    del all_taus
     if np.max(np.imag(pacb_xy)) > 1e-15:
         print("WARNING - DETECTED A LARGE IMAGINARY VALUE IN PROBABILITY: %s" % str(np.max(np.imag(pacb_xy))))
     pacb_xy = np.real(pacb_xy)
@@ -89,7 +88,7 @@ def make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT, dB):
     tau_Ttilde = np.identity(dT)  # trace out the output target system
     for a1, a2, c, b, x1, x2, y in itertools.product((0, 1), repeat=7):
         taus = kron(rho_ctb.T, instrs_A1[x1][a1].T, instrs_A2[x2][a2].T, instr_C[c].T, tau_Ttilde, instrs_B[y][b].T)
-        born_prob = np.trace(np.matmul(proc_op, taus))  # also in this old code, doing trace and matmul at once is faster: born_prob = np.einsum('ij,ji', proc_op, taus)
+        born_prob = np.einsum('ij,ji', proc_op, taus)
         if np.imag(born_prob) > 1e-15:
             print("WARNING - DETECTED A LARGE IMAGINARY VALUE IN PROBABILITY: p(%d,%d,b=%d,c=%d,%d,%d,%d) = %s" % (a1, a2, b, c, x1, x2, y, str(born_prob)))
         pacb_xy[a1, a2, c, b, x1, x2, y] = np.real(born_prob)
@@ -467,7 +466,7 @@ def qm_setup_projective_qutrit_random():
     instrs_A1 = np.array([instr_proj_mmt_two_outcomes_nondestr(random_ket(3)), instr_proj_mmt_two_outcomes_nondestr(random_ket(3))])
     instrs_A2 = np.array([instr_proj_mmt_two_outcomes_nondestr(random_ket(3)), instr_proj_mmt_two_outcomes_nondestr(random_ket(3))])
     instr_C = instr_vn_destr(random_onb())
-    instrs_B = np.array([instr_vn_destr(random_onb()), instr_vn_destr(random_onb())]),
+    instrs_B = np.array([instr_vn_destr(random_onb()), instr_vn_destr(random_onb())])
     dT = 3
     dB = 2
     return rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT, dB
@@ -572,5 +571,5 @@ if __name__ == '__main__':
             sys.stdout.flush()
     """
 
-    # generate_some_quantum_cors_complete_vn(file_to_save_to='panda-files/some_quantum_cors5.npy', num_of_random_cors=5000)
+    # generate_some_quantum_cors_complete_vn()
     generate_some_proj_qutrit_cors('panda-files/some_quantum_cors6_qutrits_proj.npy', num_of_random_cors=5000)
