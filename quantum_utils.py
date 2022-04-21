@@ -53,15 +53,48 @@ def make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT, dB):
     assert_is_quantum_instrument([rho_ctb], 1, 2 * dT * dB, num_of_outcomes=1)  # essentially checks that rho_ctb is a valid state (density matrix)
 
     # Make correlation
-    proc_op_total = process_operator_switch(dT, dB)
+    proc_op = process_operator_switch(dT, dB)
+    tau_Ttilde = np.identity(dT)
+    # Bundle all possible '⊗tau's for all settings and outcomes together into one tensor 'all_taus':
+    # all_taus[a1,a2,c,b,x1,x2,y] should give be the same as kron(rho_ctb.T, instrs_A1[x1][a1].T, instrs_A2[x2][a2].T, instr_C[c].T, tau_Ttilde, instrs_B[y][b].T)
+    # To get kron of matrices, move all 'output' indices to the front and all 'input' indices to the back, and then reshape.
+    # e.g.: kron(A,B,C) == np.einsum('ij,kl,mn->ikmjln', A,B,C).reshape((A.shape[0]*B.shape[0]*C.shape[0], A.shape[1]*B.shape[1]*C.shape[1]))
+    # so that kron(A.T,B.T,C.T) == np.einsum('ij,kl,mn->jlnikm', A,B,C).reshape((A.shape[1]*B.shape[1]*C.shape[1], A.shape[0]*B.shape[0]*C.shape[0]))
+    # Here 'input' and 'output' refer to the CJ reps seen as operators on a space, so NOT to input and output systems in the quantum sense.
+
+    # For given settings and outcomes, ⊗tau is an operator (square matrix) on the space with the following dimension:
+    tau_dim = rho_ctb.shape[0] * instrs_A1[0, 0].shape[0] * instrs_A2[0, 0].shape[0] * instr_C[0].shape[0] * tau_Ttilde.shape[0] * instrs_B[0, 0].shape[0]
+    assert proc_op.shape == (tau_dim, tau_dim)
+
+    # Define some index labels:
+    _a1, _a2, _c, _b, _x1, _x2, _y = 0, 1, 2, 3, 4, 5, 6
+    _CTBo, _CTBi, _A1o, _A1i, _A2o, _A2i, _Co, _Ci, _To, _Ti, _Bo, _Bi = 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18
+
+    # Construct all_taus:
+    all_taus = np.einsum(rho_ctb, [_CTBo, _CTBi], instrs_A1, [_x1, _a1, _A1o, _A1i], instrs_A2, [_x2, _a2, _A2o, _A2i],
+                         instr_C, [_c, _Co, _Ci], tau_Ttilde, [_To, _Ti], instrs_B, [_y, _b, _Bo, _Bi],
+                         [_a1, _a2, _c, _b, _x1, _x2, _y, _CTBi, _A1i, _A2i, _Ci, _Ti, _Bi, _CTBo, _A1o, _A2o, _Co, _To, _Bo]) \
+        .reshape((2, 2, 2, 2, 2, 2, 2, tau_dim, tau_dim))
+
+    # Born rule:
+    pacb_xy = np.einsum('ij,...ji->...', proc_op, all_taus)  # This is trace(matmul(proc_op, all_taus)): 'ij,...jk->...ik' followed by '...ii->...'
+    if np.max(np.imag(pacb_xy)) > 1e-15:
+        print("WARNING - DETECTED A LARGE IMAGINARY VALUE IN PROBABILITY: %s" % str(np.max(np.imag(pacb_xy))))
+    pacb_xy = np.real(pacb_xy)
+
+    # Old, more legible code:
+    """
+    proc_op = process_operator_switch(dT, dB)
     pacb_xy = np.zeros((2,) * 7)
     tau_Ttilde = np.identity(dT)  # trace out the output target system
     for a1, a2, c, b, x1, x2, y in itertools.product((0, 1), repeat=7):
         taus = kron(rho_ctb.T, instrs_A1[x1][a1].T, instrs_A2[x2][a2].T, instr_C[c].T, tau_Ttilde, instrs_B[y][b].T)
-        born_prob = np.trace(np.matmul(proc_op_total, taus))
+        born_prob = np.trace(np.matmul(proc_op, taus))  # also in this old code, doing trace and matmul at once is faster: born_prob = np.einsum('ij,ji', proc_op, taus)
         if np.imag(born_prob) > 1e-15:
             print("WARNING - DETECTED A LARGE IMAGINARY VALUE IN PROBABILITY: p(%d,%d,b=%d,c=%d,%d,%d,%d) = %s" % (a1, a2, b, c, x1, x2, y, str(born_prob)))
         pacb_xy[a1, a2, c, b, x1, x2, y] = np.real(born_prob)
+    """
+
     return pacb_xy
 
 
@@ -94,10 +127,10 @@ def quantum_cor_nss(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT=2, dB=2
 
 def quantum_cor_nss_from_complete_vn_mmts(rho_ctb, X1, X2, Y, c_onb, common_multiple_of_denominators=None):
     return quantum_cor_nss(rho_ctb=rho_ctb,
-                           instrs_A1=[instr_vn_nondestr(onb) for onb in X1],
-                           instrs_A2=[instr_vn_nondestr(onb) for onb in X2],
+                           instrs_A1=np.array([instr_vn_nondestr(onb) for onb in X1]),
+                           instrs_A2=np.array([instr_vn_nondestr(onb) for onb in X2]),
                            instr_C=instr_vn_destr(c_onb),
-                           instrs_B=[instr_vn_destr(onb) for onb in Y],
+                           instrs_B=np.array([instr_vn_destr(onb) for onb in Y]),
                            dT=2, dB=2, common_multiple_of_denominators=common_multiple_of_denominators)
 
 
@@ -152,14 +185,14 @@ def generate_some_quantum_cors_complete_vn(file_to_save_to=None, num_of_random_c
     if file_to_save_to is not None:
         np.save(file_to_save_to, qm_cors)
     def random_quantum_setup():
-        return random_pure_density_matrix(True), \
+        return random_pure_density_matrix(allow_complex=True), \
                [random_onb(), random_onb()], \
                [random_onb(), random_onb()], \
                [random_onb(), random_onb()], \
                random_onb()
     for i in range(0, num_of_random_cors):
         print("Generated %d / %d random qm cors" % (i, num_of_random_cors))
-        qm_cors.append(quantum_cor_nss_from_complete_vn_mmts(*random_quantum_setup(), common_multiple_of_denominators=2 ** 17))
+        qm_cors.append(quantum_cor_nss_from_complete_vn_mmts(*random_quantum_setup(), common_multiple_of_denominators=common_multiple_of_denominators))
         if file_to_save_to is not None:
             np.save(file_to_save_to, qm_cors)
     return qm_cors
@@ -379,37 +412,40 @@ ket_diag = diag1_onb[0]  # Ket corresponding to spin in the z+x direction, 'in b
 
 
 # Some common instruments
+def lin_map_to_cj(lin_map):
+    """
+    :param lin_map: A linear map (i.e. dOut x dIn matrix) acting on kets (not on density matrices!). E.g. a projection |psi><psi| = proj(psi).
+    :return: The CJ representation, i.e. (1xlin_map)phi+(1xlin_map*)
+    """
+    assert len(lin_map.shape) == 2
+    dOut, dIn = lin_map.shape
+    phi_plus_un_dIn = np.identity(dIn).reshape(dIn ** 2)
+    id_kron_map = kron(np.identity(dIn), lin_map)
+    return id_kron_map @ proj(phi_plus_un_dIn) @ id_kron_map.conj().T
+
+
 def instr_vn_nondestr(onb):
-    num_of_outcomes = len(onb)
-    instr = np.empty((num_of_outcomes, 4, 4), dtype=onb.dtype)  # a family of 4x4 matrices indexed by two binary indices
-    for a in range(0, num_of_outcomes):
-        instr[a] = kron(proj(onb[a]), proj(onb[a]))
-    return instr
+    return np.array([lin_map_to_cj(proj(ket)) for ket in onb])
 
 
 def instr_vn_destr(onb):
-    num_of_outcomes = len(onb)
-    instr = np.empty((num_of_outcomes, 2, 2), dtype=onb.dtype)  # a family of 4x4 matrices indexed by two binary indices
-    for a in range(0, num_of_outcomes):
-        instr[a] = proj(onb[a])
-    return instr
+    return np.array([lin_map_to_cj(np.array([ket.conj()])) for ket in onb])  # '[ket.conj()]' is the bra version of ket (conjugate and turned into row vector)
 
 
 def instr_measure_and_send_fixed_state(onb, fixed_ket):
-    num_of_outcomes = len(onb)
-    instr = np.empty((num_of_outcomes, 4, 4), dtype=onb.dtype)  # a family of 4x4 matrices indexed by two binary indices
-    for a in range(0, num_of_outcomes):
-        instr[a] = kron(proj(onb[a]), proj(fixed_ket))
-    return instr
+    return np.array([lin_map_to_cj(np.array([fixed_ket]).T @ [ket.conj()]) for ket in onb])  # |ket><fixed_ket|
 
 
-def cp_prep(ket):
-    """Returns the CJ rep of a state preparation"""
+def instr_proj_mmt_two_outcomes_nondestr(ket):
+    """ Returns instrument corresponding to the projective measurement with projections |ket><ket| and id - |ket><ket| """
     dim = len(ket)
-    return kron(np.identity(dim), proj(ket))
+    proj0 = proj(ket)
+    proj1 = np.identity(dim) - proj0
+    return np.array([lin_map_to_cj(proj0), lin_map_to_cj(proj1)])
 
 
-instr_do_nothing = np.array([proj(phi_plus_un), np.zeros((4, 4), dtype='int')])  # outcome is 0 with probability 1
+# instr_do_nothing = np.array([proj(phi_plus_un), np.zeros((4, 4), dtype='int')])     gives same as:
+instr_do_nothing = np.array([lin_map_to_cj(np.identity(2)).astype('int'), lin_map_to_cj(np.zeros((2, 2))).astype('int')])  # outcome is 0 with probability 1
 
 
 def two_channels_qm_instrs():
@@ -424,10 +460,10 @@ def two_channels_qm_instrs():
     :returns instrs_A1, instrs_A2, instr_C, instrs_B
     """
     ## instrs_A1: prepare qubit 1 in |x1> and measure qubit 2
-    instrs_A1 = np.zeros((2, 2, 16, 16)) # 2 settings, 2 outcomes, and CP maps are 16x16 matrices
-    for x1 in (0,1):
+    instrs_A1 = np.zeros((2, 2, 16, 16))  # 2 settings, 2 outcomes, and CP maps are 16x16 matrices
+    for x1 in (0, 1):
         x1_ket = [ket0, ket1][x1]
-        instrs_A1[x1] = [kron(np.identity(2), proj(ket0), proj(x1_ket), proj(ket0)),
+        instrs_A1[x1] = [kron(np.identity(2), proj(ket0), proj(x1_ket), proj(ket0)),  # TODO also wrong because of missing conjugate?
                          kron(np.identity(2), proj(ket1), proj(x1_ket), proj(ket1))]
     ## instrs_A2: prepare qubit 2 in |x2> and measure qubit 1
     instrs_A2 = np.zeros((2, 2, 16, 16))  # 2 settings, 2 outcomes, and CP maps are 16x16 matrices
@@ -496,7 +532,7 @@ if __name__ == '__main__':
     print('Largest known LC violation:', towards_lc.maximum_violation_of_known_lc_facets(np.array([cor_nss_homog])))
     print('Largest Caus2 violation:', towards_lc.maximum_violation_of_caus2_facets(np.array([cor_nss_homog])))"""
 
-    assert 1+1==3
+    """
     instrs_A1, instrs_A2, instr_C, instrs_B = two_channels_qm_instrs()
     # sample random initial states
     for i in range(100):
@@ -509,3 +545,6 @@ if __name__ == '__main__':
         else:
             print('Checked %d random initial states' % i, end='\r')
             sys.stdout.flush()
+    """
+
+    generate_some_quantum_cors_complete_vn(file_to_save_to='panda-files/some_quantum_cors5.npy', num_of_random_cors=5000)

@@ -166,7 +166,7 @@ def test_membership_of_quantum_cors(lp_method=lp_without_vertices_nss_coords, qu
     qm_cors = np.load(quantum_cor_file).astype('float64')
     cors_not_in_LC = []
     for i in range(0, len(qm_cors)):
-        lp_result = lp_method(qm_cors[i], tol, method, double_check_soln=True)
+        lp_result = lp_method(qm_cors[i], tol, method)
         if not lp_result.success:
             # print('Found a correlation that is not in LC!')
             cors_not_in_LC.append(qm_cors[i])
@@ -178,7 +178,7 @@ def test_membership_of_quantum_cors(lp_method=lp_without_vertices_nss_coords, qu
 
 
 if __name__ == '__main__':
-    cors = test_membership_of_quantum_cors(lp_without_vertices_nss_coords, tol=1e-12, method='highs')
+    cors = test_membership_of_quantum_cors(lp_without_vertices_nss_coords, quantum_cor_file='panda-files/some_quantum_cors4_not_approximated.npy', tol=1e-12, method='highs')
     # np.save('cors_not_in_LC', cors)
 
     """
