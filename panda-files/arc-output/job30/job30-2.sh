@@ -6,4 +6,4 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=tein.vanderlugt@wolfson.ox.ac.uk
 
-time $DATA/cpanda -c -i safe -s reverse caus2_facets.pi
+time $DATA/cpanda -i safe caus2_facets.pi

@@ -1,0 +1,3 @@
+PANDA -- vertex enumeration with adjacency decomposition
+Warning: expanding the reduced input will be invalid, if the polytope is not full dimension (i.e. there are equations).
+slurmstepd: error: *** JOB 1754381 ON arc-c234 CANCELLED AT 2022-03-30T23:07:35 DUE TO TIME LIMIT ***

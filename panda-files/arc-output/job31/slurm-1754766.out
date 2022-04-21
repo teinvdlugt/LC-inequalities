@@ -1,0 +1,12 @@
+PANDA -- vertex enumeration with adjacency decomposition
+Reduced Vertices / Rays:
+  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1
+Processing #1 of at least 1 class
+Class #1 is   1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1
+Fourier-Motzkin Elimination step 111 / 124: 31414
+Fourier-Motzkin Elimination step 112 / 124: 31655
+Fourier-Motzkin Elimination step 114 / 124: 115844
+Fourier-Motzkin Elimination step 115 / 124: 116789
+Fourier-Motzkin Elimination step 116 / 124: 124482
+Fourier-Motzkin Elimination step 118 / 124: 468808
+Fourier-Motzkin Elimination step 119 / 124: 460144
