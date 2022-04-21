@@ -3,10 +3,11 @@ import sys
 import numpy as np
 from scipy.optimize import linprog
 
+import symmetry_utils
 import vector_space_utils as vs
 
 
-def lp_without_vertices_nss_coords(p_test, tol=1e-8, method='interior-point'):
+def lp_without_vertices_nss_coords(p_test, tol=1e-8, method='interior-point', double_check_soln=False):
     """
     Uses the 'LP without vertices'/'LP with LC constraints' method to determine LC membership of p_test. See [p210].
     This method uses LP on 174 unknowns with 357 constraints and no objective function. TODO 377 can be reduced by using linear dependence of constraints
@@ -62,7 +63,28 @@ def lp_without_vertices_nss_coords(p_test, tol=1e-8, method='interior-point'):
     b_eq = np.r_[cons_ii_b, cons_iii_b, cons_iv_b]
     assert A_eq.shape == (99, 174) and b_eq.shape == (99,)
 
-    return linprog(np.zeros(174, dtype='int'), A_ub, b_ub, A_eq, b_eq, bounds=(0, 1), options={'tol': tol}, method=method)
+    # Do LP
+    lp = linprog(np.zeros(174, dtype='int'), A_ub, b_ub, A_eq, b_eq, bounds=(0, 1), options={'tol': tol}, method=method)
+
+    # Double-check that solution is correct (if solution found)
+    if double_check_soln and lp.success:
+        # check that p1 := lp.x[:87] is in NSCO1
+        p1_nss_homog = lp.x[:87]  # this homogeneous vector represents the conditional distr p(a1a2cb|x1x2y,λ=0)
+        p1_full_homog = vs.construct_NSS_to_full_homogeneous() @ p1_nss_homog
+        assert vs.is_in_NSCO1(p1_full_homog, tol)
+
+        # check that p2 := lp.x[87:174] is in NSCO2
+        p2_nss_homog = lp.x[87:174]
+        p2_full_homog = vs.construct_NSS_to_full_homogeneous() @ p2_nss_homog
+        swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a2, a1, c, b, x2, x1, y))
+        p2_full_homog_swapped = swap_A1_A2_matrix @ p2_full_homog
+        assert vs.is_in_NSCO1(p2_full_homog_swapped, tol)
+
+        # check that p(λ=0) p1 + p(λ=1) p2 = p_test
+        sum_p1_p2 = p1_nss_homog[:-1] + p2_nss_homog[:-1]
+        assert np.all(np.abs(sum_p1_p2 - p_test) < tol)
+
+    return lp
 
 
 def in_convex_hull_lp(vertices, point, tol=1e-8):
@@ -144,7 +166,7 @@ def test_membership_of_quantum_cors(lp_method=lp_without_vertices_nss_coords, qu
     qm_cors = np.load(quantum_cor_file).astype('float64')
     cors_not_in_LC = []
     for i in range(0, len(qm_cors)):
-        lp_result = lp_method(qm_cors[i], tol, method)
+        lp_result = lp_method(qm_cors[i], tol, method, double_check_soln=True)
         if not lp_result.success:
             # print('Found a correlation that is not in LC!')
             cors_not_in_LC.append(qm_cors[i])
@@ -157,7 +179,7 @@ def test_membership_of_quantum_cors(lp_method=lp_without_vertices_nss_coords, qu
 
 if __name__ == '__main__':
     cors = test_membership_of_quantum_cors(lp_without_vertices_nss_coords, tol=1e-12, method='highs')
-    np.save('cors_not_in_LC', cors)
+    # np.save('cors_not_in_LC', cors)
 
     """
     tols = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10]

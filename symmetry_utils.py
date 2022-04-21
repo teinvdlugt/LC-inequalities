@@ -118,14 +118,21 @@ def nss_var_perm_to_symm(ra_perms, rb_perms, rx_perm, ry_perm, var_names):
 """
 
 
-def nss_var_perm_to_symm(perm, dtype='int'):
-    """ Constructs (87,87) symmetry matrix M by using that NtoF @ M @ FtoN == Sigma, the permutation matrix. """
-    perm_matrix = np.r_[
+def full_perm_to_symm(perm, dtype='int'):
+    """ Creates permutation matrix corresponding to perm. Multiplying a full homogeneous (i.e. length-129) correlation vector
+    to the right of this matrix gives you the pullback of the correlation along perm. """
+    return np.r_[
         np.array([
             utils.one_hot_vector(129, vs.concatenate_bits(*perm(*var_tuple)), dtype=dtype)
             for var_tuple in itertools.product((0, 1), repeat=7)
         ]),
-        [utils.one_hot_vector(129, -1, dtype=dtype)]]
+        [utils.one_hot_vector(129, -1, dtype=dtype)]
+    ]
+
+
+def nss_var_perm_to_symm(perm, dtype='int'):
+    """ Constructs (87,87) symmetry matrix M by using that NtoF @ M @ FtoN == Sigma, the permutation matrix. """
+    perm_matrix = full_perm_to_symm(perm, dtype)
     return vs.construct_full_to_NSS_homog(8, 2, 4, 2) @ perm_matrix @ vs.construct_NSS_to_full_homogeneous()
 
 
@@ -172,12 +179,7 @@ def nsco1_var_perm_to_symm(perm, dtype='int8'):
            --> so symmetry @ row represents the n-dim vector with elements of the form  a1(x1/d) + a2(x2/d) + ... + an(xn/d) + c
                exactly what we want!
     """
-    perm_matrix = np.r_[
-        np.array([
-            utils.one_hot_vector(129, vs.concatenate_bits(*perm(*var_tuple)), dtype=dtype)
-            for var_tuple in itertools.product((0, 1), repeat=7)
-        ]),
-        [utils.one_hot_vector(129, -1, dtype=dtype)]]
+    perm_matrix = full_perm_to_symm(perm, dtype)
     return vs.construct_full_to_NSCO1_homog() @ perm_matrix @ vs.construct_NSCO1_to_full_homogeneous()
 
 
@@ -333,8 +335,8 @@ if __name__ == '__main__':
     p_rand = NtoF_h @ np.r_[np.random.rand(86), [1]]
     p_rand_sigma = perm_matrix @ p_rand  # I checked that this is literally the pullback
 
-    assert vs.is_in_ahNSS(p_rand, 8, 2, 4, 2)
-    assert vs.is_in_ahNSS(p_rand_sigma, 8, 2, 4, 2)
+    assert vs.is_in_NSS(p_rand, 8, 2, 4, 2)
+    assert vs.is_in_NSS(p_rand_sigma, 8, 2, 4, 2)
     assert np.sum(np.abs((NtoF_h @ FtoN_h @ perm_matrix @ p_rand - perm_matrix @ p_rand))) < 1e-10  # False, because p_rand_sigma is not in NSS
 
     ## NSCO1
@@ -353,11 +355,11 @@ if __name__ == '__main__':
         [utils.one_hot_vector(129, -1, dtype='int')]]
 
     p_rand = NtoF_h @ np.r_[np.random.rand(80), [1]]
-    assert vs.is_in_ahNSS(p_rand, 8, 2, 4, 2)
-    assert vs.is_in_ahNSCO1(p_rand)
+    assert vs.is_in_NSS(p_rand, 8, 2, 4, 2)
+    assert vs.is_in_NSCO1(p_rand)
     p_rand_sigma = perm_matrix @ p_rand
-    assert vs.is_in_ahNSS(p_rand_sigma, 8, 2, 4, 2)
-    assert vs.is_in_ahNSCO1(p_rand_sigma)
+    assert vs.is_in_NSS(p_rand_sigma, 8, 2, 4, 2)
+    assert vs.is_in_NSCO1(p_rand_sigma)
     assert np.sum(np.abs(NtoF_h @ FtoN_h @ p_rand_sigma - p_rand_sigma)) < 1e-10
     assert np.sum(np.abs((NtoF_h @ FtoN_h @ perm_matrix @ p_rand - perm_matrix @ p_rand))) < 1e-10  # False, because p_rand_sigma is not in NSS
 

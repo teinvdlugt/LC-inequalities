@@ -8,6 +8,7 @@ import numpy as np
 import numpy.linalg
 
 import panda
+import symmetry_utils
 import towards_lc
 import utils
 import vector_space_utils
@@ -131,7 +132,7 @@ def construct_full_to_NSS_homog(na, nb, nx, ny):
 
 def full_acb_to_nss_homog(cor_full, common_multiple_of_denominators=None):
     """ If common_multiple_of_denominators is not None, the vector is approximated by an integer one. """
-    assert vector_space_utils.is_in_ahNSS(cor_full, 8, 2, 4, 2)
+    assert vector_space_utils.is_in_NSS(cor_full, 8, 2, 4, 2)
     cor_nss = construct_full_to_NSS_matrix(8, 2, 4, 2) @ cor_full
     assert np.all(cor_nss <= 1)
     if common_multiple_of_denominators is not None:
@@ -150,12 +151,17 @@ def full_acb_to_nss_homog(cor_full, common_multiple_of_denominators=None):
         return np.r_[cor_nss, [1]]
 
 
-def is_in_ahNSS(cor, na, nb, nx, ny, tol=1e-12):
+def is_in_NSS(cor, na, nb, nx, ny, tol=1e-12):
+    """ cor should be given in full representation, i.e. be of length na*nb*nx*ny (or homogeneous version, len+1, also works) """
     if len(cor) == na * nb * nx * ny + 1:
         assert cor[-1] != 0
         cor = cor[:-1]  # actually doing the rescaling is unnecessary as it does not impact signalling
     else:
         assert len(cor) == na * nb * nx * ny
+
+    # Probabilities >= 0
+    if np.any(cor < -tol):
+        return False
 
     cor_ab_xy = cor.reshape((na, nb, nx, ny))
     cor_b_xy = np.einsum('ijkl->jkl', cor_ab_xy)
@@ -175,15 +181,16 @@ def is_in_ahNSS(cor, na, nb, nx, ny, tol=1e-12):
     return True
 
 
-def is_in_ahNSCO1(cor, tol=1e-12):
+def is_in_NSCO1(cor, tol=1e-12):
+    """ cor should be given in full representation, i.e. be of length 128 or 129 """
     if len(cor) == 129:
         assert cor[-1] != 0
-        cor = cor[:-1]  # actually doing the rescaling is unnecessary as it does not impact signalling
+        cor = (1 / cor[-1]) * cor[:-1]
     else:
         assert len(cor) == 128
 
-    # First check if in NSS
-    if not is_in_ahNSS(cor, 8, 2, 4, 2, tol):
+    # First check if in NSS. This also checks if all probs are >=0.
+    if not is_in_NSS(cor, 8, 2, 4, 2, tol):
         return False
 
     # Left to check: a1b independent of x2
