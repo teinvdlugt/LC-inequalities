@@ -198,6 +198,16 @@ def generate_some_quantum_cors_complete_vn(file_to_save_to=None, num_of_random_c
     return qm_cors
 
 
+def generate_some_proj_qutrit_cors(file=None, num_of_random_cors=1000):
+    qm_cors = []
+    for i in range(num_of_random_cors):
+        print("Generated %d / %d random qm cors" % (i, num_of_random_cors))
+        sys.stdout.flush()
+        qm_cors.append(quantum_cor_nss(*qm_setup_projective_qutrit_random()))
+        if file is not None:
+            np.save(file, qm_cors)
+
+
 def some_quantum_violations(ineq, quantum_cor_file='panda-files/some_quantum_cors3.npy'):
     """ Tests some sensibly & randomly generated quantum correlations against the provided inequality and returns the largest violation found. """
     # qm_cors2 = utils.read_vertex_range_from_file('panda-files/some_quantum_cors2', dtype='float64')
@@ -348,12 +358,15 @@ def normalise_vec(vector):
     return 1 / np.linalg.norm(vector) * vector
 
 
-def random_pure_density_matrix(dim=8, allow_complex=False):
+def random_pure_density_matrix(dim=8, allow_complex=True):
+    return proj(random_ket(dim, allow_complex))
+
+
+def random_ket(dim=8, allow_complex=True):
     if allow_complex:
-        random_ket = np.random.rand(dim) + np.random.rand(dim) * 1j
+        return normalise_vec(np.random.rand(dim) + np.random.rand(dim) * 1j)
     else:
-        random_ket = np.random.rand(dim)
-    return proj(normalise_vec(random_ket))
+        return normalise_vec(np.random.rand(dim))
 
 
 def onb_from_direction(theta, phi=0.):
@@ -446,6 +459,18 @@ def instr_proj_mmt_two_outcomes_nondestr(ket):
 
 # instr_do_nothing = np.array([proj(phi_plus_un), np.zeros((4, 4), dtype='int')])     gives same as:
 instr_do_nothing = np.array([lin_map_to_cj(np.identity(2)).astype('int'), lin_map_to_cj(np.zeros((2, 2))).astype('int')])  # outcome is 0 with probability 1
+
+
+def qm_setup_projective_qutrit_random():
+    """ Target system qutrit, Bob qubit """
+    rho_ctb = random_pure_density_matrix(dim=12)
+    instrs_A1 = np.array([instr_proj_mmt_two_outcomes_nondestr(random_ket(3)), instr_proj_mmt_two_outcomes_nondestr(random_ket(3))])
+    instrs_A2 = np.array([instr_proj_mmt_two_outcomes_nondestr(random_ket(3)), instr_proj_mmt_two_outcomes_nondestr(random_ket(3))])
+    instr_C = instr_vn_destr(random_onb())
+    instrs_B = np.array([instr_vn_destr(random_onb()), instr_vn_destr(random_onb())]),
+    dT = 3
+    dB = 2
+    return rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT, dB
 
 
 def two_channels_qm_instrs():
@@ -547,4 +572,5 @@ if __name__ == '__main__':
             sys.stdout.flush()
     """
 
-    generate_some_quantum_cors_complete_vn(file_to_save_to='panda-files/some_quantum_cors5.npy', num_of_random_cors=5000)
+    # generate_some_quantum_cors_complete_vn(file_to_save_to='panda-files/some_quantum_cors5.npy', num_of_random_cors=5000)
+    generate_some_proj_qutrit_cors('panda-files/some_quantum_cors6_qutrits_proj.npy', num_of_random_cors=5000)
