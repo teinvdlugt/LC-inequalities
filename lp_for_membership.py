@@ -162,23 +162,25 @@ print(str(in_convex_hull_lp(vertices, point_within)) + ' and that took ' + str(t
 """
 
 
-def test_membership_of_quantum_cors(lp_method=lp_without_vertices_nss_coords, quantum_cor_file='panda-files/some_quantum_cors3.npy', tol=1e-8, method='interior-point'):
+def test_membership_of_quantum_cors(lp_method=lp_without_vertices_nss_coords, quantum_cor_file='panda-files/some_quantum_cors3.npy', tol=1e-12, method='highs', double_check_soln=False):
     qm_cors = np.load(quantum_cor_file).astype('float64')
     cors_not_in_LC = []
+    cors_not_in_LC_indices = []
     for i in range(0, len(qm_cors)):
-        lp_result = lp_method(qm_cors[i], tol, method)
+        lp_result = lp_method(qm_cors[i], tol, method, double_check_soln=double_check_soln)
         if not lp_result.success:
             # print('Found a correlation that is not in LC!')
             cors_not_in_LC.append(qm_cors[i])
+            cors_not_in_LC_indices.append(i)
             # return lp_result, i, qm_cors[i]
         print('checked %d / %d correlations, %d of which not in LC' % (i + 1, len(qm_cors), len(cors_not_in_LC)), end='\r')
         sys.stdout.flush()
     print('Finished checking all cors')
-    return cors_not_in_LC
+    return cors_not_in_LC, cors_not_in_LC_indices
 
 
 if __name__ == '__main__':
-    cors = test_membership_of_quantum_cors(lp_without_vertices_nss_coords, quantum_cor_file='panda-files/some_quantum_cors4_not_approximated.npy', tol=1e-12, method='highs')
+    cors, cors_indices = test_membership_of_quantum_cors(quantum_cor_file='panda-files/some_quantum_cors5.npy', double_check_soln=True, tol=1e-6)
     # np.save('cors_not_in_LC', cors)
 
     """
