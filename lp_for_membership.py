@@ -3,11 +3,12 @@ import sys
 import numpy as np
 from scipy.optimize import linprog
 
+import quantum_utils as qm
 import symmetry_utils
 import vector_space_utils as vs
 
 
-def lp_without_vertices_nss_coords(p_test, tol=1e-8, method='interior-point', double_check_soln=False):
+def lp_without_vertices_nss_coords(p_test, tol=1e-12, method='highs', double_check_soln=False):
     """
     Uses the 'LP without vertices'/'LP with LC constraints' method to determine LC membership of p_test. See [p210].
     This method uses LP on 174 unknowns with 357 constraints and no objective function. TODO 377 can be reduced by using linear dependence of constraints
@@ -76,7 +77,7 @@ def lp_without_vertices_nss_coords(p_test, tol=1e-8, method='interior-point', do
         # check that p2 := lp.x[87:174] is in NSCO2
         p2_nss_homog = lp.x[87:174]
         p2_full_homog = vs.construct_NSS_to_full_homogeneous() @ p2_nss_homog
-        swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a2, a1, c, b, x2, x1, y))
+        swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm_homog(lambda a1, a2, c, b, x1, x2, y: (a2, a1, c, b, x2, x1, y))
         p2_full_homog_swapped = swap_A1_A2_matrix @ p2_full_homog
         assert vs.is_in_NSCO1(p2_full_homog_swapped, tol)
 
@@ -180,7 +181,15 @@ def test_membership_of_quantum_cors(lp_method=lp_without_vertices_nss_coords, qu
 
 
 if __name__ == '__main__':
-    cors, cors_indices = test_membership_of_quantum_cors(quantum_cor_file='panda-files/some_quantum_cors5.npy', double_check_soln=True, tol=1e-6)
+    print(lp_without_vertices_nss_coords(
+        qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_ctb_plusphiplus,
+                                  instrs_A1=[qm.instr_measure_and_send_fixed_state(qm.z_onb, qm.ket0), qm.instr_measure_and_send_fixed_state(qm.z_onb, qm.ket0)],
+                                  instrs_A2=[qm.instr_measure_and_send_fixed_state(qm.z_onb, qm.ket0), qm.instr_measure_and_send_fixed_state(qm.z_onb, qm.ket0)],
+                                  instr_C=qm.instr_vn_destr(qm.x_onb),
+                                  instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.x_onb)])
+    ).success)
+
+    # cors, cors_indices = test_membership_of_quantum_cors(quantum_cor_file='panda-files/some_quantum_cors5.npy', double_check_soln=True, tol=1e-6)
     # np.save('cors_not_in_LC', cors)
 
     """

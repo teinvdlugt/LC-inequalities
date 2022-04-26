@@ -1,5 +1,6 @@
 import cmath
 import functools
+import itertools
 import random
 import sys
 from math import pi, cos, sin, sqrt
@@ -8,9 +9,10 @@ import numpy as np
 import scipy.linalg
 
 import lp_for_membership
+import symmetry_utils
 import towards_lc
 import utils
-import vector_space_utils
+import vector_space_utils as vs
 
 
 ## PROCESS OPERATORS
@@ -30,15 +32,18 @@ def process_operator_switch(dT=2, dB=2):
     #  - return the matrix |W><W| = proj(W)
     # Work with row vectors, i.e. of shape (d,), because those work with our reshuffling function.
 
-    phi_plus_dT = np.identity(dT)  # NOTE: unnormalised phi_+!
+    phi_plus_dT = np.identity(dT)  # NOTE: unnormalised phi+!
     phi_plus_dB = np.identity(dB)
 
-    # CO1 part of W. See [p72].  Tensor order before reordering of the Einstein indices: Bout*, B~in, Cout*, C~in, Tout*, A1in, A1out^*, A2in, A2out*, T~in
+    # CO1 part of W. See [p72].  Tensor order before reordering of the Einstein indices: Bout*, B~in, Cout*, C~in, Tout*, A1in, A1out*, A2in, A2out*, T~in
     W_CO1 = np.einsum('ij,k,l,mn,op,qr->kminopqlrj', phi_plus_dB, ket0, ket0, phi_plus_dT, phi_plus_dT, phi_plus_dT).reshape((dB ** 2) * 2 * 2 * (dT ** 6))
 
-    # CO2 part of W. See [p72].  Tensor order before reordering of the Einstein indices: Bout*, B~in, Cout*, C~in, Tout*, A2in, A2out^*, A1in, A1out*, T~in
+    # CO2 part of W. See [p72].  Tensor order before reordering of the Einstein indices: Bout*, B~in, Cout*, C~in, Tout*, A2in, A2out*, A1in, A1out*, T~in
     W_CO2 = np.einsum('ij,k,l,mn,op,qr->kmipqnolrj', phi_plus_dB, ket1, ket1, phi_plus_dT, phi_plus_dT, phi_plus_dT).reshape((dB ** 2) * 2 * 2 * (dT ** 6))
     # (Note: the only difference is that ket0 becomes ket1 for C and that A1 and A2, which correspond to no and pq, are interchanged.
+
+    # assert np.all(np.einsum('minopqrj->mipqnorj', W_CO1[0, :, :, :, :, :, :, 0, :, :]) == W_CO2[1, :, :, :, :, :, :, 1, :, :])
+    # assert np.all(np.einsum('minopqrj->mipqnorj', (W_CO1 + W_CO2)[0, :, :, :, :, :, :, 0, :, :]) == (W_CO1 + W_CO2)[1, :, :, :, :, :, :, 1, :, :])
 
     # Add together and return projection (which is the process operator)
     return proj(W_CO1 + W_CO2)
@@ -48,7 +53,7 @@ def make_pacb_xy_noTmmt(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT, dB
     # instr_CT should be Ci ⊗ Ti (not ⊗Co⊗To, because output systems are trivial), with Ci ⊗ Co in (CJ) state
     # instr_C and Ti in state np.identity(dT).
     instr_CT = kron(instr_C, np.identity(dT))
-    return make_pacb_xy_noTmmt(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT, dB)
+    return make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT, dB)
 
 
 def make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT, dB):
@@ -62,7 +67,6 @@ def make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT, dB):
     assert_is_quantum_instrument([rho_ctb], 1, 2 * dT * dB, num_of_outcomes=1)  # essentially checks that rho_ctb is a valid state (density matrix)
 
     # Make correlation
-    tau_Ttilde = np.identity(dT)
     # Bundle all possible '⊗tau's for all settings and outcomes together into one tensor 'all_taus':
     # all_taus[a1,a2,c,b,x1,x2,y] should give be the same as kron(rho_ctb.T, instrs_A1[x1][a1].T, instrs_A2[x2][a2].T, instr_C[c].T, tau_Ttilde, instrs_B[y][b].T)
     # To get kron of matrices, move all 'output' indices to the front and all 'input' indices to the back, and then reshape.
@@ -71,7 +75,7 @@ def make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT, dB):
     # Here 'input' and 'output' refer to the CJ reps seen as operators on a space, so NOT to input and output systems in the quantum sense.
 
     # For given settings and outcomes, ⊗tau is an operator (square matrix) on the space with the following dimension:
-    tau_dim = rho_ctb.shape[0] * instrs_A1[0, 0].shape[0] * instrs_A2[0, 0].shape[0] * instr_CT[0].shape[0] * instrs_B[0, 0].shape[0]
+    tau_dim = rho_ctb.shape[0] * instrs_A1[0][0].shape[0] * instrs_A2[0][0].shape[0] * instr_CT[0].shape[0] * instrs_B[0][0].shape[0]
 
     # Define some index labels:
     _a1, _a2, _c, _b, _x1, _x2, _y = 0, 1, 2, 3, 4, 5, 6
@@ -80,8 +84,10 @@ def make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT, dB):
     # Construct all_taus:
     all_taus = np.einsum(rho_ctb, [_CTBo, _CTBi], instrs_A1, [_x1, _a1, _A1o, _A1i], instrs_A2, [_x2, _a2, _A2o, _A2i],
                          instr_CT, [_c, _CTo, _CTi], instrs_B, [_y, _b, _Bo, _Bi],
-                         [_a1, _a2, _c, _b, _x1, _x2, _y, _CTBi, _A1i, _A2i, _CTi, _Bi, _CTBo, _A1o, _A2o, _CTo, _Bo]) \
-        .reshape((2, 2, 2, 2, 2, 2, 2, tau_dim, tau_dim))
+                         [_a1, _a2, _c, _b, _x1, _x2, _y, _CTBi, _A1i, _A2i, _CTi, _Bi, _CTBo, _A1o, _A2o, _CTo, _Bo])
+    # assert np.all(all_taus == np.einsum(all_taus, [_a1, _a2, _c, _b, _x1, _x2, _y, _CTBi, _A1i, _A2i, _CTi, _Bi, _CTBo, _A1o, _A2o, _CTo, _Bo],
+    #                              [_a2, _a1, _c, _b, _x2, _x1, _y, _CTBi, _A2i, _A1i, _CTi, _Bi, _CTBo, _A2o, _A1o, _CTo, _Bo]))  # to check if symmetric in A1 <-> A2.
+    all_taus = all_taus.reshape((2, 2, 2, 2, 2, 2, 2, tau_dim, tau_dim))
 
     # Born rule:
     pacb_xy = np.einsum('ij,...ji->...', process_operator_switch(dT, dB), all_taus, optimize='optimal')  # This is trace(matmul(proc_op, all_taus)): 'ij,...jk->...ik' followed by '...ii->...'
@@ -96,7 +102,7 @@ def make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT, dB):
     pacb_xy = np.zeros((2,) * 7)
     tau_Ttilde = np.identity(dT)  # trace out the output target system
     for a1, a2, c, b, x1, x2, y in itertools.product((0, 1), repeat=7):
-        taus = kron(rho_ctb.T, instrs_A1[x1][a1].T, instrs_A2[x2][a2].T, instr_C[c].T, tau_Ttilde, instrs_B[y][b].T)
+        taus = kron(rho_ctb.T, instrs_A1[x1][a1].T, instrs_A2[x2][a2].T, instr_CT[c].T, instrs_B[y][b].T)
         born_prob = np.einsum('ij,ji', proc_op, taus)
         if np.imag(born_prob) > 1e-15:
             print("WARNING - DETECTED A LARGE IMAGINARY VALUE IN PROBABILITY: p(%d,%d,b=%d,c=%d,%d,%d,%d) = %s" % (a1, a2, b, c, x1, x2, y, str(born_prob)))
@@ -130,12 +136,12 @@ def assert_is_quantum_instrument(instr, d_in, d_out, num_of_outcomes=2, tol=1e-1
 
 def quantum_cor_nss_noTmmt(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT=2, dB=2, common_multiple_of_denominators=None):
     cor_full = make_pacb_xy_noTmmt(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT, dB).reshape((128,))
-    return vector_space_utils.full_acb_to_nss_homog(cor_full, common_multiple_of_denominators)
+    return vs.full_acb_to_nss_homog(cor_full, common_multiple_of_denominators)
 
 
 def quantum_cor_nss(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT=2, dB=2, common_multiple_of_denominators=None):
     cor_full = make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT, dB).reshape((128,))
-    return vector_space_utils.full_acb_to_nss_homog(cor_full, common_multiple_of_denominators)
+    return vs.full_acb_to_nss_homog(cor_full, common_multiple_of_denominators)
 
 
 def quantum_cor_nss_from_complete_vn_mmts_noTmmt(rho_ctb, X1, X2, c_onb, Y, common_multiple_of_denominators=None):
@@ -165,6 +171,14 @@ def random_quantum_setup_qubit_vn():
     instr_CT = np.array([nondestr_cj_to_destr_cj(lin_map_to_cj(ct_proj)), nondestr_cj_to_destr_cj(lin_map_to_cj(np.identity(4) - ct_proj))])
     instrs_B = np.array([instr_proj_mmt_destr(random_ket()), instr_proj_mmt_destr(random_ket())])
     return rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, 2, 2
+
+
+def somewhat_random_qubit_instr_nondestr():
+    return np.random.choice([
+        instr_proj_mmt_nondestr(random_ket()),
+        instr_measure_and_send_fixed_state(random_onb(), random_ket()),
+
+    ])
 
 
 def random_quantum_setup_qutrit_proj():
@@ -213,7 +227,6 @@ def quantum_setup_two_channels():
     instr_C = instr_vn_destr(x_onb)
 
     return instrs_A1, instrs_A2, instr_C, instrs_B
-
 
 
 def generate_some_quantum_cors_complete_vn_noTmmt(file_to_save_to=None, num_of_random_cors=1000, common_multiple_of_denominators=None):
@@ -453,8 +466,10 @@ def onb_from_direction(theta, phi=0.):
 
 
 def random_onb():
-    print("Avoid the use of random_onb(); it doesn't sample uniformly.")
-    return onb_from_direction(random.random() * pi, random.random() * 2 * pi)
+    ket1 = random_ket(dim=2)
+    ket2 = normalise_vec(scipy.linalg.null_space(np.array([ket1])).T[0])
+    return np.array([ket1, ket2])  # TODO wrong, because ket1.conj() @ ket2 != 0? (currently ket1 @ ket2 == 0.)
+    # return onb_from_direction(random.random() * pi, random.random() * 2 * pi)
 
 
 def random_real_onb():
@@ -472,7 +487,7 @@ ket_plus = 1 / sqrt2 * np.array([1, 1])
 ket_minus = 1 / sqrt2 * np.array([1, -1])
 phi_plus = 1 / sqrt2 * np.array([1, 0, 0, 1])
 phi_plus_un = np.array([1, 0, 0, 1])  # unnormalised
-rho_ctb_plusphiplus = 1 / 2 * proj(kron(ket0, phi_plus_un))
+rho_ctb_plusphiplus = 1 / 2 * proj(kron(ket_plus, phi_plus_un))
 ket_ctb_ghz = 1 / sqrt2 * np.array([1, 0, 0, 0, 0, 0, 0, 1])
 rho_ctb_ghz = 1 / 2 * proj(np.array([1, 0, 0, 0, 0, 0, 0, 1]))
 ket_tcb_0phi = np.einsum('i,jk->jik', ket0, phi_plus.reshape((2, 2))).reshape(8)
@@ -505,6 +520,7 @@ def random_orth_proj(dim, rank):
         # Pick random ket orthogonal to the previous ones
         if len(kets) > 0:
             orth_vectors = scipy.linalg.null_space(np.array(kets)).T  # transpose because null_space returns a matrix containing column vectors
+            # TODO wrong, because ket1.conj() @ ket2 != 0? (currently ket1 @ ket2 == 0.)
         else:
             orth_vectors = np.identity(dim)  # list of standard basis elements
         assert dim - i == len(orth_vectors)
@@ -544,7 +560,7 @@ def instr_vn_destr(onb):
 
 
 def instr_measure_and_send_fixed_state(onb, fixed_ket):
-    return np.array([lin_map_to_cj(np.array([fixed_ket]).T @ [ket.conj()]) for ket in onb])  # |ket><fixed_ket|
+    return np.array([lin_map_to_cj(np.array([fixed_ket]).T @ [ket.conj()]) for ket in onb])  # |fixed_ket><ket|
 
 
 def instr_proj_mmt_nondestr(ket):
@@ -561,7 +577,6 @@ def instr_proj_mmt_destr(ket):
 
 # instr_do_nothing = np.array([proj(phi_plus_un), np.zeros((4, 4), dtype='int')])     gives same as:
 instr_do_nothing = np.array([lin_map_to_cj(np.identity(2)).astype('int'), lin_map_to_cj(np.zeros((2, 2))).astype('int')])  # outcome is 0 with probability 1
-
 
 if __name__ == '__main__':
     # To test quantum_cor_from_complete_vn_mmts_new and make_pacb_xy_new:
@@ -630,5 +645,31 @@ if __name__ == '__main__':
             print('Checked %d random initial states' % i, end='\r')
             sys.stdout.flush()
     """
+
+    # TODO fix this!
+    # cor_nss = quantum_cor_nss_from_complete_vn_mmts_noTmmt(rho_ctb_plusphiplus, [z_onb, x_onb], [z_onb, x_onb], z_onb, [z_onb, x_onb])
+    # cor_full = vs.construct_NSS_to_full_homogeneous() @ cor_nss
+    # cor_full = 1 / cor_full[-1] * cor_full[:-1]
+    # vs.write_cor_to_file(cor_full, 'tmp')
+    # swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a2, a1, c, b, x2, x1, y))
+    # print(np.max(np.abs(cor_full - swap_A1_A2_matrix @ cor_full)))  # TODO WHY IS THIS NOT ZERO???????
+    # print(vs.is_in_NSCO1(cor_full, tol=1e-8))
+    # print(vs.is_in_NSCO2(cor_full, tol=1e-8))
+
+    cor_nss = quantum_cor_nss_from_complete_vn_mmts_noTmmt(proj(kron(ket0, phi_plus)), [z_onb, x_onb], [z_onb, x_onb], z_onb, [z_onb, x_onb])
+    cor_full = vs.construct_NSS_to_full_homogeneous() @ cor_nss
+    cor_full = 1 / cor_full[-1] * cor_full[:-1]
+    print(vs.is_in_NSCO1(cor_full))
+    print(vs.is_in_NSCO2(cor_full))
+    print(vs.is_in_NSCO1st(cor_full))
+    print(vs.is_in_NSCO2st(cor_full))
+    cor_full = cor_full.reshape((2,) * 7)
+    print(np.einsum('aecbxwy->ebxwy', cor_full)[:,:,0,:,:] - np.einsum('aecbxwy->ebxwy', cor_full)[:,:,1,:,:])
+
+    # for qm_cor in np.load('panda-files/some_quantum_cors5.npy'):
+    #     cor_full = vs.construct_NSS_to_full_homogeneous() @ qm_cor
+    #     cor_full = 1 / cor_full[-1] * cor_full[:-1]
+    #     print(vs.is_in_NSCO1(cor_full, tol=1e-8))
+    #     # print(vs.is_in_NSCO2(cor_full, tol=1e-8))
 
     # qm_cors = generate_some_quantum_cors_complete_vn(num_of_random_cors=10)

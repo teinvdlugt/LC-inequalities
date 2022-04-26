@@ -2,6 +2,7 @@ import itertools
 
 import numpy as np
 
+import quantum_utils
 from quantum_utils import kron, phi_plus_un, ket0, reshuffle_kron_vector, proj, process_operator_switch, z_onb, ket1
 from utils import reciprocal_or_zero
 
@@ -56,7 +57,6 @@ def dependence_of_c_on_y_in_ptilde1(rho_ctb, X1, X2, Y, c_onb):
     # Alternatively, tracing out c allows to check that a_1 and a_2 ARE independent of y. Yay!
 
     diff_y = cor_ptilde1c_xy[:, :, :, 0] - cor_ptilde1c_xy[:, :, :, 1]
-    print(diff_y)
     return np.sum(np.abs(diff_y)), np.einsum('ijkmno,ijklmno->ijklmno', cor_p1ab_xy, cor_pc_xyab)
 
 
@@ -263,8 +263,8 @@ def make_pabc_xy(rho_ctb, X1, X2, Y, c_onb):
     return pabc_xy
 
 
-
-## Showing that p(c | x_1, x_2, y) can generally depend on y (i.e. 'disproving (iii)'):
+if __name__ == '__main__':
+    ## Showing that p(c | x_1, x_2, y) can generally depend on y (i.e. 'disproving (iii)'):
     """
     tau_ctb = proj(kron(ket_plus, ket0, ket0))
     tau_a_1 = (proj(np.array([1, 0, 0, 0])) + proj(np.array([0, 0, 0, 1]))).T
@@ -280,6 +280,14 @@ def make_pabc_xy(rho_ctb, X1, X2, Y, c_onb):
     """
 
     ## Trying to see if p~^1(a_1, a_2, c | x_1, x_2, y) depends on y:
+    dep, _ = dependence_of_c_on_y_in_ptilde1(
+        rho_ctb=quantum_utils.rho_tcb_0phi,
+        # rho_ctb=proj(normalise_vec(np.random.rand(8))),
+        X1=[z_onb, quantum_utils.x_onb],  # X1 = [random_real_onb(), random_real_onb()] # TODO see below
+        X2=[z_onb, quantum_utils.x_onb],  # TODO change back to z_onb, x_onb when NaN problem resolved
+        Y=[quantum_utils.diag1_onb, quantum_utils.diag2_onb],  # Y = [random_real_onb(), random_real_onb()]
+        c_onb=quantum_utils.x_onb)  # c_onb = x_onb
+    print(dep)
 
     """phacek1abc_xy, dep = dependence_of_ac_on_y_in_phacek1(
         rho_ctb=proj(kron(ket_plus, phi_plus)),
@@ -288,7 +296,7 @@ def make_pabc_xy(rho_ctb, X1, X2, Y, c_onb):
         X2=[z_onb, x_onb],  # TODO change back to z_onb, x_onb when NaN problem resolved
         Y=[z_onb, x_onb],  # Y = [random_real_onb(), random_real_onb()]
         c_onb=x_onb)  # c_onb = x_onb
-    print(dep)"""  # NOTE this code takes 10-11 seconds on my laptop, 13-14 seconds on google cloud c2 VM
+    print(dep)"""
 
     # III(rho_ctb=proj(kron(ket_plus, phi_plus)),
     #     X1=[z_onb, x_onb],

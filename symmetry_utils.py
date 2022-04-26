@@ -118,8 +118,8 @@ def nss_var_perm_to_symm(ra_perms, rb_perms, rx_perm, ry_perm, var_names):
 """
 
 
-def full_perm_to_symm(perm, dtype='int'):
-    """ Creates permutation matrix corresponding to perm. Multiplying a full homogeneous (i.e. length-129) correlation vector
+def full_perm_to_symm_homog(perm, dtype='int'):
+    """ Creates permutation matrix corresponding to perm, with added row & column for homogeneity. Multiplying a full homogeneous (i.e. length-129) correlation vector
     to the right of this matrix gives you the pullback of the correlation along perm. """
     return np.r_[
         np.array([
@@ -130,9 +130,18 @@ def full_perm_to_symm(perm, dtype='int'):
     ]
 
 
+def full_perm_to_symm(perm, dtype='int'):
+    """ Creates permutation matrix corresponding to perm. Multiplying a full (i.e. length-128) correlation vector
+    to the right of this matrix gives you the pullback of the correlation along perm. """
+    return np.array([
+            utils.one_hot_vector(128, vs.concatenate_bits(*perm(*var_tuple)), dtype=dtype)
+            for var_tuple in itertools.product((0, 1), repeat=7)
+        ])
+
+
 def nss_var_perm_to_symm(perm, dtype='int'):
     """ Constructs (87,87) symmetry matrix M by using that NtoF @ M @ FtoN == Sigma, the permutation matrix. """
-    perm_matrix = full_perm_to_symm(perm, dtype)
+    perm_matrix = full_perm_to_symm_homog(perm, dtype)
     return vs.construct_full_to_NSS_homog(8, 2, 4, 2) @ perm_matrix @ vs.construct_NSS_to_full_homogeneous()
 
 
@@ -179,7 +188,7 @@ def nsco1_var_perm_to_symm(perm, dtype='int8'):
            --> so symmetry @ row represents the n-dim vector with elements of the form  a1(x1/d) + a2(x2/d) + ... + an(xn/d) + c
                exactly what we want!
     """
-    perm_matrix = full_perm_to_symm(perm, dtype)
+    perm_matrix = full_perm_to_symm_homog(perm, dtype)
     return vs.construct_full_to_NSCO1_homog() @ perm_matrix @ vs.construct_NSCO1_to_full_homogeneous()
 
 

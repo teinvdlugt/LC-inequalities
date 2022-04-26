@@ -823,6 +823,14 @@ def a_p_that_is_not_in_LC():
     return vs.construct_full_to_NSS_homog(8, 2, 4, 2) @ p_homog
 
 
+def deterministic_cor_full_homog(a1, a2, c, b):
+    """ a1, a2, c, b should be functions (e.g. lambdas) from three binary variables to one binary variable. The returned vector is full homogeneous, so of length 129. """
+    cor = np.zeros((2,) * 7, dtype='int')
+    for _a1, _a2, _c, _b, x1, x2, y in itertools.product((0, 1), repeat=7):
+        cor[_a1, _a2, _c, _b, x1, x2, y] = 1 * (_a1 == a1(x1, x2, y)) * (_a2 == a2(x1, x2, y)) * (_c == c(x1, x2, y)) * (_b == b(x1, x2, y))
+    return np.r_[cor.reshape((128,)), [1]]
+
+
 if __name__ == '__main__':
     # qm_cor_str = qm.quantum_cor_in_panda_format_nss(
     #     rho_ctb = proj(kron(ket0, phi_plus).reshape(2,2,2).swapaxes(1,2).reshape(8)), # rho_ctb=proj(kron(ket_plus, phi_plus)),
@@ -919,3 +927,18 @@ if __name__ == '__main__':
     # for facet in maybe_facets:
     #     print("checking facet %s" % ' '.join(map(str, facet)))
     #     is_facet_of_LC(facet)
+
+    # Checking computation of [p218]
+    ineq = list(map(int,
+                    '1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 -1'.split()))
+    caus2_cor_full = 1 / 2 * deterministic_cor_full_homog(lambda x1, x2, y: 0,  # a1
+                                                          lambda x1, x2, y: x1,  # a2
+                                                          lambda x1, x2, y: 0,  # c
+                                                          lambda x1, x2, y: (x2 + 1) % 2) + \
+                     1 / 2 * deterministic_cor_full_homog(lambda x1, x2, y: x2,  # a1
+                                                          lambda x1, x2, y: 0,  # a2
+                                                          lambda x1, x2, y: 0,  # c
+                                                          lambda x1, x2, y: x2)  # b
+    assert vs.is_in_NSS(caus2_cor_full, 8, 2, 4, 2)
+    caus2_cor_nss = vs.construct_full_to_NSS_homog(8, 2, 4, 2) @ caus2_cor_full
+    print('Violation:', caus2_cor_nss @ ineq)

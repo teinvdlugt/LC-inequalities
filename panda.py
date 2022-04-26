@@ -67,6 +67,20 @@ def nss_readable_var_names(na, nb, nx, ny):
     return var_names
 
 
+def nss_readable_var_names_a1a2c():
+    var_names = []
+    # NSS-I
+    for (a1, a2, c), x1, x2 in vs.cart(vs.cart((0, 1), (0, 1), (0, 1))[:-1], (0, 1), (0, 1)):
+        var_names.append('a1' + str(a1) + 'a2' + str(a2) + 'c' + str(c) + 'x1' + str(x1) + 'x2' + str(x2))
+    # NSS-II
+    for b, y in itertools.product((0,), (0,1)):
+        var_names.append('b' + str(b) + 'y' + str(y))
+    # NSS-III
+    for (a1, a2, c), b, x1, x2, y in vs.cart(vs.cart((0, 1), (0, 1), (0, 1))[:-1], (0,), (0, 1), (0, 1), (0, 1)):
+        var_names.append('a1' + str(a1) + 'a2' + str(a2) + 'c' + str(c) + 'b' + str(b) + 'x1' + str(x1) + 'x2' + str(x2) + 'y' + str(y))
+    return var_names
+
+
 def nss_vertex_classes_from_BLM05(na, nb):
     """ Calculated from BLM+05 Eq. (12), which assumes nx = ny = 2. """
     result = []

@@ -76,10 +76,10 @@ def construct_NSS_to_full_matrix_but_weird(na, nb, nx, ny):
     return matrix
 
 
-def construct_NSS_to_full_homogeneous():
+def construct_NSS_to_full_homogeneous(na=8, nb=2, nx=4, ny=2):
     return np.block([
-        [construct_NSS_to_full_matrix_but_weird(8, 2, 4, 2), beta().reshape((128, 1)).astype('int')],
-        [np.zeros(dim_NSS(8, 2, 4, 2), dtype='int'), 1]
+        [construct_NSS_to_full_matrix_but_weird(na, nb, nx, ny), beta(na * nb * nx * ny, nx * ny).reshape((na * nb * nx * ny, 1)).astype('int')],
+        [np.zeros(dim_NSS(na, nb, nx, ny), dtype='int'), 1]
     ])
 
 
@@ -200,6 +200,53 @@ def is_in_NSCO1(cor, tol=1e-12):
         if abs(cor_a1b_x1x2y[a1, b, x1, 0, y] - cor_a1b_x1x2y[a1, b, x1, 1, y]) > tol:
             return False
     return True
+
+
+def is_in_NSCO1st(cor, tol=1e-12):
+    """ cor should be given in full representation, i.e. be of length 128 or 129 """
+    if len(cor) == 129:
+        assert cor[-1] != 0
+        cor = (1 / cor[-1]) * cor[:-1]
+    else:
+        assert len(cor) == 128
+
+    # First check if in NSS. This also checks if all probs are >=0.
+    if not is_in_NSS(cor, 8, 2, 4, 2, tol):
+        return False
+
+    # Left to check: a1 independent of x2
+    cor = cor.reshape((2,) * 7)
+    cor_a1_x1x2 = np.einsum('ijklmno->imno', cor)[:, :, :, 0]
+    for a1, x1 in itertools.product((0, 1), repeat=2):
+        if abs(cor_a1_x1x2[a1, x1, 0] - cor_a1_x1x2[a1, x1, 1]) > tol:
+            return False
+    return True
+
+
+def is_in_NSCO2(cor, tol=1e-12):
+    """ cor should be given in full representation, i.e. be of length 128 or 129 """
+    if len(cor) == 129:
+        assert cor[-1] != 0
+        cor = (1 / cor[-1]) * cor[:-1]
+    else:
+        assert len(cor) == 128
+
+    swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a2, a1, c, b, x2, x1, y))
+    cor_swapped = swap_A1_A2_matrix @ cor
+    return is_in_NSCO1(cor_swapped, tol)
+
+
+def is_in_NSCO2st(cor, tol=1e-12):
+    """ cor should be given in full representation, i.e. be of length 128 or 129 """
+    if len(cor) == 129:
+        assert cor[-1] != 0
+        cor = (1 / cor[-1]) * cor[:-1]
+    else:
+        assert len(cor) == 128
+
+    swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a2, a1, c, b, x2, x1, y))
+    cor_swapped = swap_A1_A2_matrix @ cor
+    return is_in_NSCO1st(cor_swapped, tol)
 
 
 def generate_dictionary_of_full_probs_in_NSS_coords(filename=None):
@@ -354,12 +401,9 @@ def construct_NSCO1_to_full_homogeneous():
     ])
 
 
-def beta():
+def beta(length=128, num_of_ones=8, dtype='int'):
     """ Returns the length-128 vector that has a 1 in every position corresponding to p(1111|x1x2y) for some x1,x2,y. """
-    result = np.zeros(128)
-    for x1, x2, y in cart(B, B, B):
-        result[concatenate_bits(1, 1, 1, 1, x1, x2, y)] = 1
-    return result
+    return np.r_[np.zeros(length - num_of_ones, dtype=dtype), np.ones(num_of_ones, dtype=dtype)]
 
 
 ## LC stuff (using 86-dim NSS parameterisation)
