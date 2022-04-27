@@ -47,7 +47,7 @@ def reduce_vertices_panda_helper_file(filename='panda-files/lc_abxy_reduce_verti
             f.write(panda.row_with_denom_to_vector_str(vertex) + '\n')
 
 
-def lc_abxy_facet_enum_panda_file(filename='panda-files/lc_abxy_vertices.pi', readable=False):
+def lc_abxy_facet_enum_panda_file(filename='panda-files/lc_abxy_facet_enum.pi', readable=False):
     lines = []
 
     # 1) Dimension information. This time, work in NSS coordinates all the way; don't use LCO1 coordinates
@@ -69,7 +69,8 @@ def lc_abxy_facet_enum_panda_file(filename='panda-files/lc_abxy_vertices.pi', re
 
     # 5) Vertices
     lines.append('Reduced vertices:')
-    # TODO load reduced vertices here. First reduce vertices.
+    for vertex in np.load('panda-files/results/lc_abxy_vertex_classes.npy'):
+        lines.append(panda.row_with_denom_to_vector_str(vertex) + '\n')
 
     # Write to file
     file = open(filename, 'w')
@@ -107,3 +108,6 @@ def lco1_symm_generators():
 if __name__ == '__main__':
     construct_lc_abxy_vertices()
     reduce_vertices_panda_helper_file()
+    # Now run panda-helper to reduce vertices. Afterwards:
+    # lc_abxy_facet_enum_panda_file()
+    # And now run panda on panda-files/lc_abxy_facet_enum.pi
