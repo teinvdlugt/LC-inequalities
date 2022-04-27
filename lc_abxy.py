@@ -18,8 +18,8 @@ def construct_lc_abxy_vertices():
     marg_c_nss_h = vs.construct_full_to_NSS_homog(4, 2, 4, 2) @ marg_c_full_h @ vs.construct_NSS_to_full_homogeneous(8, 2, 4, 2)
 
     # Load LC_acbxy vertices
-    lc_vertices = utils.read_vertex_range_from_file('panda-files/results/8 all LC vertices', start_at_incl=50000, stop_at_excl=51000)
-    np.save('panda-files/results/lc_vertices.npy', lc_vertices)
+    # lc_vertices = utils.read_vertex_range_from_file('panda-files/results/8 all LC vertices', start_at_incl=50000, stop_at_excl=51000)
+    # np.save('panda-files/results/lc_vertices.npy', lc_vertices)
 
     # Make LC_abxy vertices
     # lc_abxy_vertices = (marg_c_nss_h @ lc_vertices.T).T, which is:
