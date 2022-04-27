@@ -2,31 +2,29 @@ import itertools
 
 import panda
 import symmetry_utils
-import time
 import utils
 import vector_space_utils as vs
 import numpy as np
 
 
-def construct_lc_abxy_vertices():
+def marginalise_vertices(input_file, output_file, use_numpy_load_save=False):
     # Instead, just marginalise c from the LC_acbxy vertices:
-    marg_c_full_h = np.zeros((65, 129), dtype='int')  # the marginalisation map \Sigma_c
+    marg_c_full_h = np.zeros((65, 129), dtype='int8')  # the marginalisation map \Sigma_c
     for a1, a2, b, x1, x2, y in itertools.product((0, 1), repeat=6):
         marg_c_full_h[vs.concatenate_bits(a1, a2, b, x1, x2, y)][vs.concatenate_bits(a1, a2, 0, b, x1, x2, y)] = 1
         marg_c_full_h[vs.concatenate_bits(a1, a2, b, x1, x2, y)][vs.concatenate_bits(a1, a2, 1, b, x1, x2, y)] = 1
     marg_c_full_h[-1, -1] = 1  # the homogeneous coordinates
     marg_c_nss_h = vs.construct_full_to_NSS_homog(4, 2, 4, 2) @ marg_c_full_h @ vs.construct_NSS_to_full_homogeneous(8, 2, 4, 2)
 
-    # Load LC_acbxy vertices
-    # lc_vertices = utils.read_vertex_range_from_file('panda-files/results/8 all LC vertices', start_at_incl=50000, stop_at_excl=51000)
-    # np.save('panda-files/results/lc_vertices.npy', lc_vertices)
-
-    # Make LC_abxy vertices
     # lc_abxy_vertices = (marg_c_nss_h @ lc_vertices.T).T, which is:
     # lc_abxy_vertices = lc_vertices @ marg_c_nss_h.T
-    lc_abxy_vertices = np.load('panda-files/results/lc_vertices.npy') @ marg_c_nss_h.T
 
-    np.save('panda-files/results/lc_abxy_vertices.npy', lc_abxy_vertices.astype('int8'))
+    if use_numpy_load_save:
+        marginalised_vertices = np.load(input_file) @ marg_c_nss_h.T
+        np.save(output_file, marginalised_vertices)
+    else:
+        marginalised_vertices = utils.read_vertex_range_from_file(input_file) @ marg_c_nss_h.T
+        utils.write_rows_to_file(output_file, marginalised_vertices)
 
 
 def reduce_vertices_panda_helper_file(filename='panda-files/lc_abxy_reduce_vertices'):
@@ -43,11 +41,11 @@ def reduce_vertices_panda_helper_file(filename='panda-files/lc_abxy_reduce_verti
 
         # Vertices to reduce
         f.write('Vertices:\n')
-        for vertex in np.load('panda-files/results/lc_abxy_vertices.npy'):
+        for vertex in utils.read_vertex_range_from_file('panda-files/results/17 LC_abxy/lc_abxy_vertex_classes_with_duplicates'):
             f.write(panda.row_with_denom_to_vector_str(vertex) + '\n')
 
 
-def lc_abxy_facet_enum_panda_file(filename='panda-files/lc_abxy_facet_enum.pi', readable=False):
+def lc_abxy_facet_enum_panda_file(filename='panda-files/results/17 LC_abxy/4 lc_abxy_facet_enum.pi', readable=False):
     lines = []
 
     # 1) Dimension information. This time, work in NSS coordinates all the way; don't use LCO1 coordinates
@@ -68,9 +66,9 @@ def lc_abxy_facet_enum_panda_file(filename='panda-files/lc_abxy_facet_enum.pi', 
         lines.append(symmetry_utils.symm_matrix_to_string(symm, var_names))
 
     # 5) Vertices
-    lines.append('Reduced vertices:')
-    for vertex in np.load('panda-files/results/lc_abxy_vertex_classes.npy'):
-        lines.append(panda.row_with_denom_to_vector_str(vertex) + '\n')
+    lines.append('Reduced Vertices:')
+    for vertex in utils.read_vertex_range_from_file('panda-files/results/17 LC_abxy/3 lc_abxy_vertex_classes'):
+        lines.append(panda.row_with_denom_to_vector_str(vertex))
 
     # Write to file
     file = open(filename, 'w')
@@ -104,10 +102,36 @@ def lco1_symm_generators():
         var_perm_to_symm_h(lambda a1, a2, b, x1, x2, y: (a2, a1, b, x2, x1, y))  # a2 <-> a1, x2 <-> x1
     ])
 
+def marginalise_ineqs(input_file, output_file):
+    marg_c_full_h = np.zeros((65, 129), dtype='int8')  # the marginalisation map \Sigma_c
+    for a1, a2, b, x1, x2, y in itertools.product((0, 1), repeat=6):
+        marg_c_full_h[vs.concatenate_bits(a1, a2, b, x1, x2, y)][vs.concatenate_bits(a1, a2, 0, b, x1, x2, y)] = 1
+        marg_c_full_h[vs.concatenate_bits(a1, a2, b, x1, x2, y)][vs.concatenate_bits(a1, a2, 1, b, x1, x2, y)] = 1
+    marg_c_full_h[-1, -1] = 1  # the homogeneous coordinates
+    marg_c_nss_h = vs.construct_full_to_NSS_homog(4, 2, 4, 2) @ marg_c_full_h @ vs.construct_NSS_to_full_homogeneous(8, 2, 4, 2)
+
+    new_ineqs = []
+
+    for ineq in utils.read_vertex_range_from_file(input_file):
+        # The following works:
+        a_tilde = marg_c_nss_h @ ineq
+        a_tilde[:12] = 1 / 2 * a_tilde[:12]
+        a_tilde[14:-1] = 1 / 2 * a_tilde[14:-1]
+        # This checks that it actually works, i.e. that the found inequality a_tilde is valid for LC_abxy: \Sigma_c^T a_tilde == a. (See [p228])
+        assert np.all(marg_c_nss_h.T @ a_tilde == ineq)
+
+        new_ineqs.append(a_tilde)
+
+    utils.write_rows_to_file(output_file, new_ineqs)
+
 
 if __name__ == '__main__':
-    # construct_lc_abxy_vertices()
-    reduce_vertices_panda_helper_file()
-    # Now run panda-helper to reduce vertices. Afterwards:
+    # marginalise_vertices(input_file='panda-files/results/7b lc_vertex_classes', output_file='panda-files/results/17 LC_abxy/lc_abxy_vertex_classes_with_duplicates')
+    # reduce_vertices_panda_helper_file()
+    # ** run panda-helper to reduce vertices (this also removes duplicates) **
     # lc_abxy_facet_enum_panda_file()
-    # And now run panda on panda-files/lc_abxy_facet_enum.pi
+    # ** run panda on 'panda-files/results/17 LC_abxy/4 lc_abxy_facet_enum.pi' **
+    # for known facets:
+    # marginalise_ineqs('panda-files/results/12 facets adjacent to GYNI', 'panda-files/results/17 LC_abxy/known_facets_adjacent_to_GYNI')
+    # marginalise_ineqs('panda-files/results/13 facets adjacent to LGYNI', 'panda-files/results/17 LC_abxy/known_facets_adjacent_to_LGYNI')
+    pass

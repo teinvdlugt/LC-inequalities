@@ -231,7 +231,7 @@ def lc_write_panda_input(filename='panda-files/lc_vertices.pi', shuffle_vertices
     # 5) Now we're doing facet enumeration!
     lines.append('Reduced Vertices:')
     vertices = []
-    for line in open('panda-files/lc_vertices', 'r').readlines():
+    for line in open('panda-files/results/lc_vertices', 'r').readlines():
         vertices.append(panda.row_with_denom_to_vector_str(list(map(int, line.split()))))
     if shuffle_vertices:
         import random

@@ -83,6 +83,12 @@ def read_vertex_range_from_file(filename, start_at_incl=0, stop_at_excl=np.infty
     return Q
 
 
+def write_rows_to_file(filename, array):
+    with open(filename, 'w') as f:
+        for row in array:
+            f.write(' '.join(map(str, row)) + '\n')
+
+
 def one_hot_vector(size, position, dtype='int'):
     if position < 0:
         position = size + position
