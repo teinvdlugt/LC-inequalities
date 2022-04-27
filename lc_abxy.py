@@ -106,7 +106,7 @@ def lco1_symm_generators():
 
 
 if __name__ == '__main__':
-    construct_lc_abxy_vertices()
+    # construct_lc_abxy_vertices()
     reduce_vertices_panda_helper_file()
     # Now run panda-helper to reduce vertices. Afterwards:
     # lc_abxy_facet_enum_panda_file()

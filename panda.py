@@ -331,7 +331,7 @@ def row_with_denom_to_vector_str(row):
     vector = list(row[:-1])
     denominator = row[-1]
     for i in range(len(vector)):
-        vector[i] = str(Fraction(vector[i] / denominator))
+        vector[i] = str(Fraction(vector[i], denominator))
     return ' '.join(vector)
 
 
