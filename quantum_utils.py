@@ -211,11 +211,12 @@ def quantum_setup_two_channels():
                 no initial state is returned by this function
     :returns instrs_A1, instrs_A2, instr_C, instrs_B
     """
+    print('This function might be wrong')
     ## instrs_A1: prepare qubit 1 in |x1> and measure qubit 2
     instrs_A1 = np.zeros((2, 2, 16, 16))  # 2 settings, 2 outcomes, and CP maps are 16x16 matrices
     for x1 in (0, 1):
         x1_ket = [ket0, ket1][x1]
-        instrs_A1[x1] = [kron(np.identity(2), proj(ket0), proj(x1_ket), proj(ket0)),  # TODO also wrong because of missing conjugate?
+        instrs_A1[x1] = [kron(np.identity(2), proj(ket0), proj(x1_ket), proj(ket0)),  # TODO wrong because of missing conjugate?
                          kron(np.identity(2), proj(ket1), proj(x1_ket), proj(ket1))]
     ## instrs_A2: prepare qubit 2 in |x2> and measure qubit 1
     instrs_A2 = np.zeros((2, 2, 16, 16))  # 2 settings, 2 outcomes, and CP maps are 16x16 matrices
