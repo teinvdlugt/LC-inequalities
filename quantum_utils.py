@@ -168,7 +168,7 @@ def random_quantum_setup_qubit_vn():
     # For the mmt on CT, take a projective measurement, either with projections of rank 2 and 2 or with projections of rank 1 and 3.
     ct_proj_rank = np.random.randint(1, 3)
     ct_proj = random_orth_proj(4, ct_proj_rank)
-    instr_CT = np.array([nondestr_cj_to_destr_cj(lin_map_to_cj(ct_proj)), nondestr_cj_to_destr_cj(lin_map_to_cj(np.identity(4) - ct_proj))])
+    instr_CT = np.array([nondestr_cj_to_destr_cj(kraus_op_to_cj(ct_proj)), nondestr_cj_to_destr_cj(kraus_op_to_cj(np.identity(4) - ct_proj))])
     instrs_B = np.array([instr_proj_mmt_destr(random_ket()), instr_proj_mmt_destr(random_ket())])
     return rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, 2, 2
 
@@ -177,7 +177,9 @@ def somewhat_random_qubit_instr_nondestr():
     return np.random.choice([
         instr_proj_mmt_nondestr(random_ket()),
         instr_measure_and_send_fixed_state(random_onb(), random_ket()),
-
+        instr_do_nothing,
+        np.array([kraus_op_to_cj(random_unitary(dim=2)), kraus_op_to_cj(np.zeros(2, 2))]),
+        instr_weak_vN_nondestr(random_ket(), noise=np.random.rand())
     ])
 
 
@@ -190,7 +192,7 @@ def random_quantum_setup_qutrit_proj():
     # For the mmt on CT, take a projective measurement, the first projection of which has rank 1,2 or 3 (CT has dim 6 so this covers all proj mmts).
     ct_proj_rank = np.random.randint(1, 4)
     ct_proj = random_orth_proj(6, ct_proj_rank)
-    instr_CT = np.array([nondestr_cj_to_destr_cj(lin_map_to_cj(ct_proj)), nondestr_cj_to_destr_cj(lin_map_to_cj(np.identity(6) - ct_proj))])
+    instr_CT = np.array([nondestr_cj_to_destr_cj(kraus_op_to_cj(ct_proj)), nondestr_cj_to_destr_cj(kraus_op_to_cj(np.identity(6) - ct_proj))])
 
     instrs_B = np.array([instr_proj_mmt_destr(random_ket()), instr_proj_mmt_destr(random_ket())])
     dT = 3
@@ -465,11 +467,25 @@ def onb_from_direction(theta, phi=0.):
     # print(np.inner(rand_onb[0], rand_onb[1].conj()))  # Should give 0
 
 
-def random_onb():
-    ket1 = random_ket(dim=2)
-    ket2 = normalise_vec(scipy.linalg.null_space(np.array([ket1])).T[0])
-    return np.array([ket1, ket2])  # TODO wrong, because ket1.conj() @ ket2 != 0? (currently ket1 @ ket2 == 0.)
-    # return onb_from_direction(random.random() * pi, random.random() * 2 * pi)
+def random_onb(dim=2):
+    kets = np.empty((0, dim))
+    for i in range(dim):
+        # Pick random ket orthogonal to the previous ones
+        if len(kets) > 0:
+            orth_vectors = scipy.linalg.null_space(np.array(kets).conj()).T  # transpose because null_space returns a matrix containing column vectors
+        else:
+            orth_vectors = np.identity(dim)  # list of standard basis elements
+        assert dim - i == len(orth_vectors)
+        # Pick random vector in C^(dim-i)
+        random_vec = np.random.rand(dim - i) + 1j * np.random.rand(dim - i)
+        # Use random_vec as components for orth_vectors to generate random element of span(orth_vectors)
+        new_ket = np.array([random_vec]) @ orth_vectors
+        kets = np.r_[kets, normalise_vec(new_ket)]
+    return kets
+
+
+def random_unitary(dim=2):
+    return random_onb(dim).T
 
 
 def random_real_onb():
@@ -502,7 +518,7 @@ ket_diag = diag1_onb[0]  # Ket corresponding to spin in the z+x direction, 'in b
 
 
 # Some common instruments
-def lin_map_to_cj(lin_map):
+def kraus_op_to_cj(lin_map):
     """
     :param lin_map: A linear map (i.e. dOut x dIn matrix) acting on kets (not on density matrices!). E.g. a projection |psi><psi| = proj(psi).
     :return: The CJ representation, i.e. (1xlin_map)phi+(1xlin_map*)
@@ -515,20 +531,7 @@ def lin_map_to_cj(lin_map):
 
 
 def random_orth_proj(dim, rank):
-    kets = np.empty((0, dim))
-    for i in range(rank):
-        # Pick random ket orthogonal to the previous ones
-        if len(kets) > 0:
-            orth_vectors = scipy.linalg.null_space(np.array(kets)).T  # transpose because null_space returns a matrix containing column vectors
-            # TODO wrong, because ket1.conj() @ ket2 != 0? (currently ket1 @ ket2 == 0.)
-        else:
-            orth_vectors = np.identity(dim)  # list of standard basis elements
-        assert dim - i == len(orth_vectors)
-        # Pick random vector in C^(dim-i)
-        random_vec = np.random.rand(dim - i) + 1j * np.random.rand(dim - i)
-        # Use random_vec as components for orth_vectors to generate random element of span(orth_vectors)
-        new_ket = np.array([random_vec]) @ orth_vectors
-        kets = np.r_[kets, normalise_vec(new_ket)]
+    kets = random_onb(dim)[0:rank]
     # Make projection that projects onto the space spanned by kets
     return np.einsum('ki,kj->ij', kets, kets.conj())  # 'k' indexes the kets, i and j the kets' dimensions.
 
@@ -547,12 +550,12 @@ def nondestr_cj_to_destr_cj(nondestr_cj):
 
 
 def instr_vn_nondestr(onb):
-    # return np.array([lin_map_to_cj(proj(ket)) for ket in onb])
+    # return np.array([kraus_op_to_cj(proj(ket)) for ket in onb])
     return instr_proj_mmt_nondestr(onb[0])
 
 
 def instr_vn_destr(onb):
-    # result = np.array([lin_map_to_cj(np.array([ket.conj()])) for ket in onb])  # '[ket.conj()]' is the bra version of ket (conjugate and turned into row vector)
+    # result = np.array([kraus_op_to_cj(np.array([ket.conj()])) for ket in onb])  # '[ket.conj()]' is the bra version of ket (conjugate and turned into row vector)
     # # I checked that this gives the same as tracing out the output system from instr_vn_nondestr:
     # dim = len(onb[0])
     # assert np.max(np.abs(result - np.einsum('aijkj', instr_vn_nondestr(onb).reshape((len(instr_vn_nondestr(onb)), dim, dim, dim, dim))))) < 1e-15
@@ -560,7 +563,7 @@ def instr_vn_destr(onb):
 
 
 def instr_measure_and_send_fixed_state(onb, fixed_ket):
-    return np.array([lin_map_to_cj(np.array([fixed_ket]).T @ [ket.conj()]) for ket in onb])  # |fixed_ket><ket|
+    return np.array([kraus_op_to_cj(np.array([fixed_ket]).T @ [ket.conj()]) for ket in onb])  # |fixed_ket><ket|
 
 
 def instr_proj_mmt_nondestr(ket):
@@ -568,7 +571,20 @@ def instr_proj_mmt_nondestr(ket):
     dim = len(ket)
     proj0 = proj(ket)
     proj1 = np.identity(dim) - proj0
-    return np.array([lin_map_to_cj(proj0), lin_map_to_cj(proj1)])
+    return np.array([kraus_op_to_cj(proj0), kraus_op_to_cj(proj1)])
+
+
+def instr_weak_vN_nondestr(ket, noise, unitary=None):
+    """ A nondestructive instrument that measures qubits with Kraus ops  `unitary * (sqrt(noise)*id/2 + i sqrt(1-noise)*|ket><ket|)`.
+    So the unitary is applied after the noisy measurement. If unitary is None then np.identity(len(ket)) is used. """
+    assert len(ket) == 2  # Not sure what to do with the noise terms if the dim is not 2. What to divide the identity by?
+    if unitary is None:
+        unitary = np.identity(2)
+    proj0 = proj(ket)
+    proj1 = np.identity(2) - proj0
+    kraus0 = unitary @ (sqrt(noise/2) * np.identity(2) + 1j * sqrt(1 - noise) * proj0)
+    kraus1 = unitary @ (sqrt(noise/2) * np.identity(2) + 1j * sqrt(1 - noise) * proj1)
+    return np.array([kraus_op_to_cj(kraus0), kraus_op_to_cj(kraus1)])
 
 
 def instr_proj_mmt_destr(ket):
@@ -576,7 +592,8 @@ def instr_proj_mmt_destr(ket):
 
 
 # instr_do_nothing = np.array([proj(phi_plus_un), np.zeros((4, 4), dtype='int')])     gives same as:
-instr_do_nothing = np.array([lin_map_to_cj(np.identity(2)).astype('int'), lin_map_to_cj(np.zeros((2, 2))).astype('int')])  # outcome is 0 with probability 1
+instr_do_nothing = np.array([kraus_op_to_cj(np.identity(2)).astype('int'), kraus_op_to_cj(np.zeros((2, 2))).astype('int')])  # outcome is 0 with probability 1
+
 
 if __name__ == '__main__':
     # To test quantum_cor_from_complete_vn_mmts_new and make_pacb_xy_new:
@@ -647,29 +664,13 @@ if __name__ == '__main__':
     """
 
     # TODO fix this!
-    # cor_nss = quantum_cor_nss_from_complete_vn_mmts_noTmmt(rho_ctb_plusphiplus, [z_onb, x_onb], [z_onb, x_onb], z_onb, [z_onb, x_onb])
-    # cor_full = vs.construct_NSS_to_full_homogeneous() @ cor_nss
-    # cor_full = 1 / cor_full[-1] * cor_full[:-1]
-    # vs.write_cor_to_file(cor_full, 'tmp')
-    # swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a2, a1, c, b, x2, x1, y))
-    # print(np.max(np.abs(cor_full - swap_A1_A2_matrix @ cor_full)))  # TODO WHY IS THIS NOT ZERO???????
-    # print(vs.is_in_NSCO1(cor_full, tol=1e-8))
-    # print(vs.is_in_NSCO2(cor_full, tol=1e-8))
-
-    cor_nss = quantum_cor_nss_from_complete_vn_mmts_noTmmt(proj(kron(ket0, phi_plus)), [z_onb, x_onb], [z_onb, x_onb], z_onb, [z_onb, x_onb])
+    cor_nss = quantum_cor_nss_from_complete_vn_mmts_noTmmt(rho_ctb_plusphiplus, [z_onb, x_onb], [z_onb, x_onb], z_onb, [z_onb, x_onb])
     cor_full = vs.construct_NSS_to_full_homogeneous() @ cor_nss
     cor_full = 1 / cor_full[-1] * cor_full[:-1]
-    print(vs.is_in_NSCO1(cor_full))
-    print(vs.is_in_NSCO2(cor_full))
-    print(vs.is_in_NSCO1st(cor_full))
-    print(vs.is_in_NSCO2st(cor_full))
-    cor_full = cor_full.reshape((2,) * 7)
-    print(np.einsum('aecbxwy->ebxwy', cor_full)[:,:,0,:,:] - np.einsum('aecbxwy->ebxwy', cor_full)[:,:,1,:,:])
-
-    # for qm_cor in np.load('panda-files/some_quantum_cors5.npy'):
-    #     cor_full = vs.construct_NSS_to_full_homogeneous() @ qm_cor
-    #     cor_full = 1 / cor_full[-1] * cor_full[:-1]
-    #     print(vs.is_in_NSCO1(cor_full, tol=1e-8))
-    #     # print(vs.is_in_NSCO2(cor_full, tol=1e-8))
+    vs.write_cor_to_file(cor_full, 'tmp')
+    swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a2, a1, c, b, x2, x1, y))
+    print(np.max(np.abs(cor_full - swap_A1_A2_matrix @ cor_full)))  # TODO WHY IS THIS NOT ZERO???????
+    print(vs.is_in_NSCO1(cor_full, tol=1e-8))
+    print(vs.is_in_NSCO2(cor_full, tol=1e-8))
 
     # qm_cors = generate_some_quantum_cors_complete_vn(num_of_random_cors=10)
