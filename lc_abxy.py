@@ -102,6 +102,7 @@ def lco1_symm_generators():
         var_perm_to_symm_h(lambda a1, a2, b, x1, x2, y: (a2, a1, b, x2, x1, y))  # a2 <-> a1, x2 <-> x1
     ])
 
+
 def marginalise_ineqs(input_file, output_file):
     marg_c_full_h = np.zeros((65, 129), dtype='int8')  # the marginalisation map \Sigma_c
     for a1, a2, b, x1, x2, y in itertools.product((0, 1), repeat=6):
@@ -125,6 +126,54 @@ def marginalise_ineqs(input_file, output_file):
     utils.write_rows_to_file(output_file, new_ineqs)
 
 
+def deterministic_cor_full(a1, a2, b):
+    """ a1, a2, b should be functions (e.g. lambdas) from three binary variables to one binary variable. The returned vector is full and not homogeneous, so of length 64. """
+    cor = np.zeros((2,) * 6, dtype='int')
+    for _a1, _a2, _b, x1, x2, y in itertools.product((0, 1), repeat=6):
+        cor[_a1, _a2, _b, x1, x2, y] = 1 * (_a1 == a1(x1, x2, y)) * (_a2 == a2(x1, x2, y)) * (_b == b(x1, x2, y))
+    return cor.reshape((64,))
+
+
+def facet1():
+    ineq_full = np.zeros((2,) * 6)
+    for a1, a2, b, x1, x2, y in itertools.product((0, 1), repeat=6):
+        if a1 == x2 and a2 == x1 and b == 1 and y == 1:
+            ineq_full[a1, a2, b, x1, x2, y] += 1
+        if b == 0 and y == 1:
+            ineq_full[a1, a2, b, x1, x2, y] += 1 / 2
+    ineq_full_h = np.r_[ineq_full.reshape(64), [-2]]
+    ineq_nss_h = vs.construct_NSS_to_full_homogeneous(4, 2, 4, 2).T @ ineq_full_h
+    return ineq_nss_h
+
+
+def facet2try(alpha=.5):
+    ineq_full = np.zeros((2,) * 6)
+    for a1, a2, b, x1, x2, y in itertools.product((0, 1), repeat=6):
+        if a1 == x2 and a2 == x1 and b == x1 and y == 1:
+            ineq_full[a1, a2, b, x1, x2, y] += 1
+        if b != x1 and y == 1:
+            ineq_full[a1, a2, b, x1, x2, y] += alpha
+    ineq_full_h = np.r_[ineq_full.flatten(), [0]]
+    ineq_nss_h = vs.construct_NSS_to_full_homogeneous(4, 2, 4, 2).T @ ineq_full_h
+    return ineq_nss_h
+
+
+def maximum_violation_by_vertices(ineq, vertex_npy_file='panda-files/results/lc_abxy_vertices.npy'):
+    # vertices = np.diagflat(np.reciprocal(vertices[:,-1])) @ vertices
+    vertices = np.load(vertex_npy_file)
+    violations = vertices @ ineq  # TODO normalise them
+    argmax = np.argmax(violations)
+    return violations[argmax], vertices[argmax]
+
+
+def write_cor_to_file(cor_full, filename):
+    with open(filename, 'w') as f:
+        f.write('p(a1 a2 b | x1 x2 y)\n')
+        for a1, a2, b, x1, x2, y in itertools.product((0, 1), repeat=6):
+            i = vs.concatenate_bits(a1, a2, b, x1, x2, y)
+            f.write('p(%d%d%d|%d%d%d): %s' % (a1, a2, b, x1, x2, y, str(cor_full[i])) + '\n')
+
+
 if __name__ == '__main__':
     # marginalise_vertices(input_file='panda-files/results/7b lc_vertex_classes', output_file='panda-files/results/17 LC_abxy/lc_abxy_vertex_classes_with_duplicates')
     # reduce_vertices_panda_helper_file()
@@ -134,4 +183,9 @@ if __name__ == '__main__':
     # for known facets:
     # marginalise_ineqs('panda-files/results/12 facets adjacent to GYNI', 'panda-files/results/17 LC_abxy/known_facets_adjacent_to_GYNI')
     # marginalise_ineqs('panda-files/results/13 facets adjacent to LGYNI', 'panda-files/results/17 LC_abxy/known_facets_adjacent_to_LGYNI')
-    pass
+
+    ineq = facet2try().astype('int')
+    print(' '.join(map(str, ineq)))
+    violation, cor = maximum_violation_by_vertices(ineq)
+    print(violation)
+    write_cor_to_file((vs.construct_NSS_to_full_homogeneous(4,2,4,2) @ cor)[:-1], 'tmp')

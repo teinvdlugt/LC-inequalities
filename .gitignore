@@ -2,4 +2,5 @@ panda-files/results/8 all LC vertices
 panda-files/lc_vertices_not_on_gyni
 panda-files/lc_vertices_on_gyni
 panda-files/results/lc_vertices.npy
+panda-files/results/lc_abxy_vertices.npy
 ./slurm-*

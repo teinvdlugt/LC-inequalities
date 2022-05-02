@@ -97,3 +97,8 @@ def one_hot_vector(size, position, dtype='int'):
 
 def reciprocal_or_zero(array):
     return np.reciprocal(array, out=np.zeros_like(array), where=array != 0)
+
+
+def normalise_h(row):
+    """ Rescale a vector so as to have the last coordinate equal to 1. """
+    return 1/row[-1] * row

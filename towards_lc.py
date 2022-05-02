@@ -928,7 +928,7 @@ if __name__ == '__main__':
     #     print("checking facet %s" % ' '.join(map(str, facet)))
     #     is_facet_of_LC(facet)
 
-    # Checking computation of [p218]
+    # Checking computation of [p218]. this is lc_abxy.facet1()
     ineq = list(map(int,
                     '1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 -1'.split()))
     caus2_cor_full = 1 / 2 * deterministic_cor_full_homog(lambda x1, x2, y: 0,  # a1
