@@ -1,0 +1,272 @@
+import itertools
+
+import numpy as np
+from scipy.optimize import linprog
+
+import symmetry_utils
+import towards_lc
+import utils
+import vector_space_utils as vs
+import quantum_utils as qm
+
+dim_nss = vs.dim_NSS(8, 2, 8, 2)
+dim_full = 2 ** 8
+B = (0, 1)
+
+
+def constraints_is_valid_lc_deco():
+    """ Returns arrays A_ub, b_ub, A_eq, B_eq that represent the constraint that a (170+1)*2=342-length vector represents
+     a valid 'LC decomposition', i.e. of the form λp^1 + (1-λ)p^2. """
+    num_of_unknowns = (dim_nss + 1) * 2
+
+    # Constraint i: positivity of probabilities (see [p208,210] for matrix)
+    cons_i_matrix = np.block([[vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2), np.zeros((dim_full + 1, dim_nss + 1), dtype='int')],
+                              [np.zeros((dim_full + 1, dim_nss + 1), dtype='int'), vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2)]])
+    A_ub = -cons_i_matrix
+    b_ub = np.zeros(2 * dim_full + 2, dtype='int')
+    assert A_ub.shape == (2 * dim_full + 2, num_of_unknowns)
+
+    # Constraint ii: p(λ=0) + p(λ=1) = 1
+    cons_ii_matrix = np.zeros((1, num_of_unknowns), dtype='int')
+    cons_ii_matrix[0, dim_nss] = 1
+    cons_ii_matrix[0, num_of_unknowns - 1] = 1
+    cons_ii_b = np.array([1, ])
+
+    # Constraint iv: p(a1 a2 b | x1 x2 z=0 y) - p(a1 a2 b | x1 x2 z=1 y) = 0   for (a1,a2,b)≠(1,1,1)   7 x 8 = 56 constraints  NOTE could also impose this by changing parameterisation
+    NtoF = vs.construct_NSS_to_full_matrix_but_weird(8, 2, 8, 2)  # weirdness doesn't matter here
+    cons_iii_matrix = np.zeros((2 * 56, num_of_unknowns), dtype='int')
+    for (a1, a2, b), x1, x2, y in vs.cart(vs.cart(B, B, B)[:-1], B, B, B):
+        cons_iii_matrix[vs.concatenate_bits(a1, a2, b, x1, x2, y)] += np.r_[NtoF[vs.concatenate_bits(a1, a2, 0, b, x1, x2, 0, y)], np.zeros(2 + dim_nss, dtype='int')]
+        cons_iii_matrix[vs.concatenate_bits(a1, a2, b, x1, x2, y)] += np.r_[NtoF[vs.concatenate_bits(a1, a2, 1, b, x1, x2, 0, y)], np.zeros(2 + dim_nss, dtype='int')]
+        cons_iii_matrix[vs.concatenate_bits(a1, a2, b, x1, x2, y)] -= np.r_[NtoF[vs.concatenate_bits(a1, a2, 0, b, x1, x2, 1, y)], np.zeros(2 + dim_nss, dtype='int')]
+        cons_iii_matrix[vs.concatenate_bits(a1, a2, b, x1, x2, y)] -= np.r_[NtoF[vs.concatenate_bits(a1, a2, 1, b, x1, x2, 1, y)], np.zeros(2 + dim_nss, dtype='int')]
+
+        cons_iii_matrix[56 + vs.concatenate_bits(a1, a2, b, x1, x2, y)] += np.r_[np.zeros(dim_nss + 1, dtype='int'), NtoF[vs.concatenate_bits(a1, a2, 0, b, x1, x2, 0, y)], [0]]
+        cons_iii_matrix[56 + vs.concatenate_bits(a1, a2, b, x1, x2, y)] += np.r_[np.zeros(dim_nss + 1, dtype='int'), NtoF[vs.concatenate_bits(a1, a2, 1, b, x1, x2, 0, y)], [0]]
+        cons_iii_matrix[56 + vs.concatenate_bits(a1, a2, b, x1, x2, y)] -= np.r_[np.zeros(dim_nss + 1, dtype='int'), NtoF[vs.concatenate_bits(a1, a2, 0, b, x1, x2, 1, y)], [0]]
+        cons_iii_matrix[56 + vs.concatenate_bits(a1, a2, b, x1, x2, y)] -= np.r_[np.zeros(dim_nss + 1, dtype='int'), NtoF[vs.concatenate_bits(a1, a2, 1, b, x1, x2, 1, y)], [0]]
+    cons_iii_b = np.zeros(2 * 56, dtype='int')
+
+    # Constraint v: iv-1: p(a1=0 b λ=0 | x1 0 y) - p(a1=0 b λ=0 | x1 1 0 y) = 0  for (b,y)≠(1,1)   (6 equalities)   (set z=0 here bc everything a1a2b is independent of z anyway)
+    #               iv-2: p(a2=0 b λ=1 | 0 x2 y) - p(a2=0 b λ=1 | 1 x2 0 y) = 0  for (b,y)≠(1,1)   (6 equalities)
+    cons_iv_matrix = np.zeros((12, num_of_unknowns), dtype='int')
+    # iv-1:  # NOTE this essentially constructs a (6,dim_nss) matrix which has as null space the 80-dim ahNSCO1 (subspace of ahNSS)
+    for (b, y), x1, x2 in vs.cart(vs.cart(B, B)[:-1], B, B):
+        current_row = vs.concatenate_bits(b, y, x1)
+        # Find row vector that will give us p(a1=0 b λ=0 | x1 x2 y)
+        # sum over a2, c
+        for a2, c in vs.cart(B, B):
+            cons_iv_matrix[current_row] += ((-1) ** x2) * np.r_[NtoF[vs.concatenate_bits(0, a2, c, b, x1, x2, 0, y)], np.zeros(2 + dim_nss, dtype='int')]
+    # iv-2:
+    for (b, y), x1, x2 in vs.cart(vs.cart(B, B)[:-1], B, B):
+        current_row = 6 + vs.concatenate_bits(b, y, x2)
+        # Find row vector that will give us p(a2=0 b λ=1 | x1 x2 y)
+        # sum over a2, c
+        for a1, c in vs.cart(B, B):
+            cons_iv_matrix[current_row] += ((-1) ** x1) * np.r_[np.zeros(dim_nss + 1, dtype='int'), NtoF[vs.concatenate_bits(a1, 0, c, b, x1, x2, 0, y)], [0]]
+    cons_iv_b = np.zeros(12, dtype='int')
+
+    # The equality constraints ii-iv together:
+    A_eq = np.r_[cons_ii_matrix, cons_iii_matrix, cons_iv_matrix]
+    b_eq = np.r_[cons_ii_b, cons_iii_b, cons_iv_b]
+
+    return A_ub, b_ub, A_eq, b_eq
+
+
+def is_cor_in_lc(p_nss, tol=1e-12, method='highs', double_check_soln=True):
+    assert len(p_nss) in [dim_nss, dim_nss + 1]
+    if len(p_nss) == dim_nss + 1:
+        p_nss = 1. / p_nss[-1] * np.array(p_nss[:-1])
+
+    num_of_unknowns = (dim_nss + 1) * 2
+
+    A_ub, b_ub, A_eq, b_eq = constraints_is_valid_lc_deco()
+
+    # Remaining constraint: sum_λ p(...λ|..) = p_nss(...|..)
+    p_nss_cons_matrix = np.concatenate((np.identity(dim_nss), np.zeros((dim_nss, 1), dtype='int'),
+                                        np.identity(dim_nss), np.zeros((dim_nss, 1), dtype='int')), axis=1)
+    p_nss_cons_b = p_nss
+
+    A_eq = np.r_[A_eq, p_nss_cons_matrix]
+    b_eq = np.r_[b_eq, p_nss_cons_b]
+
+    # Do LP
+    options = None if method == 'highs' else {'tol': tol}
+    lp = linprog(np.zeros(num_of_unknowns, dtype='int'), A_ub, b_ub, A_eq, b_eq, bounds=(0, 1), options=options, method=method)
+
+    # Double-check that solution is correct (if solution found)
+
+    if double_check_soln and lp.success:
+        # check that p1 := lp.x[:dim_nss + 1] is in NSCO1
+        p1_nss_homog = lp.x[:dim_nss + 1]  # this homogeneous vector represents the conditional distr p(a1a2cb|x1x2zy,λ=0)
+        if p1_nss_homog[-1] != 0:  # if p(λ=0) != 0
+            p1_full_homog = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2) @ p1_nss_homog
+            assert is_in_NSCO1z(p1_full_homog, tol)
+
+        # check that p2 := lp.x[dim_nss + 1: 2 * dim_nss + 2] is in NSCO2
+        p2_nss_homog = lp.x[dim_nss + 1: 2 * dim_nss + 2]
+        if p2_nss_homog[-1] != 0:  # if p(λ=1) != 0
+            p2_full_homog = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2) @ p2_nss_homog
+            swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm_homog(lambda a1, a2, c, b, x1, x2, z, y: (a2, a1, c, b, x2, x1, z, y), num_of_binary_vars=8)
+            p2_full_homog_swapped = swap_A1_A2_matrix @ p2_full_homog
+            assert is_in_NSCO1z(p2_full_homog_swapped, tol)
+
+        # check that p(λ=0) p1 + p(λ=1) p2 = p_nss
+        sum_p1_p2 = p1_nss_homog[:-1] + p2_nss_homog[:-1]
+        assert np.all(np.abs(sum_p1_p2 - p_nss) < tol)
+
+    return lp
+
+
+def is_in_NSCO1z(cor, tol=1e-12):
+    """ cor should be given in full representation, i.e. be of length 256 or 257 """
+    if len(cor) == 257:
+        assert cor[-1] != 0
+        cor = (1 / cor[-1]) * cor[:-1]
+    else:
+        assert len(cor) == 256
+
+    # First check if in NSS. This also checks if all probs are >=0.
+    if not vs.is_in_NSS(cor, 8, 2, 8, 2, tol):
+        return False
+
+    # Now check if a1a2b is independent of z
+    cor = cor.reshape((2,) * 8)
+    cor_a1a2b_x1x2zy = np.einsum('ijklmnop->ijlmnop', cor)
+    for a1, a2, b, x1, x2, y in vs.cart(B, B, B, B, B, B):
+        if abs(cor_a1a2b_x1x2zy[a1, a2, b, x1, x2, 0, y] - cor_a1a2b_x1x2zy[a1, a2, b, x1, x2, 1, y]) > tol:
+            return False
+
+    # Finally, check if a1b is independent of x2
+    cor_a1b_x1x2y = np.einsum('ijklmnop->ilmnop', cor)
+    for a1, b, x1, z, y in vs.cart(B, B, B, B, B):  # actually only have to check for z=0 due to previous paragraph
+        if abs(cor_a1b_x1x2y[a1, b, x1, 0, z, y] - cor_a1b_x1x2y[a1, b, x1, 1, z, y]) > tol:
+            return False
+    return True
+
+
+def make_pacb_xzy(rho_ctb, instrs_A1, instrs_A2, instrs_CT, instrs_B, dT, dB):
+    """ All provided instruments should be CJ reps of instruments in the form of 4x4 matrices, NOT transposes of those (so not 'taus'). """
+    # Check if all arguments are valid instruments
+    for instr in np.r_[instrs_A1, instrs_A2]:
+        qm.assert_is_quantum_instrument(instr, dT, dT)
+    for instr in instrs_B:
+        qm.assert_is_quantum_instrument(instr, dB, 1)
+    for instr in instrs_CT:
+        qm.assert_is_quantum_instrument(instr, 2 * dT, 1)
+    qm.assert_is_quantum_instrument([rho_ctb], 1, 2 * dT * dB, num_of_outcomes=1)  # essentially checks that rho_ctb is a valid state (density matrix)
+
+    # Make correlation. For explanation see make_pacb_xy in quantum_utils.py
+    tau_dim = rho_ctb.shape[0] * instrs_A1[0][0].shape[0] * instrs_A2[0][0].shape[0] * instrs_CT[0][0].shape[0] * instrs_B[0][0].shape[0]
+
+    # Define some index labels:
+    _a1, _a2, _c, _b, _x1, _x2, _z, _y = 0, 1, 2, 3, 4, 5, 6, 7
+    _CTBo, _CTBi, _A1o, _A1i, _A2o, _A2i, _CTo, _CTi, _Bo, _Bi = 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
+
+    # Construct all_taus:
+    all_taus = np.einsum(rho_ctb, [_CTBo, _CTBi], instrs_A1, [_x1, _a1, _A1o, _A1i], instrs_A2, [_x2, _a2, _A2o, _A2i],
+                         instrs_CT, [_z, _c, _CTo, _CTi], instrs_B, [_y, _b, _Bo, _Bi],
+                         [_a1, _a2, _c, _b, _x1, _x2, _z, _y, _CTBi, _A1i, _A2i, _CTi, _Bi, _CTBo, _A1o, _A2o, _CTo, _Bo])
+    all_taus2 = all_taus.reshape((2, 2, 2, 2, 2, 2, 2, 2, tau_dim, tau_dim))
+    del all_taus
+
+    # Born rule:
+    pacb_xzy = np.einsum('ij,...ji->...', qm.process_operator_switch(dT, dB), all_taus2, optimize='optimal')
+    del all_taus2
+    if np.max(np.imag(pacb_xzy)) > 1e-15:
+        print("WARNING - DETECTED A LARGE IMAGINARY VALUE IN PROBABILITY: %s" % str(np.max(np.imag(pacb_xzy))))
+    return np.real(pacb_xzy)
+
+
+def make_pacb_xzy_nss_h(rho_ctb, instrs_A1, instrs_A2, instrs_CT, instrs_B, dT, dB):
+    return vs.construct_full_to_NSS_homog(8, 2, 8, 2) @ np.r_[make_pacb_xzy(rho_ctb, instrs_A1, instrs_A2, instrs_CT, instrs_B, dT, dB).reshape(2 ** 8), [1]]
+
+
+def is_switch_cor_in_lc(rho_ctb, instrs_A1, instrs_A2, instrs_CT, instrs_B, dT, dB, tol=1e-12, method='highs'):
+    cor = make_pacb_xzy_nss_h(rho_ctb, instrs_A1, instrs_A2, instrs_CT, instrs_B, dT, dB)
+    if is_cor_in_lc(cor, tol=tol, method=method).success:
+        return 'In LC', cor
+    else:
+        return 'Not in LC', cor
+
+
+def chsh_rep_2222():
+    ineq_full = np.zeros(17, dtype='int')
+    for a, b, x, y in itertools.product(B, repeat=4):
+        if (a + b) % 2 == x * y:
+            ineq_full[vs.concatenate_bits(a, b, x, y)] += 1
+    ineq_full[-1] = -2
+    assert False
+    ineq_nss_gisin = np.array([-1, 0, -1, 0, 1, 1, 1, -1, 0])  # this is probably the correct one
+    return vs.construct_full_to_NSS_homog(2, 2, 2, 2) @ ineq_full
+
+
+def nss_var_perm_to_symm_h_2222(perm, dtype='int'):
+    perm_matrix = symmetry_utils.full_perm_to_symm_homog(perm, num_of_binary_vars=4, dtype=dtype)
+    return vs.construct_full_to_NSS_homog(2, 2, 2, 2) @ perm_matrix @ vs.construct_NSS_to_full_homogeneous(2, 2, 2, 2)
+
+
+def bell_2222_symmetries():
+    return [
+        nss_var_perm_to_symm_h_2222(lambda a, b, x, y: (a, b, x, (y + 1) % 2)),
+        nss_var_perm_to_symm_h_2222(lambda a, b, x, y: (a, b, (x + 1) % 2, y)),
+        nss_var_perm_to_symm_h_2222(lambda a, b, x, y: (a, (b + y) % 2, x, y)),
+        nss_var_perm_to_symm_h_2222(lambda a, b, x, y: ((a + x) % 2, b, x, y)),
+        nss_var_perm_to_symm_h_2222(lambda a, b, x, y: (b, a, y, x)),
+    ]
+
+
+def print_chsh_violations(p_acbxzy_nss):
+    p_full = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2) @ p_acbxzy_nss
+    p_full = (1 / p_full[-1] * p_full[:-1]).reshape((2,) * 8)
+    bell_facets = utils.read_vertex_range_from_file('panda-files/chsh_2222')
+    p_cbxzy = np.einsum('aecbxwzy->cbxwzy', p_full)
+    for x1, x2 in vs.cart(B, B):
+        cor = np.r_[vs.construct_full_to_NSS_matrix(2, 2, 2, 2) @ p_cbxzy[:, :, x1, x2, :, :].reshape(16), [1]]
+        print('CHSH violation for x1=%d, x2=%d: %s' % (x1, x2, str(utils.max_violation_h(cor, bell_facets))))
+    p_cbzy_avg = 1 / 4 * (p_cbxzy[:, :, 0, 0, :, :] + p_cbxzy[:, :, 0, 1, :, :] + p_cbxzy[:, :, 1, 0, :, :] + p_cbxzy[:, :, 1, 1, :, :])
+    p_cbzy_avg = np.r_[vs.construct_full_to_NSS_matrix(2, 2, 2, 2) @ p_cbzy_avg.reshape(16), [1]]
+    print('CHSH violation of averaged correlation: %s' % str(utils.max_violation_h(p_cbzy_avg, bell_facets)))
+
+
+if __name__ == '__main__':
+    # print(is_switch_cor_in_lc(
+    #     rho_ctb=qm.rho_tcb_0phi,
+    #     instrs_A1=[qm.instr_proj_mmt_nondestr(qm.random_ket()), qm.instr_proj_mmt_nondestr(qm.random_ket())],
+    #     instrs_A2=[qm.instr_proj_mmt_nondestr(qm.random_ket()), qm.instr_proj_mmt_nondestr(qm.random_ket())],
+    #     instrs_CT=[qm.instr_random_destr_2outcome_vn_mmt(dim=4), qm.instr_random_destr_2outcome_vn_mmt(dim=4)],
+    #     instrs_B=[qm.instr_proj_mmt_destr(qm.random_ket()), qm.instr_proj_mmt_destr(qm.random_ket())],
+    #     dT=2, dB=2
+    # ))
+    # print(is_switch_cor_in_lc(
+    #     rho_ctb=qm.rho_tcb_0phi,
+    #     instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+    #     instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+    #     instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.z_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.x_onb))],
+    #     instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.x_onb)],
+    #     dT=2, dB=2
+    # ))
+
+    result, cor = is_switch_cor_in_lc(method='interior-point', tol=1e-3,
+        rho_ctb=qm.rho_tcb_0phi,
+        instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+        instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+        instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag1_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag2_onb))],  # or qm.diag1_onb or qm.onb_from_direction(np.pi/3)
+        instrs_B=[qm.instr_vn_destr(qm.diag1_onb), qm.instr_vn_destr(qm.diag2_onb)],  # TODO think about why this violates LC!
+        dT=2, dB=2
+    )
+    print(result)
+    print_chsh_violations(cor)
+
+    # result, test_cor = is_switch_cor_in_lc(
+    #     rho_ctb=qm.rho_tcb_0phi,
+    #     instrs_A1=[qm.instr_do_nothing, qm.instr_do_nothing],
+    #     instrs_A2=[qm.instr_do_nothing, qm.instr_do_nothing],
+    #     instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.z_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.x_onb))],
+    #     instrs_B=[qm.instr_vn_destr(qm.diag1_onb), qm.instr_vn_destr(qm.diag2_onb)],
+    #     dT=2, dB=2
+    # )
+    # print(result)
+    # print_chsh_violations(test_cor)
+
+    # TODO write down the distr analytically and prove that the decomposition is unique using my previously used techniques

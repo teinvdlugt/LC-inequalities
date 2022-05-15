@@ -13,7 +13,7 @@ B = (0, 1)
 
 ## NSS (i.e. pure Bell) stuff
 def nss_symmetry_generators(na, nb, nx, ny, var_names):
-    """ var_names should have length dim_NSS(na, nb, nx, ny). 'generators' because it returns a generating subset of all symmetries
+    """ var_names should have length dim_nss(na, nb, nx, ny). 'generators' because it returns a generating subset of all symmetries
      (namely those given by 'neighbourly 2-cycles'). """
     symmetries = []  # array of strings
 
@@ -56,7 +56,7 @@ def nss_symmetry_generators(na, nb, nx, ny, var_names):
 
 """
 def nss_var_perm_to_symm(ra_perms, rb_perms, rx_perm, ry_perm, var_names):
-    \""" Returns a string of dim_NSS algebraic expressions separated by spaces. The i-th expression represents the
+    \""" Returns a string of dim_nss algebraic expressions separated by spaces. The i-th expression represents the
     i-th NSS coordinate of p^σ, which is the probability distribution defined by pullback p^σ = p∘σ, where σ is the
     permutation defined by ra_perms, rb_perms, rx_perm, ry_perm. [See p122]
     :param rx_perm: permutation of rx = range(0, nx)
@@ -75,7 +75,7 @@ def nss_var_perm_to_symm(ra_perms, rb_perms, rx_perm, ry_perm, var_names):
     rx = range(0, nx)
     ry = range(0, ny)
 
-    dim_NSS = vs.dim_NSS(na, nb, nx, ny)
+    dim_nss = vs.dim_nss(na, nb, nx, ny)
 
     get_full_index = lambda a, b, x, y: a * nb * nx * ny + b * nx * ny + x * ny + y
 
@@ -88,7 +88,7 @@ def nss_var_perm_to_symm(ra_perms, rb_perms, rx_perm, ry_perm, var_names):
         # Now need to find expression of p^σ(a|x) = p(_a|_x) in terms of NSS-cpts of p.
         # p(_a|_x) = sum_b p(_a b|_x 0), so need to find expression of p(_a b|_x 0) in terms of NSS coords.
         # p(_a b|_x 0) = get_full_index(_a,b,_x,0)-th row of NSS_to_full_matrix_but_weird, PLUS 1 if (_a,b)=(na-1,nb-1)
-        NSS_vector = np.zeros(dim_NSS)
+        NSS_vector = np.zeros(dim_nss)
         for b in range(0, nb):
             NSS_vector += NSS_to_full_matrix_but_weird[get_full_index(_a, b, _x, 0)]
         # If a=na-1, then since (a,b) has been (na-1,nb-1) once in the above loop, we have to correct for weirdness once, by adding 1.
@@ -97,7 +97,7 @@ def nss_var_perm_to_symm(ra_perms, rb_perms, rx_perm, ry_perm, var_names):
     for b, y in itertools.product(rb[:-1], ry):
         _y = ry_perm[y]  # NOTE _x means σ(x), sim. for other variables in below code.
         _b = rb_perms[_y][b]
-        NSS_vector = np.zeros(dim_NSS)
+        NSS_vector = np.zeros(dim_nss)
         for a in range(0, na):  # Now summing over a
             NSS_vector += NSS_to_full_matrix_but_weird[get_full_index(a, _b, 0, _y)]
         result.append(vector_to_expression(NSS_vector, var_names, _b == nb - 1))
@@ -118,15 +118,16 @@ def nss_var_perm_to_symm(ra_perms, rb_perms, rx_perm, ry_perm, var_names):
 """
 
 
-def full_perm_to_symm_homog(perm, dtype='int'):
+def full_perm_to_symm_homog(perm, num_of_binary_vars=7, dtype='int'):
     """ Creates permutation matrix corresponding to perm, with added row & column for homogeneity. Multiplying a full homogeneous (i.e. length-129) correlation vector
     to the right of this matrix gives you the pullback of the correlation along perm. """
+    dim_full = 2 ** num_of_binary_vars
     return np.r_[
         np.array([
-            utils.one_hot_vector(129, vs.concatenate_bits(*perm(*var_tuple)), dtype=dtype)
-            for var_tuple in itertools.product((0, 1), repeat=7)
+            utils.one_hot_vector(dim_full + 1, vs.concatenate_bits(*perm(*var_tuple)), dtype=dtype)
+            for var_tuple in itertools.product((0, 1), repeat=num_of_binary_vars)
         ]),
-        [utils.one_hot_vector(129, -1, dtype=dtype)]
+        [utils.one_hot_vector(dim_full + 1, -1, dtype=dtype)]
     ]
 
 
@@ -134,14 +135,14 @@ def full_perm_to_symm(perm, dtype='int'):
     """ Creates permutation matrix corresponding to perm. Multiplying a full (i.e. length-128) correlation vector
     to the right of this matrix gives you the pullback of the correlation along perm. """
     return np.array([
-            utils.one_hot_vector(128, vs.concatenate_bits(*perm(*var_tuple)), dtype=dtype)
-            for var_tuple in itertools.product((0, 1), repeat=7)
-        ])
+        utils.one_hot_vector(128, vs.concatenate_bits(*perm(*var_tuple)), dtype=dtype)
+        for var_tuple in itertools.product((0, 1), repeat=7)
+    ])
 
 
 def nss_var_perm_to_symm(perm, dtype='int'):
     """ Constructs (87,87) symmetry matrix M by using that NtoF @ M @ FtoN == Sigma, the permutation matrix. """
-    perm_matrix = full_perm_to_symm_homog(perm, dtype)
+    perm_matrix = full_perm_to_symm_homog(perm, dtype=dtype)
     return vs.construct_full_to_NSS_homog(8, 2, 4, 2) @ perm_matrix @ vs.construct_NSS_to_full_homogeneous()
 
 

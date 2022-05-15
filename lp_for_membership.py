@@ -10,7 +10,7 @@ import vector_space_utils as vs
 
 def lp_without_vertices_nss_coords(p_test, tol=1e-12, method='highs', double_check_soln=False):
     """
-    Uses the 'LP without vertices'/'LP with LC constraints' method to determine LC membership of p_test. See [p210].
+    Uses the 'LP without vertices'/'LP with LC constraints' method to determine LC membership of p_nss. See [p210].
     This method uses LP on 174 unknowns with 357 constraints and no objective function. TODO 377 can be reduced by using linear dependence of constraints
     scipy.optimize.linprog docs: https://docs.scipy.org/doc/scipy/reference/optimize.linprog-interior-point.html
     :param p_test: Should be in NSS representation, so a length-86 vector. If it's length-87 then it's assumed to represent homogeneous coordinates.
@@ -34,7 +34,7 @@ def lp_without_vertices_nss_coords(p_test, tol=1e-12, method='highs', double_che
     cons_ii_matrix[0, 173] = 1
     cons_ii_b = np.array([1, ])
 
-    # Constraint iii: sum_λ p(...λ|..) = p_test(...|..)
+    # Constraint iii: sum_λ p(...λ|..) = p_nss(...|..)
     cons_iii_matrix = np.concatenate((np.identity(86), np.zeros((86, 1), dtype='int'),
                                       np.identity(86), np.zeros((86, 1), dtype='int')), axis=1)
     cons_iii_b = p_test
@@ -81,7 +81,7 @@ def lp_without_vertices_nss_coords(p_test, tol=1e-12, method='highs', double_che
         p2_full_homog_swapped = swap_A1_A2_matrix @ p2_full_homog
         assert vs.is_in_NSCO1(p2_full_homog_swapped, tol)
 
-        # check that p(λ=0) p1 + p(λ=1) p2 = p_test
+        # check that p(λ=0) p1 + p(λ=1) p2 = p_nss
         sum_p1_p2 = p1_nss_homog[:-1] + p2_nss_homog[:-1]
         assert np.all(np.abs(sum_p1_p2 - p_test) < tol)
 
@@ -183,8 +183,8 @@ def test_membership_of_quantum_cors(lp_method=lp_without_vertices_nss_coords, qu
 if __name__ == '__main__':
     print(lp_without_vertices_nss_coords(
         qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_ctb_plusphiplus,
-                                  instrs_A1=[qm.instr_measure_and_send_fixed_state(qm.z_onb, qm.ket0), qm.instr_measure_and_send_fixed_state(qm.z_onb, qm.ket0)],
-                                  instrs_A2=[qm.instr_measure_and_send_fixed_state(qm.z_onb, qm.ket0), qm.instr_measure_and_send_fixed_state(qm.z_onb, qm.ket0)],
+                                  instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket0)],
+                                  instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket0)],
                                   instr_C=qm.instr_vn_destr(qm.x_onb),
                                   instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.x_onb)])
     ).success)

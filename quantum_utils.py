@@ -50,10 +50,7 @@ def process_operator_switch(dT=2, dB=2):
 
 
 def make_pacb_xy_noTmmt(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT, dB):
-    # instr_CT should be Ci ⊗ Ti (not ⊗Co⊗To, because output systems are trivial), with Ci ⊗ Co in (CJ) state
-    # instr_C and Ti in state np.identity(dT).
-    instr_CT = kron(instr_C, np.identity(dT))
-    return make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT, dB)
+    return make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_C_to_instr_CT(instr_C), instrs_B, dT, dB)
 
 
 def make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT, dB):
@@ -165,10 +162,7 @@ def random_quantum_setup_qubit_vn():
     rho_ctb = random_pure_density_matrix()
     instrs_A1 = np.array([instr_proj_mmt_nondestr(random_ket()), instr_proj_mmt_nondestr(random_ket())])
     instrs_A2 = np.array([instr_proj_mmt_nondestr(random_ket()), instr_proj_mmt_nondestr(random_ket())])
-    # For the mmt on CT, take a projective measurement, either with projections of rank 2 and 2 or with projections of rank 1 and 3.
-    ct_proj_rank = np.random.randint(1, 3)
-    ct_proj = random_orth_proj(4, ct_proj_rank)
-    instr_CT = np.array([nondestr_cj_to_destr_cj(kraus_op_to_cj(ct_proj)), nondestr_cj_to_destr_cj(kraus_op_to_cj(np.identity(4) - ct_proj))])
+    instr_CT = instr_random_destr_2outcome_vn_mmt(dim=4)
     instrs_B = np.array([instr_proj_mmt_destr(random_ket()), instr_proj_mmt_destr(random_ket())])
     return rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, 2, 2
 
@@ -176,7 +170,7 @@ def random_quantum_setup_qubit_vn():
 def somewhat_random_qubit_instr_nondestr():
     return np.random.choice([
         instr_proj_mmt_nondestr(random_ket()),
-        instr_measure_and_send_fixed_state(random_onb(), random_ket()),
+        instr_measure_and_prepare(random_onb(), random_ket()),
         instr_do_nothing,
         np.array([kraus_op_to_cj(random_unitary(dim=2)), kraus_op_to_cj(np.zeros(2, 2))]),
         instr_weak_vN_nondestr(random_ket(), noise=np.random.rand())
@@ -537,6 +531,13 @@ def random_orth_proj(dim, rank):
     return np.einsum('ki,kj->ij', kets, kets.conj())  # 'k' indexes the kets, i and j the kets' dimensions.
 
 
+def instr_random_destr_2outcome_vn_mmt(dim=2):
+    rank = np.random.randint(1, dim)  # rank of one of the projections. The other rank will be dim - rank
+    proj0 = random_orth_proj(dim, rank)
+    proj1 = np.identity(dim) - proj0
+    return np.array([nondestr_cj_to_destr_cj(kraus_op_to_cj(proj0)), nondestr_cj_to_destr_cj(kraus_op_to_cj(proj1))])
+
+
 def nondestr_cj_to_destr_cj(nondestr_cj):
     """ Traces out the output system from a CJ state. Assumes that the passed CJ state represents a CP map that has output system dim equal to input system dim. """
     assert len(nondestr_cj.shape) == 2 and nondestr_cj.shape[0] == nondestr_cj.shape[1]
@@ -563,8 +564,8 @@ def instr_vn_destr(onb):
     return instr_proj_mmt_destr(onb[0])
 
 
-def instr_measure_and_send_fixed_state(onb, fixed_ket):
-    return np.array([kraus_op_to_cj(np.array([fixed_ket]).T @ [ket.conj()]) for ket in onb])  # |fixed_ket><ket|
+def instr_measure_and_prepare(onb, ket_to_prepare):
+    return np.array([kraus_op_to_cj(np.array([ket_to_prepare]).T @ [ket.conj()]) for ket in onb])  # |ket_to_prepare><ket|
 
 
 def instr_proj_mmt_nondestr(ket):
@@ -583,8 +584,8 @@ def instr_weak_vN_nondestr(ket, noise, unitary=None):
         unitary = np.identity(2)
     proj0 = proj(ket)
     proj1 = np.identity(2) - proj0
-    kraus0 = unitary @ (sqrt(noise/2) * np.identity(2) + 1j * sqrt(1 - noise) * proj0)
-    kraus1 = unitary @ (sqrt(noise/2) * np.identity(2) + 1j * sqrt(1 - noise) * proj1)
+    kraus0 = unitary @ (sqrt(noise / 2) * np.identity(2) + 1j * sqrt(1 - noise) * proj0)
+    kraus1 = unitary @ (sqrt(noise / 2) * np.identity(2) + 1j * sqrt(1 - noise) * proj1)
     return np.array([kraus_op_to_cj(kraus0), kraus_op_to_cj(kraus1)])
 
 
@@ -592,9 +593,14 @@ def instr_proj_mmt_destr(ket):
     return np.array([nondestr_cj_to_destr_cj(cj) for cj in instr_proj_mmt_nondestr(ket)])
 
 
+def instr_C_to_instr_CT(instr_C, dT=2):
+    # instr_CT should be Ci ⊗ Ti (not ⊗Co⊗To, because output systems are trivial), with Ci in (CJ) state
+    # instr_C and Ti in state np.identity(dT).
+    return np.array([kron(cj, np.identity(dT)) for cj in instr_C])
+
+
 # instr_do_nothing = np.array([proj(phi_plus_un), np.zeros((4, 4), dtype='int')])     gives same as:
 instr_do_nothing = np.array([kraus_op_to_cj(np.identity(2)).astype('int'), kraus_op_to_cj(np.zeros((2, 2))).astype('int')])  # outcome is 0 with probability 1
-
 
 if __name__ == '__main__':
     # To test quantum_cor_from_complete_vn_mmts_new and make_pacb_xy_new:
@@ -635,10 +641,10 @@ if __name__ == '__main__':
 
     # TODO continue testing this:
     """cor = make_pacb_xy(rho_ctb=random_pure_density_matrix(True),
-                       # instrs_A1=[instr_do_nothing, instr_measure_and_send_fixed_state(z_onb, ket0)],
-                       # instrs_A2=[instr_do_nothing, instr_measure_and_send_fixed_state(z_onb, ket0)],
-                       instrs_A1=[instr_measure_and_send_fixed_state(random_onb(), random_onb()[0]), instr_measure_and_send_fixed_state(random_onb(), random_onb()[0])],
-                       instrs_A2=[instr_measure_and_send_fixed_state(random_onb(), random_onb()[0]), instr_measure_and_send_fixed_state(random_onb(), random_onb()[0])],
+                       # instrs_A1=[instr_do_nothing, instr_measure_and_prepare(z_onb, ket0)],
+                       # instrs_A2=[instr_do_nothing, instr_measure_and_prepare(z_onb, ket0)],
+                       instrs_A1=[instr_measure_and_prepare(random_onb(), random_onb()[0]), instr_measure_and_prepare(random_onb(), random_onb()[0])],
+                       instrs_A2=[instr_measure_and_prepare(random_onb(), random_onb()[0]), instr_measure_and_prepare(random_onb(), random_onb()[0])],
                        instr_C=instr_vn_destr(x_onb),
                        instrs_B=[instr_vn_destr(random_onb()), instr_vn_destr(random_onb())],
                        dT=2, dB=2) \
@@ -664,14 +670,6 @@ if __name__ == '__main__':
             sys.stdout.flush()
     """
 
-    # TODO fix this!
-    cor_nss = quantum_cor_nss_from_complete_vn_mmts_noTmmt(rho_ctb_plusphiplus, [z_onb, x_onb], [z_onb, x_onb], z_onb, [z_onb, x_onb])
-    cor_full = vs.construct_NSS_to_full_homogeneous() @ cor_nss
-    cor_full = 1 / cor_full[-1] * cor_full[:-1]
-    vs.write_cor_to_file(cor_full, 'tmp')
-    swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm(lambda a1, a2, c, b, x1, x2, y: (a2, a1, c, b, x2, x1, y))
-    print(np.max(np.abs(cor_full - swap_A1_A2_matrix @ cor_full)))  # TODO WHY IS THIS NOT ZERO???????
-    print(vs.is_in_NSCO1(cor_full, tol=1e-8))
-    print(vs.is_in_NSCO2(cor_full, tol=1e-8))
+    # cor_nss = quantum_cor_nss_from_complete_vn_mmts_noTmmt(rho_ctb_plusphiplus, [z_onb, x_onb], [z_onb, x_onb], z_onb, [z_onb, x_onb])
 
     # qm_cors = generate_some_quantum_cors_complete_vn(num_of_random_cors=10)

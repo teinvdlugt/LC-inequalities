@@ -1,0 +1,11 @@
+DIM=8
+Names:
+a0 a1 b0 b1 ab00 ab01 ab10 ab11
+Maps:
++a0 +a1 +b1 +b0 +ab01 +ab00 +ab11 +ab10
++a1 +a0 +b0 +b1 +ab10 +ab11 +ab00 +ab01
++a0 +a1 +b0 1-b1 +ab00 +a0-ab01 +ab10 +a1-ab11
++a0 1-a1 +b0 +b1 +ab00 +ab01 +b0-ab10 +b1-ab11
++b0 +b1 +a0 +a1 +ab00 +ab10 +ab01 +ab11
+Inequalities:
+1  1  1  1  1  1  1  0 -2

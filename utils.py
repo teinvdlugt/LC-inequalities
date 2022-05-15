@@ -102,3 +102,22 @@ def reciprocal_or_zero(array):
 def normalise_h(row):
     """ Rescale a vector so as to have the last coordinate equal to 1. """
     return 1/row[-1] * row
+
+
+def max_violation_h(cors, facets):
+    cors = np.array(cors)
+    facets = np.array(facets)
+
+    assert len(cors.shape) in [1, 2]
+    if len(cors.shape) == 1:
+        cors = cors.reshape((1, len(cors)))
+
+    assert len(facets.shape) in [1, 2]
+    if len(facets.shape) == 1:
+        facets = facets.reshape((len(cors), 1))
+
+    # renormalise the cors
+    for i in range(len(cors)):
+        cors[i] = 1. / cors[i][-1] * cors[i]
+
+    return np.max(facets @ cors.T)

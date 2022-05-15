@@ -85,7 +85,7 @@ def construct_NSS_to_full_homogeneous(na=8, nb=2, nx=4, ny=2):
 
 def construct_full_to_NSS_matrix(na, nb, nx, ny):
     """
-    Make and return matrix that converts shape (na*nb*nx*ny) vectors (full dimension) to shape (dim_NSS(na, nb, nx, ny),)
+    Make and return matrix that converts shape (na*nb*nx*ny) vectors (full dimension) to shape (dim_nss(na, nb, nx, ny),)
     vectors (NSS representation). ith row of the matrix represents ith NSS coordinate
     """
 
