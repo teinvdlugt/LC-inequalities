@@ -118,6 +118,44 @@ def is_cor_in_lc(p_nss, tol=1e-12, method='highs', double_check_soln=True):
     return lp
 
 
+def maximum_violation_by_LC_lp(ineq, method='highs', tol=1e-12, double_check_soln=True):
+    ineq = np.array(ineq)
+    assert ineq.shape == (dim_nss + 1,)
+
+    A_ub, b_ub, A_eq, b_eq = constraints_is_valid_lc_deco()
+
+    # Objective function to minimise: -ineq @ (λp^1 + (1-λ)p^2)
+    matrix = np.concatenate((np.identity(dim_nss + 1), np.identity(dim_nss + 1)), axis=1)  # multiplying the vector of unknowns with this gives the homogeneous nss representation of (λp^1 + (1-λ)p^2)
+    c = -ineq @ matrix
+
+    # Do LP
+    options = None if method == 'highs' else {'tol': tol}
+    lp = linprog(c, A_ub, b_ub, A_eq, b_eq, bounds=(0, 1), options=options, method=method)
+
+    # Check solution
+    if double_check_soln and lp.success:
+        # check that p1 := lp.x[:dim_nss + 1] is in NSCO1
+        p1_nss_homog = lp.x[:dim_nss + 1]  # this homogeneous vector represents the conditional distr p(a1a2cb|x1x2zy,λ=0)
+        if p1_nss_homog[-1] != 0:  # if p(λ=0) != 0
+            p1_full_homog = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2) @ p1_nss_homog
+            assert is_in_NSCO1z(p1_full_homog, tol)
+
+        # check that p2 := lp.x[dim_nss + 1: 2 * dim_nss + 2] is in NSCO2
+        p2_nss_homog = lp.x[dim_nss + 1: 2 * dim_nss + 2]
+        if p2_nss_homog[-1] != 0:  # if p(λ=1) != 0
+            p2_full_homog = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2) @ p2_nss_homog
+            swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm_homog(lambda a1, a2, c, b, x1, x2, z, y: (a2, a1, c, b, x2, x1, z, y), num_of_binary_vars=8)
+            p2_full_homog_swapped = swap_A1_A2_matrix @ p2_full_homog
+            assert is_in_NSCO1z(p2_full_homog_swapped, tol)
+
+        # Check that inequality is indeed violated by lp.sol
+        sum_p1_p2_h = p1_nss_homog + p2_nss_homog
+        assert abs(lp.fun + ineq @ sum_p1_p2_h) < tol
+
+    assert lp.success
+    return -lp.fun
+
+
 def is_in_NSCO1z(cor, tol=1e-12):
     """ cor should be given in full representation, i.e. be of length 256 or 257 """
     if len(cor) == 257:
@@ -191,14 +229,12 @@ def is_switch_cor_in_lc(rho_ctb, instrs_A1, instrs_A2, instrs_CT, instrs_B, dT, 
 
 
 def chsh_rep_2222():
-    ineq_full = np.zeros(17, dtype='int')
+    ineq_full = np.zeros(17)
     for a, b, x, y in itertools.product(B, repeat=4):
         if (a + b) % 2 == x * y:
-            ineq_full[vs.concatenate_bits(a, b, x, y)] += 1
-    ineq_full[-1] = -2
-    assert False
-    ineq_nss_gisin = np.array([-1, 0, -1, 0, 1, 1, 1, -1, 0])  # this is probably the correct one
-    return vs.construct_full_to_NSS_homog(2, 2, 2, 2) @ ineq_full
+            ineq_full[vs.concatenate_bits(a, b, x, y)] += 1. / 4
+    ineq_full[-1] = 0
+    return vs.construct_NSS_to_full_homogeneous(2, 2, 2, 2).T @ ineq_full
 
 
 def nss_var_perm_to_symm_h_2222(perm, dtype='int'):
@@ -229,44 +265,78 @@ def print_chsh_violations(p_acbxzy_nss):
     print('CHSH violation of averaged correlation: %s' % str(utils.max_violation_h(p_cbzy_avg, bell_facets)))
 
 
+def ineq1():  # TODO is this one violated by the switch too?
+    """ The first violated LC inequality I found, and which I wrote in the note to Giulio and Jon. """
+    ineq_full = np.zeros((2,) * 8)
+    for a1, a2, c, b, x1, x2, z, y in itertools.product((0, 1), repeat=8):
+        if b == 0 and a2 == x1 and y == 0:
+            ineq_full[a1, a2, c, b, x1, x2, z, y] += 1 / 8
+        if b == 1 and a1 == x2 and y == 0:
+            ineq_full[a1, a2, c, b, x1, x2, z, y] += 1 / 8
+        if (b + c) % 2 == y * z and x1 == x2 == 0:
+            ineq_full[a1, a2, c, b, x1, x2, z, y] += 1 / 4
+    ineq_full_h = np.r_[ineq_full.flatten(), [0]]
+    ineq_nss_h = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2).T @ ineq_full_h
+    return ineq_nss_h
+
+
+def ineq2():
+    ineq_full = np.zeros((2,) * 8)
+    for a1, a2, c, b, x1, x2, z, y in itertools.product((0, 1), repeat=8):
+        if b == 0 and a2 == x1 and y == 0:
+            ineq_full[a1, a2, c, b, x1, x2, z, y] += 1 / 8
+        if b == 1 and a1 == x2 and y == 0:
+            ineq_full[a1, a2, c, b, x1, x2, z, y] += 1 / 8
+        if (b + c) % 2 == ((y + 1) % 2) * z and x1 == x2 == 0:  # due to some symmetry inconvenience, this one (with y+1) is violated by the switch cor described in my note.
+            ineq_full[a1, a2, c, b, x1, x2, z, y] += 1 / 4
+    ineq_full_h = np.r_[ineq_full.flatten(), [0]]
+    ineq_nss_h = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2).T @ ineq_full_h
+    return ineq_nss_h
+
+
+def ineq_beta_gamma_delta(beta, gamma, delta):
+    """ See note """
+    ineq_full = np.zeros((2,) * 8)
+    for a1, a2, c, b, x1, x2, z, y in itertools.product((0, 1), repeat=8):
+        if b == 0 and a2 == (x1 + beta * z) % 2 and y == delta:
+            ineq_full[a1, a2, c, b, x1, x2, z, y] += 1 / 8
+        if b == 1 and a1 == (x2 + gamma * z) % 2 and y == delta:
+            ineq_full[a1, a2, c, b, x1, x2, z, y] += 1 / 8
+        if (b + c) % 2 == y * z and x1 == x2 == 0:
+            ineq_full[a1, a2, c, b, x1, x2, z, y] += 1 / 4
+    ineq_full_h = np.r_[ineq_full.flatten(), [0]]
+    ineq_nss_h = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2).T @ ineq_full_h
+    return ineq_nss_h
+
+
 if __name__ == '__main__':
-    # print(is_switch_cor_in_lc(
-    #     rho_ctb=qm.rho_tcb_0phi,
-    #     instrs_A1=[qm.instr_proj_mmt_nondestr(qm.random_ket()), qm.instr_proj_mmt_nondestr(qm.random_ket())],
-    #     instrs_A2=[qm.instr_proj_mmt_nondestr(qm.random_ket()), qm.instr_proj_mmt_nondestr(qm.random_ket())],
-    #     instrs_CT=[qm.instr_random_destr_2outcome_vn_mmt(dim=4), qm.instr_random_destr_2outcome_vn_mmt(dim=4)],
-    #     instrs_B=[qm.instr_proj_mmt_destr(qm.random_ket()), qm.instr_proj_mmt_destr(qm.random_ket())],
-    #     dT=2, dB=2
-    # ))
-    # print(is_switch_cor_in_lc(
-    #     rho_ctb=qm.rho_tcb_0phi,
-    #     instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
-    #     instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
-    #     instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.z_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.x_onb))],
-    #     instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.x_onb)],
-    #     dT=2, dB=2
-    # ))
-
-    result, cor = is_switch_cor_in_lc(method='interior-point', tol=1e-3,
-        rho_ctb=qm.rho_tcb_0phi,
-        instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
-        instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
-        instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag1_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag2_onb))],  # or qm.diag1_onb or qm.onb_from_direction(np.pi/3)
-        instrs_B=[qm.instr_vn_destr(qm.diag1_onb), qm.instr_vn_destr(qm.diag2_onb)],  # TODO think about why this violates LC!
-        dT=2, dB=2
-    )
-    print(result)
-    print_chsh_violations(cor)
-
-    # result, test_cor = is_switch_cor_in_lc(
-    #     rho_ctb=qm.rho_tcb_0phi,
-    #     instrs_A1=[qm.instr_do_nothing, qm.instr_do_nothing],
-    #     instrs_A2=[qm.instr_do_nothing, qm.instr_do_nothing],
-    #     instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.z_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.x_onb))],
-    #     instrs_B=[qm.instr_vn_destr(qm.diag1_onb), qm.instr_vn_destr(qm.diag2_onb)],
-    #     dT=2, dB=2
-    # )
+    ## Demonstrating violation of LC:
+    # result, cor = is_switch_cor_in_lc(method='interior-point', tol=1e-3,
+    #                                   rho_ctb=qm.rho_tcb_0phi,
+    #                                   instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+    #                                   instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+    #                                   instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag1_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag2_onb))],
+    #                                   instrs_B=[qm.instr_vn_destr(qm.diag1_onb), qm.instr_vn_destr(qm.diag2_onb)],  # TODO think about why this violates LC!
+    #                                   dT=2, dB=2
+    #                                   )
     # print(result)
-    # print_chsh_violations(test_cor)
+    # print_chsh_violations(cor)
 
-    # TODO write down the distr analytically and prove that the decomposition is unique using my previously used techniques
+    ## Checking my analytical calculations about the inequality ineq1()
+    ineq = ineq2()
+    print(maximum_violation_by_LC_lp(ineq))  # Indeed gives 7/4!
+    print(ineq @ make_pacb_xzy_nss_h(rho_ctb=qm.rho_tcb_0phi,
+                                        instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                                        instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                                        instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag1_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag2_onb))],
+                                        instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.x_onb)],
+                                        dT=2, dB=2))  # Indeed gives 3/2 + 1/(2sqrt2) !
+
+    ## Computing maximal LC value for the 'beta,gamma,delta' inequalities (see note)
+    """
+    for beta, gamma, delta in itertools.product(B, repeat=3):
+        print('%d,%d,%d: %s' % (beta, gamma, delta, str(maximum_violation_by_LC_lp(ineq_beta_gamma_delta(beta, gamma, delta)))))
+    """
+
+
+
