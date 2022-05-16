@@ -1,4 +1,6 @@
+import functools
 import itertools
+import math
 
 import numpy as np
 from scipy.optimize import linprog
@@ -309,6 +311,69 @@ def ineq_beta_gamma_delta(beta, gamma, delta):
     return ineq_nss_h
 
 
+def construct_vertices():
+    # Construct marginalisation map Sigma_c : LC_acbxy -> LC_abxy
+    marg_map_f_h = np.zeros((65, 129), dtype='int8')
+    for a1, a2, b, x1, x2, y in itertools.product(B, repeat=6):
+        marg_map_f_h[vs.concatenate_bits(a1, a2, b, x1, x2, y)][vs.concatenate_bits(a1, a2, 0, b, x1, x2, y)] = 1
+        marg_map_f_h[vs.concatenate_bits(a1, a2, b, x1, x2, y)][vs.concatenate_bits(a1, a2, 1, b, x1, x2, y)] = 1
+    marg_map_f_h[-1][-1] = 1
+    marg_map_n_h = vs.construct_full_to_NSS_homog(4, 2, 4, 2) @ marg_map_f_h @ vs.construct_NSS_to_full_homogeneous(8, 2, 4, 2)
+    # TODO test this map
+
+    print('Loading LC_acbxy vertices...')
+    lc_acbxy_vertices = np.load('panda-files/results/lc_vertices.npy')
+    num_of_vertices = len(lc_acbxy_vertices)
+
+    print('Marginalising LC_acbxy vertices...')
+    lc_acbxy_vertices_marged = lc_acbxy_vertices @ marg_map_n_h.T  # = (marg_map_n_h @ lc_acbxy_vertices.T).T
+    del lc_acbxy_vertices
+    # print('Normalising marginalised vertices...')
+    # for i in range(len(lc_acbxy_vertices_marged)):
+    #     gcd = functools.reduce(math.gcd, lc_acbxy_vertices_marged[i])
+    #     if gcd != 1:
+    #         print('Row %d was not normalised' % i)  NOTE this was never called, so normalising is unnecessary
+    #         lc_acbxy_vertices_marged[i] = 1/gcd * lc_acbxy_vertices_marged[i]
+    print('Partioning marginalised vertices...')
+    V = []  # an array of arrays; each inner array consists of numbers that represent indices of equal rows of lc_acbxy_vertices_marged
+    for j in range(num_of_vertices):
+        vj = lc_acbxy_vertices_marged[j]
+        j_was_put_in_a_V_i = False
+        for V_i in V:
+            vi = lc_acbxy_vertices_marged[V_i[0]]
+            # Check if all(vi == vj)
+            vi_is_vj = True
+            for k in range(len(vj)):
+                if vi[k] != vj[k]:
+                    vi_is_vj = False
+                    break
+            if vi_is_vj:
+                V_i.append(j)
+                j_was_put_in_a_V_i = True
+                break
+
+        if not j_was_put_in_a_V_i:
+            V.append([j])
+        print('j = %d, len(V) = %d' % (j, len(V)), end='\r')
+    print()
+    del lc_acbxy_vertices_marged
+
+    # Double-check that V is a partition of range(lc_acbxy_vertices)
+    if np.all(sorted([item for sublist in V for item in sublist]) == list(range(num_of_vertices))):
+        print('V is a partition of range(num_of_vertices)')
+    else:
+        print('Error: V is not a valid partition!')
+
+    print('len(V)=%d' % len(V))
+    print('num of vertices=%d' % num_of_vertices)
+    print('maximum length of element of V is %d' % max([len(V_i) for V_i in V]))
+    print('minimum length of element of V is %d' % min([len(V_i) for V_i in V]))
+    print('Saving V...')
+    with open('V', 'w') as f:
+        for V_i in V:
+            f.write(' '.join(map(str, [i for i in V_i])) + '\n')
+
+
 if __name__ == '__main__':
     ## Demonstrating violation of LC:
     # result, cor = is_switch_cor_in_lc(method='interior-point', tol=1e-3,
@@ -323,6 +388,7 @@ if __name__ == '__main__':
     # print_chsh_violations(cor)
 
     ## Checking my analytical calculations about the inequality ineq1()
+    """
     ineq = ineq2()
     print(maximum_violation_by_LC_lp(ineq))  # Indeed gives 7/4!
     print(ineq @ make_pacb_xzy_nss_h(rho_ctb=qm.rho_tcb_0phi,
@@ -331,6 +397,7 @@ if __name__ == '__main__':
                                         instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag1_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag2_onb))],
                                         instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.x_onb)],
                                         dT=2, dB=2))  # Indeed gives 3/2 + 1/(2sqrt2) !
+    """
 
     ## Computing maximal LC value for the 'beta,gamma,delta' inequalities (see note)
     """
@@ -338,5 +405,4 @@ if __name__ == '__main__':
         print('%d,%d,%d: %s' % (beta, gamma, delta, str(maximum_violation_by_LC_lp(ineq_beta_gamma_delta(beta, gamma, delta)))))
     """
 
-
-
+    construct_vertices()
