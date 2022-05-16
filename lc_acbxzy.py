@@ -354,8 +354,8 @@ def construct_vertices():
 
         if not j_was_put_in_a_V_i:
             V.append([j])
-        print('j = %d, len(V) = %d' % (j, len(V)), end='\r')
-    print()
+        if j % 50000 == 0:
+            print('j = %d, len(V) = %d' % (j, len(V)))
     del lc_acbxy_vertices_marged
 
     # Double-check that V is a partition of range(lc_acbxy_vertices)
@@ -376,16 +376,15 @@ def construct_vertices():
 
 if __name__ == '__main__':
     ## Demonstrating violation of LC:
-    # result, cor = is_switch_cor_in_lc(method='interior-point', tol=1e-3,
-    #                                   rho_ctb=qm.rho_tcb_0phi,
-    #                                   instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
-    #                                   instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
-    #                                   instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag1_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag2_onb))],
-    #                                   instrs_B=[qm.instr_vn_destr(qm.diag1_onb), qm.instr_vn_destr(qm.diag2_onb)],  # TODO think about why this violates LC!
-    #                                   dT=2, dB=2
-    #                                   )
-    # print(result)
-    # print_chsh_violations(cor)
+    result, cor = is_switch_cor_in_lc(method='highs',
+                                      rho_ctb=qm.rho_tcb_0phi,
+                                      instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                                      instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                                      instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.z_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.onb_from_direction(.50001 * np.pi)))],
+                                      instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.onb_from_direction(.50001 * np.pi))],  # TODO think about why this violates LC!
+                                      dT=2, dB=2)
+    print(result)
+    print_chsh_violations(cor)
 
     ## Checking my analytical calculations about the inequality ineq1()
     """
@@ -405,4 +404,4 @@ if __name__ == '__main__':
         print('%d,%d,%d: %s' % (beta, gamma, delta, str(maximum_violation_by_LC_lp(ineq_beta_gamma_delta(beta, gamma, delta)))))
     """
 
-    construct_vertices()
+    # construct_vertices()
