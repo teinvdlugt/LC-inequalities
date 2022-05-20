@@ -134,6 +134,8 @@ def maximum_violation_by_LC_lp(ineq, method='highs', tol=1e-12, double_check_sol
     options = None if method == 'highs' else {'tol': tol}
     lp = linprog(c, A_ub, b_ub, A_eq, b_eq, bounds=(0, 1), options=options, method=method)
 
+    assert lp.success
+
     # Check solution
     if double_check_soln and lp.success:
         # check that p1 := lp.x[:dim_nss + 1] is in NSCO1
@@ -154,7 +156,6 @@ def maximum_violation_by_LC_lp(ineq, method='highs', tol=1e-12, double_check_sol
         sum_p1_p2_h = p1_nss_homog + p2_nss_homog
         assert abs(lp.fun + ineq @ sum_p1_p2_h) < tol
 
-    assert lp.success
     return -lp.fun
 
 
@@ -380,8 +381,8 @@ if __name__ == '__main__':
                                       rho_ctb=qm.rho_tcb_0phi,
                                       instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
                                       instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
-                                      instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.z_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.onb_from_direction(.50001 * np.pi)))],
-                                      instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.onb_from_direction(.50001 * np.pi))],  # TODO think about why this violates LC!
+                                      instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.z_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.onb_from_direction(.25 * np.pi)))],
+                                      instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.onb_from_direction(.25 * np.pi))],  # TODO think about why this violates LC!
                                       dT=2, dB=2)
     print(result)
     print_chsh_violations(cor)
@@ -389,7 +390,7 @@ if __name__ == '__main__':
     ## Checking my analytical calculations about the inequality ineq1()
     """
     ineq = ineq2()
-    print(maximum_violation_by_LC_lp(ineq))  # Indeed gives 7/4!
+    print(lp_max_violation_by_LC(ineq))  # Indeed gives 7/4!
     print(ineq @ make_pacb_xzy_nss_h(rho_ctb=qm.rho_tcb_0phi,
                                         instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
                                         instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
@@ -401,7 +402,16 @@ if __name__ == '__main__':
     ## Computing maximal LC value for the 'beta,gamma,delta' inequalities (see note)
     """
     for beta, gamma, delta in itertools.product(B, repeat=3):
-        print('%d,%d,%d: %s' % (beta, gamma, delta, str(maximum_violation_by_LC_lp(ineq_beta_gamma_delta(beta, gamma, delta)))))
+        print('%d,%d,%d: %s' % (beta, gamma, delta, str(lp_max_violation_by_LC(ineq_beta_gamma_delta(beta, gamma, delta)))))
     """
 
     # construct_vertices()
+
+    # result, cor = is_switch_cor_in_lc(method='interior-point', tol=1e-8,
+    #                                   rho_ctb=qm.rho_ctb_plusphiplus,
+    #                                   instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.x_onb, qm.ket1)],
+    #                                   instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.x_onb, qm.ket1)],
+    #                                   instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.x_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.x_onb))],
+    #                                   instrs_B=[qm.instr_vn_destr(qm.diag1_onb), qm.instr_vn_destr(qm.diag2_onb)],
+    #                                   dT=2, dB=2)
+    # print(result)

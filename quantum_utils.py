@@ -662,7 +662,7 @@ if __name__ == '__main__':
         rho_ctb_random = random_pure_density_matrix(dim=16, allow_complex=True)
         cor = make_pacb_xy(rho_ctb_random, instrs_A1, instrs_A2, instr_C, instrs_B, 4, 2)
         cor_nss = vector_space_utils.full_acb_to_nss_homog(cor)
-        if not lp_for_membership.lp_without_vertices_nss_coords(cor_nss, method='highs').success:
+        if not lp_for_membership.lp_is_cor_in_lc(cor_nss, method='highs').success:
             print('\nFound violation!')
             break
         else:

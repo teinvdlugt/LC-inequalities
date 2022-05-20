@@ -483,7 +483,7 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
 
             P_qi_qj = np.r_[P_qi, [Q[j]]]
             if np.linalg.matrix_rank(P_qi_qj) == d:
-                # First check if we don't already have found the facet that contains these two points qi,qj. Doing this should also avoid any duplicates in the facets output
+                # First check if we haven't already found the facet that contains these two points qi,qj. Doing this should also avoid any duplicates in the facets output
                 # This takes O(len(facets)) but potentially saves us O(len(Q)) time
                 already_found_this_facet = False
                 for facet in facets:
@@ -561,15 +561,98 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
     return facets
 
 
+def find_a_facet_adjacent_to_face(face, vertices, vertices_on_face=None, tol=1e-12, randomise=False):
+    d = vertices.shape[1] - 1
+
+    violations = vertices @ face
+
+    if vertices_on_face is None:
+        vertices_on_face = np.empty((0, d + 1), vertices.dtype)
+    else:
+        assert np.linalg.matrix_rank(vertices_on_face) == len(vertices_on_face)
+        if len(vertices_on_face) >= d:
+            return face
+    # Find as many affinely independent vertices on the face as possible
+    for i in np.argwhere(np.abs(violations) < tol).flatten():
+        new_matrix = np.r_[vertices_on_face, [vertices[i]]]
+        if np.linalg.matrix_rank(new_matrix) == len(new_matrix):
+            vertices_on_face = new_matrix
+            if len(vertices_on_face) == d:
+                return face
+
+    # Dimension of the face:
+    f = len(vertices_on_face) - 1
+
+    # Throw away vertices that are on the face
+    vertices = vertices[violations != 0]  # don't use tol here, otherwise might lose vertices unintentionally
+    violations = violations[violations != 0]
+
+    # Need d-2 dim rotation axis, spanned by d-1 aff indep vectors
+    # So need to find  (d-1)-(f+1)=d-f-2  remaining aff indep vectors on the face.
+    # I.e. these vectors should be orthogonal to the normal to the face, and to all vertices_on_face
+    def find_affinely_independent_points_on_hyperplane(points_h, hyperplane):
+        x_0 = points_h[0][:-1]
+        lambda_0 = points_h[0][-1]
+        if len(points_h) == 1:
+            pts_translated = np.empty((0, len(points_h[0]) - 1))
+        else:
+            pts_translated = np.array([pt[:-1] * lambda_0 / pt[-1] - x_0 for pt in points_h[1:]])
+        indep_pts_translated = scipy.linalg.null_space(np.r_[[hyperplane[:-1]], pts_translated]).T  # TODO replace with integer method? (avoid normalisation)
+        indep_pts = np.array([1 / lambda_0 * (pt + x_0) for pt in indep_pts_translated])  # TODO could improve randomisation by applying a rotation to indep_pts here
+        indep_pts_h = np.concatenate([indep_pts, np.ones((len(indep_pts), 1), dtype=indep_pts.dtype)], axis=1)  # TODO try to normalise
+        return indep_pts_h
+    aff_indep_pts = find_affinely_independent_points_on_hyperplane(vertices_on_face, face)
+    assert np.linalg.matrix_rank(np.r_[vertices_on_face, aff_indep_pts]) == len(vertices_on_face) + len(aff_indep_pts)
+    assert len(aff_indep_pts) == d - f - 1
+    m_index = np.random.randint(len(aff_indep_pts)) if randomise else len(aff_indep_pts) - 1
+    m_index = 0  # TODO remove
+    remaining_axis_points = np.r_[aff_indep_pts[:m_index], aff_indep_pts[m_index + 1:]]
+    assert len(remaining_axis_points) == d - f - 2
+    # m = 1 / np.linalg.norm(aff_indep_pts[m_index]) * aff_indep_pts[m_index]  # NOTE it's essential that m and n are normalised
+    # n = 1 / np.linalg.norm(face) * face.astype('float')
+
+    # Calculate angle theta from face to vertex, for all vertices not on the face
+    # theta = arctan(-<n,v> / <m,v>)   (numpy handles <m,v>=0 automatically)
+    # thetas = np.arctan2(-vertices @ n, vertices @ m)
+
+    # Normalise vertices
+    vertices_non_h = vertices[:,:-1].astype('float')
+    for i in range(len(vertices)):
+        vertices_non_h[i] = vertices_non_h[i] / vertices[i][-1]
+
+    # Calculate d and e for each v in vertices
+    c_b = face[:-1] / face[-1]  # NOTE assuming that b != 0
+    c_b_norm = np.linalg.norm(c_b)
+    ds = 1 / c_b_norm * (vertices_non_h @ c_b + np.ones(len(vertices_non_h)))
+    m_mu = aff_indep_pts[m_index][:-1] / aff_indep_pts[m_index][-1]
+    m_mu_prime = c_b_norm ** 2 * m_mu + c_b  # this is 'm_prime / mu_prime' in notes
+    m_mu_prime_normalised = m_mu_prime / np.linalg.norm(m_mu_prime)
+    es = vertices_non_h @ m_mu_prime_normalised
+    thetas = np.arctan2(ds, es)
+
+    new_vertex_on_facet = vertices[np.argmin(thetas)]
+    assert face @ new_vertex_on_facet < -tol
+
+    new_face = scipy.linalg.null_space(np.r_[vertices_on_face, remaining_axis_points, [new_vertex_on_facet]])  # TODO again, try making this integer arithmetic
+    assert new_face.shape == (d + 1, 1)
+    new_face = new_face.flatten()
+    new_vertices_on_face = np.r_[vertices_on_face, [new_vertex_on_facet]]
+
+    if len(new_vertices_on_face) == d:
+        return new_face
+    else:
+        return find_a_facet_adjacent_to_face(new_face, vertices, new_vertices_on_face, tol, randomise)
+
+
 def test_find_facets_adjacent_to_d_minus_3_dim_face():
     ## Let's try an octahedron centred around the origin in R^3
     # The vertices (homogeneous coords):
-    Q = [[1, 0, 0, 1],
-         [0, 1, 0, 1],
-         [0, 0, 1, 1],
-         [-1, 0, 0, 1],
-         [0, -1, 0, 1],
-         [0, 0, -1, 1]]
+    Q = np.array([[1, 0, 0, 1],
+                  [0, 1, 0, 1],
+                  [0, 0, 1, 1],
+                  [-1, 0, 0, 1],
+                  [0, -1, 0, 1],
+                  [0, 0, -1, 1]], dtype='int')
     # The hyperplane that touches the octahedron in one point: e.g. x <= 1  <=>  x - 1 <= 0
     face = [1, 0, 0, -1]
     # point on the face:
@@ -670,22 +753,6 @@ def test_find_facets_adjacent_to_d_minus_3_dim_face():
     print("Success!")
 
 
-def is_ineq_valid_for_LC(ineq):
-    with open('panda-files/results/8 all LC vertices', 'r') as LC_vertices:
-        line = LC_vertices.readline()
-        vertex_count = 0
-        while line:
-            if line.strip():
-                vertex = list(map(int, line.split()))
-                vertex_count += 1
-                if np.dot(ineq, vertex) > 0:
-                    print("No, the following vertex violates the provided inequality by %f:" % np.dot(ineq, vertex))
-                    print(' '.join(map(str, vertex)))
-                    return False
-    print("The inequality is valid for LC!")
-    return True
-
-
 def is_facet_of_LC(ineq):
     """ Checks whether ineq is valid for LC and whether LC ∩ ineq is 85-dimensional. """
     max_dimension = 85
@@ -726,6 +793,47 @@ def is_facet_of_LC(ineq):
         print("The inequality supports a facet of LC!")
         return True
     elif len(aff_indep_subset) - 1 > max_dimension:
+        print("Something weird just happened.")
+        return False
+    else:
+        print("The inequality supports a face of LC of dimension %d" % (len(aff_indep_subset) - 1))
+        return False
+
+
+def is_facet_of_polytope_npy(ineq, polytope_vertices_npy='panda-files/results/lc_vertices.npy', polytope_dim=86):
+    print('Loading vertices...')
+    vertices = np.load(polytope_vertices_npy)
+    print('Calculating violations...')
+    violations = ineq @ vertices.T  # NOTE these violations might not be normalised. But for now only positivity/negativity matters
+
+    aff_indep_subset = np.empty((0, len(vertices[0])), 'int8')
+    vertex_count = 0
+
+    # Check if inequality is violated by polytope
+    for i in range(len(violations)):
+        if violations[i] > 0:
+            print("The inequality")
+            print(' '.join(map(str, ineq)))
+            print("is NOT valid for LC, as it is violated by %s (unnormalised) by the LC vertex" % str(violations[i]))
+            print(' '.join(map(str, vertices[i])))
+            return False
+        if violations[i] == 0 and len(aff_indep_subset) < polytope_dim:
+            # vertex is on the hyperplane defined by the inequality
+            # Check if vertex is not already in span of previously found ones
+            new_matrix = np.r_[aff_indep_subset, [vertices[i]]]
+            if np.linalg.matrix_rank(new_matrix) == len(aff_indep_subset) + 1:  # i.e. if matrix has full rank
+                aff_indep_subset = new_matrix
+        vertex_count += 1
+        print("Processed %d vertices; currently at dimension %d" % (vertex_count, len(aff_indep_subset) - 1), end='\r')
+
+    print()
+    if len(aff_indep_subset) == 0:
+        print("The inequality is valid for LC but is not a strict inequality and hence does not support a face of LC.")
+        return False
+    elif len(aff_indep_subset) == polytope_dim:  # len(aff_indep_subset) - 1 == polytope_dim - 1
+        print("The inequality supports a facet of LC!")
+        return True
+    elif len(aff_indep_subset) > polytope_dim:
         print("Something weird just happened.")
         return False
     else:
@@ -929,7 +1037,7 @@ if __name__ == '__main__':
     #     is_facet_of_LC(facet)
 
     # Checking computation of [p218]. this is lc_abxy.facet1()
-    ineq = list(map(int,
+    """ineq = list(map(int,
                     '1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 -1'.split()))
     caus2_cor_full = 1 / 2 * deterministic_cor_full_homog(lambda x1, x2, y: 0,  # a1
                                                           lambda x1, x2, y: x1,  # a2
@@ -941,4 +1049,14 @@ if __name__ == '__main__':
                                                           lambda x1, x2, y: x2)  # b
     assert vs.is_in_NSS(caus2_cor_full, 8, 2, 4, 2)
     caus2_cor_nss = vs.construct_full_to_NSS_homog(8, 2, 4, 2) @ caus2_cor_full
-    print('Violation:', caus2_cor_nss @ ineq)
+    print('Violation:', caus2_cor_nss @ ineq)"""
+
+    Q = np.array([[1, 0, 0, 1],
+                  [0, 1, 0, 1],
+                  [0, 0, 1, 1],
+                  [-1, 0, 0, 1],
+                  [0, -1, 0, 1],
+                  [0, 0, -1, 1]], dtype='int')
+    # The hyperplane that touches the octahedron in one point: e.g. x <= 1  <=>  x - 1 <= 0
+    face = np.array([1, 0, 0, -1], dtype='int')
+    print(find_a_facet_adjacent_to_face(face, Q, randomise=True))

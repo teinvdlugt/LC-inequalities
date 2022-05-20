@@ -1,26 +1,19 @@
+import itertools
 import sys
 
 import numpy as np
 from scipy.optimize import linprog
 
-import quantum_utils as qm
 import symmetry_utils
+import towards_lc
 import vector_space_utils as vs
 
+dim_nss = vs.dim_NSS(8, 2, 4, 2)
 
-def lp_without_vertices_nss_coords(p_test, tol=1e-12, method='highs', double_check_soln=False):
-    """
-    Uses the 'LP without vertices'/'LP with LC constraints' method to determine LC membership of p_nss. See [p210].
-    This method uses LP on 174 unknowns with 357 constraints and no objective function. TODO 377 can be reduced by using linear dependence of constraints
-    scipy.optimize.linprog docs: https://docs.scipy.org/doc/scipy/reference/optimize.linprog-interior-point.html
-    :param p_test: Should be in NSS representation, so a length-86 vector. If it's length-87 then it's assumed to represent homogeneous coordinates.
-    :param tol: tolerance value passed on to scipy.optimise.linprog. (irrelevant if using 'highs' method)
-    :param method: method passed on to scipy.optimise.linprog. ‘highs-ds’, ‘highs-ipm’, ‘highs’, ‘interior-point’ (default), ‘revised simplex’, and ‘simplex’ (legacy) are supported.
-    """
-    assert len(p_test) in [86, 87]
-    if len(p_test) == 87:
-        p_test = 1. / p_test[-1] * np.array(p_test[:-1])
 
+def lp_constraints_is_valid_lc_deco():
+    """ Returns arrays A_ub, b_ub, A_eq, B_eq that represent the constraint that a (86+1)*2=174-length vector represents
+         a valid 'LC decomposition', i.e. of the form λp^1 + (1-λ)p^2. """
     # Constraint i: positivity of probabilities (see [p208,210] for matrix)
     cons_i_matrix = np.block([[vs.construct_NSS_to_full_homogeneous(), np.zeros((129, 87), dtype='int')],
                               [np.zeros((129, 87), dtype='int'), vs.construct_NSS_to_full_homogeneous()]])
@@ -34,35 +27,55 @@ def lp_without_vertices_nss_coords(p_test, tol=1e-12, method='highs', double_che
     cons_ii_matrix[0, 173] = 1
     cons_ii_b = np.array([1, ])
 
-    # Constraint iii: sum_λ p(...λ|..) = p_nss(...|..)
-    cons_iii_matrix = np.concatenate((np.identity(86), np.zeros((86, 1), dtype='int'),
-                                      np.identity(86), np.zeros((86, 1), dtype='int')), axis=1)
-    cons_iii_b = p_test
-
-    # Constraint iv: iv-1: p(a1=0 b λ=0 | x1 0 y) - p(a1=0 b λ=0 | x1 1 y) = 0  for (b,y)≠(1,1)   (6 equalities)
-    #                iv-2: p(a2=0 b λ=1 | 0 x2 y) - p(a2=0 b λ=1 | 1 x2 y) = 0  for (b,y)≠(1,1)   (6 equalities)
-    cons_iv_matrix = np.zeros((12, 174), dtype='int')
+    # Constraint iii: iii-1: p(a1=0 b λ=0 | x1 0 y) - p(a1=0 b λ=0 | x1 1 y) = 0  for (b,y)≠(1,1)   (6 equalities)
+    #                iii-2: p(a2=0 b λ=1 | 0 x2 y) - p(a2=0 b λ=1 | 1 x2 y) = 0  for (b,y)≠(1,1)   (6 equalities)
+    cons_iii_matrix = np.zeros((12, 174), dtype='int')
     NtoF = vs.construct_NSS_to_full_matrix_but_weird(8, 2, 4, 2)  # weirdness doesn't matter here
-    # iv-1:  # NOTE this essentially constructs a (6,86) matrix which has as null space the 80-dim ahNSCO1 (subspace of ahNSS)
+    # iii-1:  # NOTE this essentially constructs a (6,86) matrix which has as null space the 80-dim ahNSCO1 (subspace of ahNSS)
     for (b, y), x1, x2 in vs.cart(vs.cart((0, 1), (0, 1))[:-1], (0, 1), (0, 1)):
         current_row = vs.concatenate_bits(b, y, x1)
         # Find row vector that will give us p(a1=0 b λ=0 | x1 x2 y)
         # sum over a2, c
         for a2, c in vs.cart((0, 1), (0, 1)):
-            cons_iv_matrix[current_row] += ((-1) ** x2) * np.r_[NtoF[vs.concatenate_bits(0, a2, c, b, x1, x2, y)], np.zeros(88, dtype='int')]
-    # iv-2:
+            cons_iii_matrix[current_row] += ((-1) ** x2) * np.r_[NtoF[vs.concatenate_bits(0, a2, c, b, x1, x2, y)], np.zeros(88, dtype='int')]
+    # iii-2:
     for (b, y), x1, x2 in vs.cart(vs.cart((0, 1), (0, 1))[:-1], (0, 1), (0, 1)):
         current_row = 6 + vs.concatenate_bits(b, y, x2)
         # Find row vector that will give us p(a2=0 b λ=1 | x1 x2 y)
         # sum over a2, c
         for a1, c in vs.cart((0, 1), (0, 1)):
-            cons_iv_matrix[current_row] += ((-1) ** x1) * np.r_[np.zeros(87, dtype='int'), NtoF[vs.concatenate_bits(a1, 0, c, b, x1, x2, y)], [0]]
-    cons_iv_b = np.zeros(12, dtype='int')
+            cons_iii_matrix[current_row] += ((-1) ** x1) * np.r_[np.zeros(87, dtype='int'), NtoF[vs.concatenate_bits(a1, 0, c, b, x1, x2, y)], [0]]
+    cons_iii_b = np.zeros(12, dtype='int')
 
-    # The equality constraints ii-iv together:
-    A_eq = np.r_[cons_ii_matrix, cons_iii_matrix, cons_iv_matrix]
-    b_eq = np.r_[cons_ii_b, cons_iii_b, cons_iv_b]
-    assert A_eq.shape == (99, 174) and b_eq.shape == (99,)
+    # The equality constraints ii and iii together:
+    A_eq = np.r_[cons_ii_matrix, cons_iii_matrix]
+    b_eq = np.r_[cons_ii_b, cons_iii_b]
+
+    return A_ub, b_ub, A_eq, b_eq
+
+
+def lp_is_cor_in_lc(p_test, tol=1e-12, method='highs', double_check_soln=False):
+    """
+    Uses the 'LP without vertices'/'LP with LC constraints' method to determine LC membership of p_nss. See [p210].
+    This method uses LP on 174 unknowns with 357 constraints and no objective function. TODO 377 can be reduced by using linear dependence of constraints
+    scipy.optimize.linprog docs: https://docs.scipy.org/doc/scipy/reference/optimize.linprog-interior-point.html
+    :param p_test: Should be in NSS representation, so a length-86 vector. If it's length-87 then it's assumed to represent homogeneous coordinates.
+    :param tol: tolerance value passed on to scipy.optimise.linprog. (irrelevant if using 'highs' method)
+    :param method: method passed on to scipy.optimise.linprog. ‘highs-ds’, ‘highs-ipm’, ‘highs’, ‘interior-point’ (default), ‘revised simplex’, and ‘simplex’ (legacy) are supported.
+    """
+    assert len(p_test) in [86, 87]
+    if len(p_test) == 87:
+        p_test = 1. / p_test[-1] * np.array(p_test[:-1])
+
+    A_ub, b_ub, A_eq, b_eq = lp_constraints_is_valid_lc_deco()
+
+    # Remaining constraint: sum_λ p(...λ|..) = p_nss(...|..)
+    p_nss_cons_matrix = np.concatenate((np.identity(86), np.zeros((86, 1), dtype='int'),
+                                        np.identity(86), np.zeros((86, 1), dtype='int')), axis=1)
+    p_nss_cons_b = p_test
+
+    A_eq = np.r_[A_eq, p_nss_cons_matrix]
+    b_eq = np.r_[b_eq, p_nss_cons_b]
 
     # Do LP
     lp = linprog(np.zeros(174, dtype='int'), A_ub, b_ub, A_eq, b_eq, bounds=(0, 1), options={'tol': tol}, method=method)
@@ -71,21 +84,62 @@ def lp_without_vertices_nss_coords(p_test, tol=1e-12, method='highs', double_che
     if double_check_soln and lp.success:
         # check that p1 := lp.x[:87] is in NSCO1
         p1_nss_homog = lp.x[:87]  # this homogeneous vector represents the conditional distr p(a1a2cb|x1x2y,λ=0)
-        p1_full_homog = vs.construct_NSS_to_full_homogeneous() @ p1_nss_homog
-        assert vs.is_in_NSCO1(p1_full_homog, tol)
+        if p1_nss_homog[-1] != 0:  # if p(λ=0) != 0
+            p1_full_homog = vs.construct_NSS_to_full_homogeneous() @ p1_nss_homog
+            assert vs.is_in_NSCO1(p1_full_homog, tol)
 
         # check that p2 := lp.x[87:174] is in NSCO2
         p2_nss_homog = lp.x[87:174]
-        p2_full_homog = vs.construct_NSS_to_full_homogeneous() @ p2_nss_homog
-        swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm_homog(lambda a1, a2, c, b, x1, x2, y: (a2, a1, c, b, x2, x1, y))
-        p2_full_homog_swapped = swap_A1_A2_matrix @ p2_full_homog
-        assert vs.is_in_NSCO1(p2_full_homog_swapped, tol)
+        if p2_nss_homog[-1] != 0:  # if p(λ=1) != 0
+            p2_full_homog = vs.construct_NSS_to_full_homogeneous() @ p2_nss_homog
+            swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm_homog(lambda a1, a2, c, b, x1, x2, y: (a2, a1, c, b, x2, x1, y))
+            p2_full_homog_swapped = swap_A1_A2_matrix @ p2_full_homog
+            assert vs.is_in_NSCO1(p2_full_homog_swapped, tol)
 
         # check that p(λ=0) p1 + p(λ=1) p2 = p_nss
         sum_p1_p2 = p1_nss_homog[:-1] + p2_nss_homog[:-1]
         assert np.all(np.abs(sum_p1_p2 - p_test) < tol)
 
     return lp
+
+
+def lp_max_violation_by_LC(ineq, method='highs', tol=1e-12, double_check_soln=True):
+    ineq = np.array(ineq)
+    assert ineq.shape == (dim_nss + 1,)
+
+    A_ub, b_ub, A_eq, b_eq = lp_constraints_is_valid_lc_deco()
+
+    # Objective function to minimise: -ineq @ (λp^1 + (1-λ)p^2)
+    matrix = np.concatenate((np.identity(dim_nss + 1), np.identity(dim_nss + 1)), axis=1)  # multiplying the vector of unknowns with this gives the homogeneous nss representation of (λp^1 + (1-λ)p^2)
+    c = -ineq @ matrix
+
+    # Do LP
+    options = None if method == 'highs' else {'tol': tol}
+    lp = linprog(c, A_ub, b_ub, A_eq, b_eq, bounds=(0, 1), options=options, method=method)
+
+    assert lp.success
+
+    # Check solution
+    if double_check_soln and lp.success:
+        # check that p1 := lp.x[:87] is in NSCO1
+        p1_nss_homog = lp.x[:87]  # this homogeneous vector represents the conditional distr p(a1a2cb|x1x2y,λ=0)
+        if p1_nss_homog[-1] != 0:  # if p(λ=0) != 0
+            p1_full_homog = vs.construct_NSS_to_full_homogeneous() @ p1_nss_homog
+            assert vs.is_in_NSCO1(p1_full_homog, tol)
+
+        # check that p2 := lp.x[87:174] is in NSCO2
+        p2_nss_homog = lp.x[87:174]
+        if p2_nss_homog[-1] != 0:  # if p(λ=1) != 0
+            p2_full_homog = vs.construct_NSS_to_full_homogeneous() @ p2_nss_homog
+            swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm_homog(lambda a1, a2, c, b, x1, x2, y: (a2, a1, c, b, x2, x1, y))
+            p2_full_homog_swapped = swap_A1_A2_matrix @ p2_full_homog
+            assert vs.is_in_NSCO1(p2_full_homog_swapped, tol)
+
+        # check that p(λ=0) p1 + p(λ=1) p2 = p_nss
+        sum_p1_p2_h = p1_nss_homog + p2_nss_homog
+        assert abs(lp.fun + ineq @ sum_p1_p2_h) < tol
+
+    return -lp.fun
 
 
 def in_convex_hull_lp(vertices, point, tol=1e-8):
@@ -163,7 +217,7 @@ print(str(in_convex_hull_lp(vertices, point_within)) + ' and that took ' + str(t
 """
 
 
-def test_membership_of_quantum_cors(lp_method=lp_without_vertices_nss_coords, quantum_cor_file='panda-files/some_quantum_cors3.npy', tol=1e-12, method='highs', double_check_soln=False):
+def test_membership_of_quantum_cors(lp_method=lp_is_cor_in_lc, quantum_cor_file='panda-files/some_quantum_cors3.npy', tol=1e-12, method='highs', double_check_soln=False):
     qm_cors = np.load(quantum_cor_file).astype('float64')
     cors_not_in_LC = []
     cors_not_in_LC_indices = []
@@ -180,14 +234,102 @@ def test_membership_of_quantum_cors(lp_method=lp_without_vertices_nss_coords, qu
     return cors_not_in_LC, cors_not_in_LC_indices
 
 
+def construct_ineq_nss(num_of_binary_vars, point_function, upper_bound=0.0, na=8, nb=2, nx=4, ny=2):
+    """ A function of n binary variables, where n is often equal to 7, which returns the points won by the parties when they output those binary variables. """
+    ineq_full = np.zeros((2,) * num_of_binary_vars)
+    for var_tuple in itertools.product((0, 1), repeat=num_of_binary_vars):
+        ineq_full[var_tuple] += point_function(*var_tuple)
+    ineq_full_h = np.r_[ineq_full.flatten(), [-upper_bound]]
+    ineq_nss_h = vs.construct_NSS_to_full_homogeneous(na, nb, nx, ny).T @ ineq_full_h
+    return ineq_nss_h
+
+
 if __name__ == '__main__':
-    print(lp_without_vertices_nss_coords(
-        qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_ctb_plusphiplus,
-                                  instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket0)],
-                                  instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket0)],
-                                  instr_C=qm.instr_vn_destr(qm.x_onb),
-                                  instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.x_onb)])
-    ).success)
+    # print(lp_is_cor_in_lc(
+    #     qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_ctb_plusphiplus,
+    #                               instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.x_onb, qm.ket1)],
+    #                               instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.x_onb, qm.ket1)],
+    #                               instr_C=qm.instr_vn_destr(qm.x_onb),
+    #                               instrs_B=[qm.instr_vn_destr(qm.diag1_onb), qm.instr_vn_destr(qm.diag2_onb)])
+    # ).success)
+    # print(lp_is_cor_in_lc(
+    #     qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_ctb_plusphiplus,
+    #                               instrs_A1=[qm.instr_measure_and_prepare(qm.diag1_onb, qm.diag1_onb[0]), qm.instr_measure_and_prepare(qm.diag2_onb, qm.diag1_onb[1])],
+    #                               instrs_A2=[qm.instr_measure_and_prepare(qm.diag1_onb, qm.diag1_onb[0]), qm.instr_measure_and_prepare(qm.diag2_onb, qm.diag1_onb[1])],
+    #                               instr_C=qm.instr_vn_destr(qm.x_onb),
+    #                               instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.x_onb)])
+    # ).success)
+    # print(lp_is_cor_in_lc(
+    #     qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_ctb_plusphiplus,
+    #                               instrs_A1=[qm.instr_measure_and_prepare(qm.diag1_onb, qm.diag1_onb[0]), qm.instr_measure_and_prepare(qm.diag2_onb, qm.diag1_onb[1])],
+    #                               instrs_A2=[qm.instr_measure_and_prepare(qm.diag1_onb, qm.diag1_onb[0]), qm.instr_measure_and_prepare(qm.diag2_onb, qm.diag1_onb[1])],
+    #                               instr_C=qm.instr_vn_destr(qm.x_onb),
+    #                               instrs_B=[qm.instr_vn_destr(qm.diag1_onb), qm.instr_vn_destr(qm.diag2_onb)])
+    # ).success)
+    """
+    cor = qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_tcb_0phi,  # NOTE qm.rho_ctb_plusphiplus also works, if Alice does X mmt on setting x_i=1. Think about later
+                                    instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                                    instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                                    instr_C=qm.instr_vn_destr(qm.onb_from_direction(0.148 * np.pi)),  # 0.148 * np.pi seems to give maximal violation
+                                    instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.x_onb)])
+    print(lp_is_cor_in_lc(cor).success)
+
+    print('-- CHSH stuff:')
+    print(construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: ((b + c) % 2 == x1 * y and x1 == 0 and y == 0 and x2 == 0) * 1) @ cor)
+    print(construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: ((b + c) % 2 == x1 * y and x1 == 0 and y == 1 and x2 == 0) * 1) @ cor)
+    print(construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: ((b + c) % 2 == x1 * y and x1 == 1 and y == 0 and x2 == 0) * 1) @ cor)
+    print(construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: ((b + c) % 2 == x1 * y and x1 == 1 and y == 1 and x2 == 0) * 1) @ cor)
+    print(construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: ((b + c) % 2 == x1 * y and x2 == 0) * 1 / 4) @ cor)
+    print('-- α stuff:')
+    print(construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 0) * 1 / 2) @ cor)
+    print(construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 1 and a1 == x2 and y == 0 and x1 == 0) * 1 / 2) @ cor)
+    print('-- Total:')
+    """
+    x1y_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0) * 1 / 4 +
+                                                                     (b == 1 and a1 == x2 and y == 0) * 1 / 4 +
+                                                                     ((b + c) % 2 == x1 * y and x2 == 0) * 1 / 4, 7 / 4)
+    x1y_different_y_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0) * 1 / 4 +
+                                                                                 (b == 1 and a1 == x2 and y == 0) * 1 / 4 +
+                                                                                 ((b + c) % 2 == x1 * (1 - y) and x2 == 0) * 1 / 4, 7 / 4)
+    x1y_lazy_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 0) * 1 / 2 +
+                                                                          (b == 1 and a1 == x2 and y == 0 and x1 == 0) * 1 / 2 +
+                                                                          ((b + c) % 2 == x1 * y and x2 == 0) * 1 / 4, 7 / 4)
+    x1y_different_y_lazy_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 0) * 1 / 2 +
+                                                                                      (b == 1 and a1 == x2 and y == 0 and x1 == 0) * 1 / 2 +
+                                                                                      ((b + c) % 2 == x1 * (1 - y) and x2 == 0) * 1 / 4, 7 / 4)
+    x1y_unlazy_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0) * 1 / 4 +
+                                                                            (b == 1 and a1 == x2 and y == 0) * 1 / 4 +
+                                                                            ((b + c) % 2 == x1 * y) * 1 / 8, 7 / 4)
+    x1y_extra_unlazy_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1) * 1 / 8 +
+                                                                                  (b == 1 and a1 == x2) * 1 / 8 +
+                                                                                  ((b + c) % 2 == x1 * y) * 1 / 8, 7 / 4)
+    x1y_lazy_different_x2_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 0) * 1 / 2 +
+                                                                                       (b == 1 and a1 == x2 and y == 0 and x1 == 0) * 1 / 2 +
+                                                                                       ((b + c) % 2 == x1 * y and x2 == 1) * 1 / 4, 7 / 4)
+    x1y_lazy_different_x1x2_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 0) * 1 / 2 +
+                                                                                         (b == 1 and a1 == x2 and y == 0 and x1 == 1) * 1 / 2 +
+                                                                                         ((b + c) % 2 == x1 * y and x2 == 1) * 1 / 4, 7 / 4)
+    x1y_lazy_different_x1x2y_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 1 and x2 == 0) * 1 / 2 +
+                                                                                          (b == 1 and a1 == x2 and y == 1 and x1 == 1) * 1 / 2 +
+                                                                                          ((b + c) % 2 == x1 * y and x2 == 1) * 1 / 4, 7 / 4)
+    x1y_lazy_different_x1_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 0) * 1 / 2 +
+                                                                                       (b == 1 and a1 == x2 and y == 0 and x1 == 1) * 1 / 2 +
+                                                                                       ((b + c) % 2 == x1 * y and x2 == 0) * 1 / 4, 7 / 4)
+    x1y_lazy_different_x1y_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 1 and x2 == 0) * 1 / 2 +
+                                                                                        (b == 1 and a1 == x2 and y == 1 and x1 == 1) * 1 / 2 +
+                                                                                        ((b + c) % 2 == x1 * y and x2 == 0) * 1 / 4, 7 / 4)
+    # print(x1y_ineq @ cor)
+    # print(x1y_lazy_ineq @ cor)
+
+    print(lp_max_violation_by_LC(x1y_ineq))
+    print(lp_max_violation_by_LC(x1y_different_y_ineq))
+    print(lp_max_violation_by_LC(x1y_lazy_ineq))
+    print(lp_max_violation_by_LC(x1y_different_y_lazy_ineq))
+    print(lp_max_violation_by_LC(x1y_unlazy_ineq))
+    print(lp_max_violation_by_LC(x1y_extra_unlazy_ineq))
+    print(lp_max_violation_by_LC(x1y_lazy_different_x2_ineq))
+    print(lp_max_violation_by_LC(x1y_lazy_different_x1x2_ineq))
+    print(towards_lc.is_facet_of_polytope_npy(x1y_lazy_different_x1_ineq))
 
     # cors, cors_indices = test_membership_of_quantum_cors(quantum_cor_file='panda-files/some_quantum_cors5.npy', double_check_soln=True, tol=1e-6)
     # np.save('cors_not_in_LC', cors)
@@ -197,7 +339,7 @@ if __name__ == '__main__':
     thresholds = []
     for cor in np.load('cors_not_in_LC.npy'):
         for t in range(0, len(tols)):
-            if not lp_without_vertices_nss_coords(cor, tols[t]).success:
+            if not lp_is_cor_in_lc(cor, tols[t]).success:
                 print('Threshold 1e-%d' % (t+1))
                 thresholds.append('1e-%d' % (t+1))
                 break
