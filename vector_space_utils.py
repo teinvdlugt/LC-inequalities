@@ -2,16 +2,13 @@ import functools
 import itertools
 import math
 import sys
-import time
 
 import numpy as np
 import numpy.linalg
 
 import panda
 import symmetry_utils
-import towards_lc
 import utils
-import vector_space_utils
 
 B = (0, 1)
 
@@ -132,7 +129,7 @@ def construct_full_to_NSS_homog(na, nb, nx, ny):
 
 def full_acb_to_nss_homog(cor_full, common_multiple_of_denominators=None):
     """ If common_multiple_of_denominators is not None, the vector is approximated by an integer one. """
-    assert vector_space_utils.is_in_NSS(cor_full, 8, 2, 4, 2)
+    assert is_in_NSS(cor_full, 8, 2, 4, 2)
     cor_nss = construct_full_to_NSS_matrix(8, 2, 4, 2) @ cor_full
     assert np.all(cor_nss <= 1)
     if common_multiple_of_denominators is not None:

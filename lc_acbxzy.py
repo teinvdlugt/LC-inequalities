@@ -5,6 +5,7 @@ import math
 import numpy as np
 from scipy.optimize import linprog
 
+import lp_for_membership
 import symmetry_utils
 import towards_lc
 import utils
@@ -258,43 +259,41 @@ def bell_2222_symmetries():
 def print_chsh_violations(p_acbxzy_nss):
     p_full = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2) @ p_acbxzy_nss
     p_full = (1 / p_full[-1] * p_full[:-1]).reshape((2,) * 8)
-    bell_facets = utils.read_vertex_range_from_file('panda-files/chsh_2222')
+    bell_facets = 1 / 2 * utils.read_vertex_range_from_file('panda-files/chsh_2222')
     p_cbxzy = np.einsum('aecbxwzy->cbxwzy', p_full)
     for x1, x2 in vs.cart(B, B):
         cor = np.r_[vs.construct_full_to_NSS_matrix(2, 2, 2, 2) @ p_cbxzy[:, :, x1, x2, :, :].reshape(16), [1]]
         print('CHSH violation for x1=%d, x2=%d: %s' % (x1, x2, str(utils.max_violation_h(cor, bell_facets))))
-    p_cbzy_avg = 1 / 4 * (p_cbxzy[:, :, 0, 0, :, :] + p_cbxzy[:, :, 0, 1, :, :] + p_cbxzy[:, :, 1, 0, :, :] + p_cbxzy[:, :, 1, 1, :, :])
-    p_cbzy_avg = np.r_[vs.construct_full_to_NSS_matrix(2, 2, 2, 2) @ p_cbzy_avg.reshape(16), [1]]
-    print('CHSH violation of averaged correlation: %s' % str(utils.max_violation_h(p_cbzy_avg, bell_facets)))
 
 
-def ineq1():  # TODO is this one violated by the switch too?
-    """ The first violated LC inequality I found, and which I wrote in the note to Giulio and Jon. """
-    ineq_full = np.zeros((2,) * 8)
-    for a1, a2, c, b, x1, x2, z, y in itertools.product((0, 1), repeat=8):
-        if b == 0 and a2 == x1 and y == 0:
-            ineq_full[a1, a2, c, b, x1, x2, z, y] += 1 / 8
-        if b == 1 and a1 == x2 and y == 0:
-            ineq_full[a1, a2, c, b, x1, x2, z, y] += 1 / 8
-        if (b + c) % 2 == y * z and x1 == x2 == 0:
-            ineq_full[a1, a2, c, b, x1, x2, z, y] += 1 / 4
-    ineq_full_h = np.r_[ineq_full.flatten(), [0]]
-    ineq_nss_h = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2).T @ ineq_full_h
-    return ineq_nss_h
+def max_of_all_chsh_violations(p_acbxy_nss):
+    p_full_h = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2) @ p_acbxy_nss
+    p_full = (1 / p_full_h[-1] * p_full_h[:-1]).reshape((2,) * 8)
+    bell_facets = 1 / 2 * utils.read_vertex_range_from_file('panda-files/chsh_2222')
+    bipartite_cors = []
+    # CHSH between c and b:
+    p_cbx1x2zy = np.einsum('aecbxwzy->cbxwzy', p_full)
+    for x1, x2 in vs.cart(B, B):
+        bipartite_cors.append(p_cbx1x2zy[:, :, x1, x2, :, :].flatten())
+    for x1, z in vs.cart(B, B):
+        bipartite_cors.append(p_cbx1x2zy[:, :, x1, :, z, :].flatten())
+    for x2, z in vs.cart(B, B):
+        bipartite_cors.append(p_cbx1x2zy[:, :, :, x2, z, :].flatten())
+    # CHSH between a1 and b:
+    p_a1bx1x2zy = np.einsum('aecbxwzy->abxwzy', p_full)  # don't need to do check CHSH violation involving z here, bc a1 is indep of z
+    for x1, z in vs.cart(B, B):
+        bipartite_cors.append(p_a1bx1x2zy[:, :, x1, :, z, :].flatten())
+    for x2, z in vs.cart(B, B):
+        bipartite_cors.append(p_a1bx1x2zy[:, :, :, x2, z, :].flatten())
+    # CHSH between a2 and b:
+    p_a2bx1x2zy = np.einsum('aecbxwzy->ebxwzy', p_full)
+    for x1, z in vs.cart(B, B):
+        bipartite_cors.append(p_a2bx1x2zy[:, :, x1, :, z, :].flatten())
+    for x2, z in vs.cart(B, B):
+        bipartite_cors.append(p_a2bx1x2zy[:, :, :, x2, z, :].flatten())
 
-
-def ineq2():
-    ineq_full = np.zeros((2,) * 8)
-    for a1, a2, c, b, x1, x2, z, y in itertools.product((0, 1), repeat=8):
-        if b == 0 and a2 == x1 and y == 0:
-            ineq_full[a1, a2, c, b, x1, x2, z, y] += 1 / 8
-        if b == 1 and a1 == x2 and y == 0:
-            ineq_full[a1, a2, c, b, x1, x2, z, y] += 1 / 8
-        if (b + c) % 2 == ((y + 1) % 2) * z and x1 == x2 == 0:  # due to some symmetry inconvenience, this one (with y+1) is violated by the switch cor described in my note.
-            ineq_full[a1, a2, c, b, x1, x2, z, y] += 1 / 4
-    ineq_full_h = np.r_[ineq_full.flatten(), [0]]
-    ineq_nss_h = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2).T @ ineq_full_h
-    return ineq_nss_h
+    bipartite_cors_h = (np.concatenate((bipartite_cors, np.ones((len(bipartite_cors), 1), dtype='int')), axis=1)) @ vs.construct_full_to_NSS_homog(2, 2, 2, 2).T
+    return utils.max_violation_h(bipartite_cors_h, bell_facets)
 
 
 def ineq_beta_gamma_delta(beta, gamma, delta):
@@ -376,36 +375,80 @@ def construct_vertices():
 
 
 if __name__ == '__main__':
-    ## Demonstrating violation of LC:
+    # TODO is this one violated by the switch too?
+    ineq1 = lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: ((b == 0 and a2 == x1 and y == 0) * 1 / 8 +
+                                                                                        (b == 1 and a1 == x2 and y == 0) * 1 / 8 +
+                                                                                        ((b + c) % 2 == y * z and x1 == x2 == 0) * 1 / 4), 7 / 4, 8, 2, 8, 2)
+    # This is the one violated:
+    ineq2 = lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: ((b == 0 and a2 == x1 and y == 0) * 1 / 8 +
+                                                                                        (b == 1 and a1 == x2 and y == 0) * 1 / 8 +
+                                                                                        ((b + c) % 2 == (1 - y) * z and x1 == x2 == 0) * 1 / 4), 7 / 4, 8, 2, 8, 2)
+    just_alpha_terms = lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: ((b == 0 and a2 == x1 and y == 0) * 1 / 8 +
+                                                                                                   (b == 1 and a1 == x2 and y == 0) * 1 / 8), 1, 8, 2, 8, 2)
+
+    ## Most straightforward violation of ineq2 - actually leading to the _maximal_ quantum violation of it:
+    """result, cor = is_switch_cor_in_lc(method='highs',
+                                      rho_ctb=qm.rho_tcb_0phi,
+                                      instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                                      instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                                      instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag1_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag2_onb))],
+                                      instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.x_onb)],
+                                      dT=2, dB=2)
+    print(result)
+    print_chsh_violations(cor)
+    print(ineq2 @ cor)  # indeed gives 3/2 + 1/(2sqrt2) - 7/4"""
+
+    # A situation where B has less correlation with the causal order, but CHSH violation still makes up for it:
+    """result, cor = is_switch_cor_in_lc(method='highs',
+                                      rho_ctb=qm.rho_tcb_0phi,
+                                      instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                                      instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                                      instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.z_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.x_onb))],
+                                      instrs_B=[qm.instr_vn_destr(qm.diag1_onb), qm.instr_vn_destr(qm.diag2_onb)],
+                                      dT=2, dB=2)
+    print(result)
+    print_chsh_violations(cor)
+    print(max_of_all_chsh_violations(cor))
+    print(ineq2 @ cor)  # not violated
+    print(just_alpha_terms @ cor)  # =-.07: big enough that adding on the CHSH can still lead to LC ineq violation
+    # We've swapped B and C so need to do the same in the CHSH part of the ineq:
+    other_chsh = lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: (((b + c) % 2 == y * (1 - z) and x1 == x2 == 0) * 1 / 4), 3 / 4, 8, 2, 8, 2)
+    ineq_violated = just_alpha_terms + other_chsh
+    print(ineq_violated @ cor)  # violated! by .103-.07  (max CHSH violation - the loss in alpha term due to poor choice of B's measurements)"""
+
+    ### TODO Cors that violate LC but I don't know why:
+    # B and C measuring in same bases:
     result, cor = is_switch_cor_in_lc(method='highs',
                                       rho_ctb=qm.rho_tcb_0phi,
                                       instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
                                       instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
-                                      instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.z_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.onb_from_direction(.25 * np.pi)))],
-                                      instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.onb_from_direction(.25 * np.pi))],  # TODO think about why this violates LC!
+                                      instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag1_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag2_onb))],
+                                      instrs_B=[qm.instr_vn_destr(qm.diag1_onb), qm.instr_vn_destr(qm.diag2_onb)],
                                       dT=2, dB=2)
     print(result)
     print_chsh_violations(cor)
+    print(max_of_all_chsh_violations(cor))  # no CHSH is violated for any choice of settings and outcomes
+    print(ineq2 @ cor)
 
-    ## Checking my analytical calculations about the inequality ineq1()
-    """
-    ineq = ineq2()
-    print(lp_max_violation_by_LC(ineq))  # Indeed gives 7/4!
-    print(ineq @ make_pacb_xzy_nss_h(rho_ctb=qm.rho_tcb_0phi,
-                                        instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
-                                        instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
-                                        instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag1_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag2_onb))],
-                                        instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.x_onb)],
-                                        dT=2, dB=2))  # Indeed gives 3/2 + 1/(2sqrt2) !
-    """
+    # An analogous one that's maybe easier to analyse, because b|y=0 is perfectly correlated with the causal order:
+    """result, cor = is_switch_cor_in_lc(method='highs',
+                                      rho_ctb=1 / 2 * qm.proj(np.einsum('i,jk->jik', qm.diag1_onb[0], qm.phi_plus_un.reshape((2, 2))).reshape(8)),  # |diag>_T |php>_CB
+                                      instrs_A1=[qm.instr_measure_and_prepare(qm.diag1_onb, qm.diag1_onb[0]), qm.instr_measure_and_prepare(qm.diag1_onb, qm.diag1_onb[1])],
+                                      instrs_A2=[qm.instr_measure_and_prepare(qm.diag1_onb, qm.diag1_onb[0]), qm.instr_measure_and_prepare(qm.diag1_onb, qm.diag1_onb[1])],
+                                      instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.z_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.x_onb))],
+                                      instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.x_onb)],
+                                      dT=2, dB=2)
+    print(result)
+    print_chsh_violations(cor)
+    print(max_of_all_chsh_violations(cor))  # no CHSH is violated for any choice of settings and outcomes
+    print(ineq2 @ cor)"""
 
-    ## Computing maximal LC value for the 'beta,gamma,delta' inequalities (see note)
-    """
-    for beta, gamma, delta in itertools.product(B, repeat=3):
-        print('%d,%d,%d: %s' % (beta, gamma, delta, str(lp_max_violation_by_LC(ineq_beta_gamma_delta(beta, gamma, delta)))))
-    """
-
-    # construct_vertices()
+    trying = lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: ((b == 0 and a2 == x1 and y == 0) * 1 / 8 +
+                                                                                         (b == 1 and a1 == x2 and y == 0) * 1 / 8 +
+                                                                                         ((b + c) % 2 == (1 - y) * (a1 != x2) and x1 == 0 and x2 == 0) * 1 / 4),
+                                                  11 / 8, 8, 2, 8, 2)
+    print(maximum_violation_by_LC_lp(trying))
+    print(trying @ cor)
 
     # result, cor = is_switch_cor_in_lc(method='interior-point', tol=1e-8,
     #                                   rho_ctb=qm.rho_ctb_plusphiplus,

@@ -1,6 +1,5 @@
 import cmath
 import functools
-import itertools
 import random
 import sys
 from math import pi, cos, sin, sqrt
@@ -8,10 +7,6 @@ import numpy as np
 
 import scipy.linalg
 
-import lp_for_membership
-import symmetry_utils
-import towards_lc
-import utils
 import vector_space_utils as vs
 
 

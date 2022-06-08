@@ -4,8 +4,10 @@ import sys
 import numpy as np
 from scipy.optimize import linprog
 
+import quantum_utils as qm
 import symmetry_utils
 import towards_lc
+import utils
 import vector_space_utils as vs
 
 dim_nss = vs.dim_NSS(8, 2, 4, 2)
@@ -234,14 +236,60 @@ def test_membership_of_quantum_cors(lp_method=lp_is_cor_in_lc, quantum_cor_file=
     return cors_not_in_LC, cors_not_in_LC_indices
 
 
-def construct_ineq_nss(num_of_binary_vars, point_function, upper_bound=0.0, na=8, nb=2, nx=4, ny=2):
+def construct_ineq_full(num_of_binary_vars, point_function, upper_bound=0.0):
     """ A function of n binary variables, where n is often equal to 7, which returns the points won by the parties when they output those binary variables. """
     ineq_full = np.zeros((2,) * num_of_binary_vars)
     for var_tuple in itertools.product((0, 1), repeat=num_of_binary_vars):
         ineq_full[var_tuple] += point_function(*var_tuple)
     ineq_full_h = np.r_[ineq_full.flatten(), [-upper_bound]]
-    ineq_nss_h = vs.construct_NSS_to_full_homogeneous(na, nb, nx, ny).T @ ineq_full_h
+    return ineq_full_h
+
+
+def construct_ineq_nss(num_of_binary_vars, point_function, upper_bound=0.0, na=8, nb=2, nx=4, ny=2):
+    """ A function of n binary variables, where n is often equal to 7, which returns the points won by the parties when they output those binary variables. """
+    ineq_nss_h = vs.construct_NSS_to_full_homogeneous(na, nb, nx, ny).T @ construct_ineq_full(num_of_binary_vars, point_function, upper_bound)
     return ineq_nss_h
+
+
+def print_x12y_chsh_violations(p_acbxy_nss):
+    p_full_h = vs.construct_NSS_to_full_homogeneous(8, 2, 4, 2) @ p_acbxy_nss
+    p_full = (1 / p_full_h[-1] * p_full_h[:-1]).reshape((2,) * 7)
+    bell_facets = 1 / 2 * utils.read_vertex_range_from_file('panda-files/chsh_2222')
+    p_cbx1x2y = np.einsum('aecbxwy->cbxwy', p_full)
+    for x2 in (0, 1):
+        cor = np.r_[vs.construct_full_to_NSS_matrix(2, 2, 2, 2) @ p_cbx1x2y[:, :, :, x2, :].reshape(16), [1]]
+        print('CHSH violation for x2=%d: %s' % (x2, str(utils.max_violation_h(cor, bell_facets))))
+    for x1 in (0, 1):
+        cor = np.r_[vs.construct_full_to_NSS_matrix(2, 2, 2, 2) @ p_cbx1x2y[:, :, x1, :, :].reshape(16), [1]]
+        print('CHSH violation for x1=%d: %s' % (x1, str(utils.max_violation_h(cor, bell_facets))))
+
+
+def max_of_all_chsh_violations(p_acbxy_nss):
+    p_full_h = vs.construct_NSS_to_full_homogeneous(8, 2, 4, 2) @ p_acbxy_nss
+    p_full = (1 / p_full_h[-1] * p_full_h[:-1]).reshape((2,) * 7)
+    bell_facets = 1 / 2 * utils.read_vertex_range_from_file('panda-files/chsh_2222')
+    # CHSH between c and b:
+    p_cbx1x2y = np.einsum('aecbxwy->cbxwy', p_full)
+    cor1 = p_cbx1x2y[:, :, :, 0, :].flatten()
+    cor2 = p_cbx1x2y[:, :, :, 1, :].flatten()
+    cor3 = p_cbx1x2y[:, :, 0, :, :].flatten()
+    cor4 = p_cbx1x2y[:, :, 1, :, :].flatten()
+    # CHSH between a1 and b:
+    p_a1bx1x2y = np.einsum('aecbxwy->abxwy', p_full)
+    cor5 = p_a1bx1x2y[:, :, :, 0, :].flatten()
+    cor6 = p_a1bx1x2y[:, :, :, 1, :].flatten()
+    cor7 = p_a1bx1x2y[:, :, 0, :, :].flatten()
+    cor8 = p_a1bx1x2y[:, :, 1, :, :].flatten()
+    # CHSH between a2 and b:
+    p_a2bx1x2y = np.einsum('aecbxwy->ebxwy', p_full)
+    cor9 = p_a2bx1x2y[:, :, :, 0, :].flatten()
+    cor10 = p_a2bx1x2y[:, :, :, 1, :].flatten()
+    cor11 = p_a2bx1x2y[:, :, 0, :, :].flatten()
+    cor12 = p_a2bx1x2y[:, :, 1, :, :].flatten()
+    all_cors_full = np.array([cor1, cor2, cor3, cor4, cor5, cor6, cor7, cor8, cor9, cor10, cor11, cor12])
+    all_cors_nss_h = (np.concatenate((all_cors_full, np.ones((len(all_cors_full), 1), dtype='int')), axis=1)) @ vs.construct_full_to_NSS_homog(2, 2, 2, 2).T
+
+    return utils.max_violation_h(all_cors_nss_h, bell_facets)
 
 
 if __name__ == '__main__':
@@ -266,8 +314,7 @@ if __name__ == '__main__':
     #                               instr_C=qm.instr_vn_destr(qm.x_onb),
     #                               instrs_B=[qm.instr_vn_destr(qm.diag1_onb), qm.instr_vn_destr(qm.diag2_onb)])
     # ).success)
-    """
-    cor = qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_tcb_0phi,  # NOTE qm.rho_ctb_plusphiplus also works, if Alice does X mmt on setting x_i=1. Think about later
+    """cor = qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_tcb_0phi,  # NOTE qm.rho_ctb_plusphiplus also works, if Alice does X mmt on setting x_i=1. Think about later
                                     instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
                                     instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
                                     instr_C=qm.instr_vn_destr(qm.onb_from_direction(0.148 * np.pi)),  # 0.148 * np.pi seems to give maximal violation
@@ -283,8 +330,8 @@ if __name__ == '__main__':
     print('-- α stuff:')
     print(construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 0) * 1 / 2) @ cor)
     print(construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 1 and a1 == x2 and y == 0 and x1 == 0) * 1 / 2) @ cor)
-    print('-- Total:')
-    """
+    print('-- Total:')"""
+
     x1y_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0) * 1 / 4 +
                                                                      (b == 1 and a1 == x2 and y == 0) * 1 / 4 +
                                                                      ((b + c) % 2 == x1 * y and x2 == 0) * 1 / 4, 7 / 4)
@@ -306,6 +353,9 @@ if __name__ == '__main__':
     x1y_lazy_different_x2_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 0) * 1 / 2 +
                                                                                        (b == 1 and a1 == x2 and y == 0 and x1 == 0) * 1 / 2 +
                                                                                        ((b + c) % 2 == x1 * y and x2 == 1) * 1 / 4, 7 / 4)
+    x1y_lazy_different_x2y_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 1 and x2 == 0) * 1 / 2 +
+                                                                                        (b == 1 and a1 == x2 and y == 1 and x1 == 0) * 1 / 2 +
+                                                                                        ((b + c) % 2 == x1 * y and x2 == 1) * 1 / 4, 7 / 4)
     x1y_lazy_different_x1x2_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 0) * 1 / 2 +
                                                                                          (b == 1 and a1 == x2 and y == 0 and x1 == 1) * 1 / 2 +
                                                                                          ((b + c) % 2 == x1 * y and x2 == 1) * 1 / 4, 7 / 4)
@@ -318,29 +368,47 @@ if __name__ == '__main__':
     x1y_lazy_different_x1y_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 1 and x2 == 0) * 1 / 2 +
                                                                                         (b == 1 and a1 == x2 and y == 1 and x1 == 1) * 1 / 2 +
                                                                                         ((b + c) % 2 == x1 * y and x2 == 0) * 1 / 4, 7 / 4)
-    # print(x1y_ineq @ cor)
-    # print(x1y_lazy_ineq @ cor)
+    # Violated faces and facets:
+    x1y_lazy_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 0) * 1 / 2 +
+                                                                          (b == 1 and a1 == x2 and y == 0 and x1 == 0) * 1 / 2 +
+                                                                          ((b + c) % 2 == x1 * y and x2 == 0) * 1 / 4, 7 / 4)  # dim 73
+    x1y_varx2_lazy_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 1) * 1 / 2 +
+                                                                                (b == 1 and a1 == x2 and y == 0 and x1 == 0) * 1 / 2 +
+                                                                                ((b + c) % 2 == x1 * y and x2 == 0) * 1 / 4, 7 / 4)
+    x1y_varx2_lazy_plus_last_term_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 1) * 1 / 2 +
+                                                                                               (b == 1 and a1 == x2 and y == 0 and x1 == 0) * 1 / 2 +
+                                                                                               ((b + c) % 2 == x1 * y and x2 == 0) * 1 / 4 +
+                                                                                               (a1 == 1 and c == 1 - b == y and x1 == 0 and x2 == 0) * 1 / 2, 7 / 4)
+    just_the_alpha_terms = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 1) * 1 / 2 +
+                                                                                 (b == 1 and a1 == x2 and y == 0 and x1 == 0) * 1 / 2, 1)
+    just_the_chsh_term = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: ((b + c) % 2 == x1 * y and x2 == 0) * 1 / 4, 3 / 4)
+    just_the_last_term = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (a1 == 1 and c == 1 - b == y and x1 == 0 and x2 == 0) * 1 / 2)
 
-    print(lp_max_violation_by_LC(x1y_ineq))
-    print(lp_max_violation_by_LC(x1y_different_y_ineq))
-    print(lp_max_violation_by_LC(x1y_lazy_ineq))
-    print(lp_max_violation_by_LC(x1y_different_y_lazy_ineq))
-    print(lp_max_violation_by_LC(x1y_unlazy_ineq))
-    print(lp_max_violation_by_LC(x1y_extra_unlazy_ineq))
-    print(lp_max_violation_by_LC(x1y_lazy_different_x2_ineq))
-    print(lp_max_violation_by_LC(x1y_lazy_different_x1x2_ineq))
-    print(towards_lc.is_facet_of_polytope_npy(x1y_lazy_different_x1_ineq))
 
-    # cors, cors_indices = test_membership_of_quantum_cors(quantum_cor_file='panda-files/some_quantum_cors5.npy', double_check_soln=True, tol=1e-6)
-    # np.save('cors_not_in_LC', cors)
-
+    # Correlations that still require an explanation:
     """
-    tols = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10]
-    thresholds = []
-    for cor in np.load('cors_not_in_LC.npy'):
-        for t in range(0, len(tols)):
-            if not lp_is_cor_in_lc(cor, tols[t]).success:
-                print('Threshold 1e-%d' % (t+1))
-                thresholds.append('1e-%d' % (t+1))
-                break
+    cor = qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_tcb_0phi,
+                                    instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                                    instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                                    instr_C=qm.instr_vn_destr(qm.diag1_onb),
+                                    instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.diag1_onb)])
+    # or:                           instr_C=qm.instr_vn_destr(qm.diag1_onb),
+    #                               instrs_B=[qm.instr_vn_destr(qm.diag1_onb), qm.instr_vn_destr(qm.diag2_onb)])
+    print(lp_is_cor_in_lc(cor).success)  # is outside LC
+    print_x12y_chsh_violations(cor)  # but doesn't violate a CHSH ineq btw b and c (neither for fixed x1 nor for fixed x2)
+    print(max_of_all_chsh_violations(cor))  # and also not between b and a1 or between b and a2.
     """
+
+    """cor = qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_ctb_plusphiplus,
+                                    instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.x_onb, qm.ket1)],
+                                    instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.x_onb, qm.ket1)],
+                                    instr_C=qm.instr_vn_destr(qm.x_onb),
+                                    instrs_B=[qm.instr_vn_destr(qm.diag1_onb), qm.instr_vn_destr(qm.diag2_onb)])
+    print(lp_is_cor_in_lc(cor).success)  # is outside LC
+    print_x12y_chsh_violations(cor)  # but doesn't violate a CHSH ineq btw b and c (neither for fixed x1 nor for fixed x2)
+    print(max_of_all_chsh_violations(cor))"""
+
+    print('Violation of alpha term:', just_the_alpha_terms @ cor)
+    print('Violation of CHSH term:', just_the_chsh_term @ cor)
+    print('Value of last term:', just_the_last_term @ cor)
+    print('Violation of the entire expression:', x1y_varx2_lazy_plus_last_term_ineq @ cor)

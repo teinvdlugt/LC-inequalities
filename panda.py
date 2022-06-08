@@ -1,11 +1,10 @@
 import itertools
 import numpy as np
 
+import symmetry_utils
 import vector_space_utils as vs
 
 B = (0, 1)
-
-import symmetry_utils
 
 
 ## NSS (i.e. pure Bell) stuff
@@ -53,6 +52,29 @@ def nss_write_panda_input(na, nb, nx, ny, readable=False, filename=None):
     #   1  1  1  1  1  1  1  0  2  -> the nonlocal, nondeterministic vertex (I checked that it's indeed the same as Eqs. (8) and (9).
 
 
+def bell_write_panda_input(na, nb, nx, ny, filename=None):
+    lines = []
+
+    # 1) Dimension information
+    dim_NSS = vs.dim_NSS(na, nb, nx, ny)
+    lines.append('DIM=%d' % dim_NSS)
+
+    # 2) Names of coordinates
+    lines.append('Names:')
+    var_names = ['x' + str(i) for i in range(0, dim_NSS)]
+    lines.append(' '.join(var_names))
+
+    # 3) Symmetry information
+    lines.append('Maps:')
+    # x -> perm(x) = λ + μx   (x^2 = x - 2)
+    # y -> perm(y) = λ + μy   (y^2 = y)
+    # b -> perm(b|y) = b + f(y) = b + λ + μy
+    # a -> perm(a|x) = 2-cycle * f(x) + id * (1-f(x))
+    # ^ maybe later! TODO
+
+    # symmetry_utils.nss_var_perm_to_symm(lambda a,b,x,y: ) :(
+
+
 def nss_readable_var_names(na, nb, nx, ny):
     var_names = []
     # NSS-I
@@ -71,13 +93,13 @@ def nss_readable_var_names_a1a2c():
     var_names = []
     # NSS-I
     for (a1, a2, c), x1, x2 in vs.cart(vs.cart((0, 1), (0, 1), (0, 1))[:-1], (0, 1), (0, 1)):
-        var_names.append('a1' + str(a1) + 'a2' + str(a2) + 'c' + str(c) + 'x1' + str(x1) + 'x2' + str(x2))
+        var_names.append('a' + str(a1) + str(a2) + 'c' + str(c) + 'x' + str(x1) + str(x2))
     # NSS-II
-    for b, y in itertools.product((0,), (0,1)):
+    for b, y in itertools.product((0,), (0, 1)):
         var_names.append('b' + str(b) + 'y' + str(y))
     # NSS-III
     for (a1, a2, c), b, x1, x2, y in vs.cart(vs.cart((0, 1), (0, 1), (0, 1))[:-1], (0,), (0, 1), (0, 1), (0, 1)):
-        var_names.append('a1' + str(a1) + 'a2' + str(a2) + 'c' + str(c) + 'b' + str(b) + 'x1' + str(x1) + 'x2' + str(x2) + 'y' + str(y))
+        var_names.append('a' + str(a1) + str(a2) + 'c' + str(c) + 'b' + str(b) + 'x' + str(x1) + str(x2) + 'y' + str(y))
     return var_names
 
 
@@ -108,6 +130,48 @@ def nss_vertex_classes_from_BLM05(na, nb):
     # BLM05_vertex = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0]
     # print(nss_vertices_are_equivalent_old(3, 3, 2, 2, panda_vertex, BLM05_vertex, 5))
     # Gives True, so the vertices are equivalent.
+
+
+def print_full_ineq_lcacbxy(ineq, no_negative_coeffs=True):
+    if len(ineq) == 87:
+        ineq = vs.construct_full_to_NSS_homog(8, 2, 4, 2).T @ ineq
+    assert len(ineq) == 129
+    if np.all(ineq.astype('int') == ineq):
+        ineq = ineq.astype('int')
+
+    if no_negative_coeffs:
+        for a1, a2, c, b, x1, x2, y in itertools.product(B, repeat=7):
+            coeff = ineq[vs.concatenate_bits(a1, a2, c, b, x1, x2, y)]
+            if coeff < 0:
+                ineq[vs.concatenate_bits(a1, a2, c, b, x1, x2, y)] = 0
+                # Add -coeff to the RHS of the inequality and -coeff*(1-p(a1,a2,c,b|x1,x2,y)) to the LHS
+                ineq[-1] += coeff  # not -=, because ineq[-1] is the negated bound
+                for _a1, _a2, _c, _b in itertools.product(B, repeat=4):
+                    if (_a1, _a2, _c, _b) != (a1, a2, c, b):
+                        ineq[vs.concatenate_bits(_a1, _a2, _c, _b, x1, x2, y)] -= coeff
+
+    string = ''
+    spaces_per_term = 15
+    for a1, a2, c, b in itertools.product(B, repeat=4):
+        for x1, x2, y in itertools.product(B, repeat=3):
+            coeff = ineq[vs.concatenate_bits(a1, a2, c, b, x1, x2, y)]
+            p = 'p(%d%d%d%d|%d%d%d)' % (a1, a2, c, b, x1, x2, y)
+            if coeff == 1:
+                term = '+ ' + p
+            elif coeff == -1:
+                term = '- ' + p
+            elif coeff == 0:
+                term = ''
+            elif coeff > 0:
+                term = '+' + str(coeff) + p
+            else:
+                term = str(coeff) + p
+            string += term + ' ' * (spaces_per_term - len(term))
+        string += '\n'
+    string = string[:-1]  # remove last newline
+    string += ' ≤ ' + str(-ineq[-1])
+    print(string)
+    return string
 
 
 ## NSCO1 stuff (strong version! so 80-dim)
