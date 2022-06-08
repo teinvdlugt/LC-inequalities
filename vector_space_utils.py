@@ -549,6 +549,29 @@ def filter_row_file(input_filename, output_filename, constraint):
     print("Finished with %d / %d good rows; %d bad lines" % (constraint_satisfied_count, total_rows_processed_count, bad_line_count))
 
 
+def construct_deterministic_cor_nss_homog(a, b, na, nb, nx, ny):
+    """ a,b should be functions (e.g. lambdas) from nx×ny->na, and nx×ny->nb. The returned vector is full homogeneous. """
+    cor = np.zeros((na, nb, nx, ny), dtype='int')
+    for _a, _b, _x, _y in cart(range(na), range(nb), range(nx), range(ny)):
+        cor[_a, _b, _x, _y] = 1 * (_a == a(_x, _y)) * (_b == b(_x, _y))
+    return construct_full_to_NSS_homog(na, nb, nx, ny) @ np.r_[cor.reshape((na * nb * nx * ny,)), [1]]
+
+
+def construct_ns_ineq_full(na, nb, nx, ny, point_function, upper_bound=0.0):
+    ineq_full = np.zeros((na, nb, nx, ny), dtype='int')
+    for var_tuple in cart(range(na), range(nb), range(nx), range(ny)):
+        point = point_function(*var_tuple)
+        if int(point) != point:
+            ineq_full = ineq_full.astype('float')
+        ineq_full[var_tuple] += point_function(*var_tuple)
+    ineq_full_h = np.r_[ineq_full.flatten(), [-upper_bound]]
+    return ineq_full_h
+
+
+def construct_ns_ineq_nss(na, nb, nx, ny, point_function, upper_bound=0.0):
+    return construct_NSS_to_full_homogeneous(na, nb, nx, ny).T @ construct_ns_ineq_full(na, nb, nx, ny, point_function, upper_bound)
+
+
 def cart(*args):
     return list(itertools.product(*args))
 

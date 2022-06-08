@@ -143,7 +143,24 @@ def full_perm_to_symm(perm, dtype='int'):
 def nss_var_perm_to_symm(perm, dtype='int'):
     """ Constructs (87,87) symmetry matrix M by using that NtoF @ M @ FtoN == Sigma, the permutation matrix. """
     perm_matrix = full_perm_to_symm_homog(perm, dtype=dtype)
-    return vs.construct_full_to_NSS_homog(8, 2, 4, 2) @ perm_matrix @ vs.construct_NSS_to_full_homogeneous()
+    return vs.construct_full_to_NSS_homog(8, 2, 4, 2) @ perm_matrix @ vs.construct_NSS_to_full_homogeneous(8, 2, 4, 2)
+
+
+def full_perm_to_symm_homog_more_general(perm, na, nb, nx, ny, dtype='int'):
+    dim_full = na * nb * nx * ny
+    def position_in_full_rep(_a, _b, _x, _y):
+        return _a * nb * nx * ny + _b * nx * ny + _x * ny + _y
+    return np.r_[
+        np.array([
+            utils.one_hot_vector(dim_full + 1, position_in_full_rep(*perm(a, b, x, y)), dtype=dtype)
+            for a, b, x, y in vs.cart(range(na), range(nb), range(nx), range(ny))
+        ]),
+        [utils.one_hot_vector(dim_full + 1, -1, dtype=dtype)]]
+
+
+def nss_var_perm_to_symm_more_general(perm, na, nb, nx, ny, dtype='int'):
+    perm_matrix = full_perm_to_symm_homog_more_general(perm, na, nb, nx, ny, dtype=dtype)
+    return vs.construct_full_to_NSS_homog(na, nb, nx, ny) @ perm_matrix @ vs.construct_NSS_to_full_homogeneous(na, nb, nx, ny)
 
 
 ## NSCO1 stuff

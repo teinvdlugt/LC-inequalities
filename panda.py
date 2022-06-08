@@ -52,7 +52,7 @@ def nss_write_panda_input(na, nb, nx, ny, readable=False, filename=None):
     #   1  1  1  1  1  1  1  0  2  -> the nonlocal, nondeterministic vertex (I checked that it's indeed the same as Eqs. (8) and (9).
 
 
-def bell_write_panda_input(na, nb, nx, ny, filename=None):
+def bell_write_panda_input(na, nb, nx, ny, reduced_vertices=True, readable=False, filename=None):
     lines = []
 
     # 1) Dimension information
@@ -61,18 +61,63 @@ def bell_write_panda_input(na, nb, nx, ny, filename=None):
 
     # 2) Names of coordinates
     lines.append('Names:')
-    var_names = ['x' + str(i) for i in range(0, dim_NSS)]
+    var_names = ['x' + str(i) for i in range(0, dim_NSS)] if not readable else nss_readable_var_names(na, nb, nx, ny)
     lines.append(' '.join(var_names))
 
     # 3) Symmetry information
-    lines.append('Maps:')
-    # x -> perm(x) = λ + μx   (x^2 = x - 2)
-    # y -> perm(y) = λ + μy   (y^2 = y)
-    # b -> perm(b|y) = b + f(y) = b + λ + μy
-    # a -> perm(a|x) = 2-cycle * f(x) + id * (1-f(x))
-    # ^ maybe later! TODO
+    def neighbourly_two_cycle(n, N):
+        assert 0 <= n <= N - 2
+        return lambda a: a + 1 if a == n else (a - 1 if a == n + 1 else a)
+    def neighbourly_two_cycles(N):
+        return [neighbourly_two_cycle(n, N) for n in range(0, N - 1)]
 
-    # symmetry_utils.nss_var_perm_to_symm(lambda a,b,x,y: ) :(
+    symms = []
+    for cycle in neighbourly_two_cycles(nx):
+        symms.append(symmetry_utils.nss_var_perm_to_symm_more_general(lambda a, b, x, y: (a, b, cycle(x), y), na, nb, nx, ny))
+    for cycle in neighbourly_two_cycles(ny):
+        symms.append(symmetry_utils.nss_var_perm_to_symm_more_general(lambda a, b, x, y: (a, b, x, cycle(y)), na, nb, nx, ny))
+    for _x in range(0, nx):
+        for cycle in neighbourly_two_cycles(na):
+            symms.append(symmetry_utils.nss_var_perm_to_symm_more_general(lambda a, b, x, y: (cycle(a) if x == _x else a, b, x, y), na, nb, nx, ny))
+    for _y in range(0, ny):
+        for cycle in neighbourly_two_cycles(ny):
+            symms.append(symmetry_utils.nss_var_perm_to_symm_more_general(lambda a, b, x, y: (a, cycle(b) if y == _y else b, x, y), na, nb, nx, ny))
+
+    lines.append('Maps:')
+    for symm in symms:
+        lines.append(symmetry_utils.symm_matrix_to_string(symm, var_names))
+
+    # 4) Vertices
+    if reduced_vertices:
+        lines.append('Reduced Vertices:')
+        vertex = vs.construct_deterministic_cor_nss_homog(lambda x, y: 0, lambda x, y: 0, na, nb, nx, ny)
+        lines.append(' '.join(map(str, vertex[:-1])))
+    else:
+        lines.append('Vertices:')
+        # Loop through deterministic functions nx->na and ny->nb
+        for a_s in itertools.product(range(na), repeat=nx):
+            for b_s in itertools.product(range(nb), repeat=ny):
+                lines.append(' '.join(map(str, vs.construct_deterministic_cor_nss_homog(lambda x, y: a_s[x], lambda x, y: b_s[y], na, nb, nx, ny)[:-1])))
+
+    # Write to file
+    if filename is None:
+        filename = 'panda-files/bell_polytope/bell_%d%d%d%d_vertices' % (na, nb, nx, ny)
+    file = open(filename, 'w')
+    file.write('\n'.join(lines))
+    file.close()
+
+    ## Known facets file
+    with open(filename + '_known_facets', 'w') as f:
+        f.write('Inequalities:\n')
+        chsh_on_0_and_1 = vs.construct_ns_ineq_nss(na, nb, nx, ny,
+                                                   lambda a, b, x, y: ((a == b == 0 or a == b == 1) and ((x == 0 and y == 0) or (x == 1 and y == 0) or (x == 0 and y == 1))) \
+                                                                      or ((a == 1 - b == 0 or a == 1 - b == 1) and (x == 1 and y == 1)) * 1,
+                                                   upper_bound=3)
+        p_gtr_0 = vs.construct_ns_ineq_nss(na, nb, nx, ny,
+                                           lambda a, b, x, y: (a == 0 and b == 0 and x == 0 and y == 0) * -1,
+                                           upper_bound=0)
+        f.write(' '.join(map(str, chsh_on_0_and_1)) + '\n')
+        f.write(' '.join(map(str, p_gtr_0)))
 
 
 def nss_readable_var_names(na, nb, nx, ny):
