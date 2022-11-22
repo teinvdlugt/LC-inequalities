@@ -91,7 +91,7 @@ def write_rows_to_file(filename, array):
 
 def one_hot_vector(size, position, dtype='int'):
     if position < 0:
-        position = size + position
+        position += size
     return np.r_[np.zeros(position, dtype=dtype), [1], np.zeros(size - position - 1, dtype=dtype)]
 
 

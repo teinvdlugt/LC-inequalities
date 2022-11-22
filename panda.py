@@ -29,7 +29,7 @@ def nss_write_panda_input(na, nb, nx, ny, readable=False, filename=None):
     # 3) Symmetry information
     lines.append('Maps:')
     for symm in symmetry_utils.nss_symmetry_generators(na, nb, nx, ny, var_names):
-        lines.append(symm)
+        lines.append(symmetry_utils.symm_matrix_to_string(symm, var_names))
 
     # 5) Inequalities and equations
     lines.append('Inequalities:')
@@ -41,7 +41,7 @@ def nss_write_panda_input(na, nb, nx, ny, readable=False, filename=None):
 
     # Write to file
     if filename is None:
-        filename = 'panda-files/nss_facets_%d-%d-%d-%d.pi' % (na, nb, nx, ny)
+        filename = 'panda-files/no-signalling-polytope/nss_facets_%d-%d-%d-%d.pi' % (na, nb, nx, ny)
     file = open(filename, 'w')
     file.write('\n'.join(lines))
     file.close()
@@ -424,7 +424,7 @@ def convert_panda_output_vertex_to_input_vertex_format(old_filename, new_filenam
     new_lines = []
     for line in old_file.readlines():
         try:
-            new_lines.append(row_with_denom_to_vector_str(list(map(int, line.split()))))
+            new_lines.append(homog_vertex_to_str_with_fractions(list(map(int, line.split()))))
         except ValueError:
             # Line was not filled with integers. Probably a comment/header line. Leave intact but remove the newline.
             new_lines.append(line.strip())
@@ -435,7 +435,9 @@ def convert_panda_output_vertex_to_input_vertex_format(old_filename, new_filenam
     new_file.close()
 
 
-def row_with_denom_to_vector_str(row):
+def homog_vertex_to_str_with_fractions(row):
+    if not np.all(row == np.array(row, dtype='int')):
+        raise ValueError('This function only makes sense if the passed vector has only integer values')
     from fractions import Fraction
     vector = list(row[:-1])
     denominator = row[-1]

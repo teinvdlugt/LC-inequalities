@@ -509,7 +509,7 @@ def reduce_file_to_lin_indep_subset(filename, lcm_of_denominators, max_dimension
         if output_filename:
             output_file = open(output_filename, 'w')
             for vec in matrix:
-                output_file.write(panda.row_with_denom_to_vector_str(np.r_[vec, [lcm_of_denominators]]) + "\n")
+                output_file.write(panda.homog_vertex_to_str_with_fractions(np.r_[vec, [lcm_of_denominators]]) + "\n")
             output_file.close()
         if len(matrix) >= max_dimension:
             print("Limit reached!")
@@ -572,6 +572,17 @@ def construct_ns_ineq_nss(na, nb, nx, ny, point_function, upper_bound=0.0):
     return construct_NSS_to_full_homogeneous(na, nb, nx, ny).T @ construct_ns_ineq_full(na, nb, nx, ny, point_function, upper_bound)
 
 
+def bell4242_ineq_to_an_8242_ineq(ineq4242):
+    assert len(ineq4242) == 39
+    ineq_full_h = construct_full_to_NSS_homog(4, 2, 4, 2).T @ ineq4242
+    ineq_full = ineq_full_h[:-1].reshape((4, 2, 4, 2))
+    new_ineq_full = np.zeros((8, 2, 4, 2), dtype='int')
+    for a, b, x, y in itertools.product(range(4), range(2), range(4), range(2)):
+        new_ineq_full[a, b, x, y] = ineq_full[a, b, x, y]
+    # ... and the other indices of new_ineq_full stay zero
+    return construct_NSS_to_full_homogeneous(8,2,4,2).T @ np.r_[new_ineq_full.flatten(), [ineq_full_h[-1]]]
+
+
 def cart(*args):
     return list(itertools.product(*args))
 
@@ -620,3 +631,8 @@ if __name__ == '__main__':
                        [1, 0, 0, 1]])
     print(reduce_to_lin_indep_subset(matrix))
     """
+
+    # 8 Jun 22
+    """\with open('panda-files/bell_polytope/some_8242_bell_ineqs', 'w') as f:
+        for ineq4242 in utils.read_vertex_range_from_file('panda-files/bell_polytope/some_4242_bell_ineqs'):
+            f.write(' '.join(map(str, bell4242_ineq_to_an_8242_ineq(ineq4242))) + '\n')"""

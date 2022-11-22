@@ -15,6 +15,23 @@ B = (0, 1)
 def nss_symmetry_generators(na, nb, nx, ny, var_names):
     """ var_names should have length dim_nss(na, nb, nx, ny). 'generators' because it returns a generating subset of all symmetries
      (namely those given by 'neighbourly 2-cycles'). """
+
+    def controlled_two_cycle(position_of_cycle, number_of_values, evaluand, control_toggle=True):
+        if control_toggle and evaluand == position_of_cycle:
+            return (position_of_cycle + 1) % number_of_values
+        if control_toggle and evaluand == (position_of_cycle + 1) % number_of_values:
+            return position_of_cycle
+        return evaluand
+
+    return np.r_[
+        [nss_var_perm_to_symm_more_general(lambda a, b, x, y: (a, b, controlled_two_cycle(pos, nx, x), y), 2, 4, 2, 4) for pos in range(nx)],  # do a two-cycle permutation of x
+        [nss_var_perm_to_symm_more_general(lambda a, b, x, y: (controlled_two_cycle(pos, na, a, x==0), b, x, y), 2, 4, 2, 4) for pos in range(na)],  # do a two-cycle permutation of a IF x==0. These generate all controlled (by x) permutations of a.
+        [nss_var_perm_to_symm_more_general(lambda a, b, x, y: (a, b, x, controlled_two_cycle(pos, ny, y)), 2, 4, 2, 4) for pos in range(ny)],  # do a two-cycle permutation of y
+        [nss_var_perm_to_symm_more_general(lambda a, b, x, y: (a, controlled_two_cycle(pos, nb, b, y == 0), x, y), 2, 4, 2, 4) for pos in range(nb)]
+    ]
+
+    # Old version:
+
     symmetries = []  # array of strings
 
     ra = range(0, na)

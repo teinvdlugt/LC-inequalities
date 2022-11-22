@@ -42,7 +42,7 @@ def reduce_vertices_panda_helper_file(filename='panda-files/lc_abxy_reduce_verti
         # Vertices to reduce
         f.write('Vertices:\n')
         for vertex in utils.read_vertex_range_from_file('panda-files/results/17 LC_abxy/lc_abxy_vertex_classes_with_duplicates'):
-            f.write(panda.row_with_denom_to_vector_str(vertex) + '\n')
+            f.write(panda.homog_vertex_to_str_with_fractions(vertex) + '\n')
 
 
 def lc_abxy_facet_enum_panda_file(filename='panda-files/results/17 LC_abxy/4 lc_abxy_facet_enum.pi', readable=False):
@@ -68,7 +68,7 @@ def lc_abxy_facet_enum_panda_file(filename='panda-files/results/17 LC_abxy/4 lc_
     # 5) Vertices
     lines.append('Reduced Vertices:')
     for vertex in utils.read_vertex_range_from_file('panda-files/results/17 LC_abxy/3 lc_abxy_vertex_classes'):
-        lines.append(panda.row_with_denom_to_vector_str(vertex))
+        lines.append(panda.homog_vertex_to_str_with_fractions(vertex))
 
     # Write to file
     file = open(filename, 'w')

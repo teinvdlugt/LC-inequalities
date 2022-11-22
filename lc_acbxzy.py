@@ -76,7 +76,54 @@ def constraints_is_valid_lc_deco():
     return A_ub, b_ub, A_eq, b_eq
 
 
-def is_cor_in_lc(p_nss, tol=1e-12, method='highs', double_check_soln=True):
+def constraints_is_valid_lc_deco_without_z_constraint():
+    """ Returns arrays A_ub, b_ub, A_eq, B_eq that represent the constraint that a (170+1)*2=342-length vector represents
+     a valid 'LC decomposition', i.e. of the form λp^1 + (1-λ)p^2. """
+    num_of_unknowns = (dim_nss + 1) * 2
+
+    # Constraint i: positivity of probabilities (see [p208,210] for matrix)
+    cons_i_matrix = np.block([[vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2), np.zeros((dim_full + 1, dim_nss + 1), dtype='int')],
+                              [np.zeros((dim_full + 1, dim_nss + 1), dtype='int'), vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2)]])
+    A_ub = -cons_i_matrix
+    b_ub = np.zeros(2 * dim_full + 2, dtype='int')
+    assert A_ub.shape == (2 * dim_full + 2, num_of_unknowns)
+
+    # Constraint ii: p(λ=0) + p(λ=1) = 1
+    cons_ii_matrix = np.zeros((1, num_of_unknowns), dtype='int')
+    cons_ii_matrix[0, dim_nss] = 1
+    cons_ii_matrix[0, num_of_unknowns - 1] = 1
+    cons_ii_b = np.array([1, ])
+
+    # Constraint v: iv-1: p(a1=0 b λ=0 | x1 0 z y) - p(a1=0 b λ=0 | x1 1 0 z y) = 0  for (b,y)≠(1,1)   (12 equalities)
+    #               iv-2: p(a2=0 b λ=1 | 0 x2 z y) - p(a2=0 b λ=1 | 1 x2 0 z y) = 0  for (b,y)≠(1,1)   (12 equalities)
+    NtoF = vs.construct_NSS_to_full_matrix_but_weird(8, 2, 8, 2)  # weirdness doesn't matter here
+    cons_iv_matrix = np.zeros((24, num_of_unknowns), dtype='int')
+    # iv-1:  # NOTE this essentially constructs a (6,dim_nss) matrix which has as null space the 80-dim ahNSCO1 (subspace of ahNSS)
+    for (b, y), x1, x2, z in vs.cart(vs.cart(B, B)[:-1], B, B, B):
+        current_row = vs.concatenate_bits(b, y, x1, z)
+        # Find row vector that will give us p(a1=0 b λ=0 | x1 x2 z y)
+        # sum over a2, c
+        for a2, c in vs.cart(B, B):
+            cons_iv_matrix[current_row] += ((-1) ** x2) * np.r_[NtoF[vs.concatenate_bits(0, a2, c, b, x1, x2, z, y)], np.zeros(2 + dim_nss, dtype='int')]
+    # iv-2:
+    for (b, y), x1, x2, z in vs.cart(vs.cart(B, B)[:-1], B, B, B):
+        current_row = 12 + vs.concatenate_bits(b, y, x2, z)
+        # Find row vector that will give us p(a2=0 b λ=1 | x1 x2 y)
+        # sum over a2, c
+        for a1, c in vs.cart(B, B):
+            cons_iv_matrix[current_row] += ((-1) ** x1) * np.r_[np.zeros(dim_nss + 1, dtype='int'), NtoF[vs.concatenate_bits(a1, 0, c, b, x1, x2, z, y)], [0]]
+    cons_iv_b = np.zeros(24, dtype='int')
+
+    # The equality constraints ii-iv together:
+    A_eq = np.r_[cons_ii_matrix, cons_iv_matrix]
+    b_eq = np.r_[cons_ii_b, cons_iv_b]
+
+    return A_ub, b_ub, A_eq, b_eq
+
+
+def is_cor_in_lc(p_nss, tol=1e-12, method='highs', double_check_soln=True, double_check_tol=1e-10):
+    if double_check_tol is None:
+        double_check_tol = tol
     assert len(p_nss) in [dim_nss, dim_nss + 1]
     if len(p_nss) == dim_nss + 1:
         p_nss = 1. / p_nss[-1] * np.array(p_nss[:-1])
@@ -104,7 +151,7 @@ def is_cor_in_lc(p_nss, tol=1e-12, method='highs', double_check_soln=True):
         p1_nss_homog = lp.x[:dim_nss + 1]  # this homogeneous vector represents the conditional distr p(a1a2cb|x1x2zy,λ=0)
         if p1_nss_homog[-1] != 0:  # if p(λ=0) != 0
             p1_full_homog = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2) @ p1_nss_homog
-            assert is_in_NSCO1z(p1_full_homog, tol)
+            assert is_in_NSCO1z(p1_full_homog, double_check_tol)
 
         # check that p2 := lp.x[dim_nss + 1: 2 * dim_nss + 2] is in NSCO2
         p2_nss_homog = lp.x[dim_nss + 1: 2 * dim_nss + 2]
@@ -112,20 +159,23 @@ def is_cor_in_lc(p_nss, tol=1e-12, method='highs', double_check_soln=True):
             p2_full_homog = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2) @ p2_nss_homog
             swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm_homog(lambda a1, a2, c, b, x1, x2, z, y: (a2, a1, c, b, x2, x1, z, y), num_of_binary_vars=8)
             p2_full_homog_swapped = swap_A1_A2_matrix @ p2_full_homog
-            assert is_in_NSCO1z(p2_full_homog_swapped, tol)
+            assert is_in_NSCO1z(p2_full_homog_swapped, double_check_tol)
 
         # check that p(λ=0) p1 + p(λ=1) p2 = p_nss
         sum_p1_p2 = p1_nss_homog[:-1] + p2_nss_homog[:-1]
-        assert np.all(np.abs(sum_p1_p2 - p_nss) < tol)
+        assert np.all(np.abs(sum_p1_p2 - p_nss) < double_check_tol)
 
     return lp
 
 
-def maximum_violation_by_LC_lp(ineq, method='highs', tol=1e-12, double_check_soln=True):
+def maximum_violation_by_LC_lp(ineq, method='highs', tol=1e-12, double_check_soln=True, z_constraint=True):
     ineq = np.array(ineq)
     assert ineq.shape == (dim_nss + 1,)
 
-    A_ub, b_ub, A_eq, b_eq = constraints_is_valid_lc_deco()
+    if z_constraint:
+        A_ub, b_ub, A_eq, b_eq = constraints_is_valid_lc_deco()
+    else:
+        A_ub, b_ub, A_eq, b_eq = constraints_is_valid_lc_deco_without_z_constraint()
 
     # Objective function to minimise: -ineq @ (λp^1 + (1-λ)p^2)
     matrix = np.concatenate((np.identity(dim_nss + 1), np.identity(dim_nss + 1)), axis=1)  # multiplying the vector of unknowns with this gives the homogeneous nss representation of (λp^1 + (1-λ)p^2)
@@ -143,7 +193,7 @@ def maximum_violation_by_LC_lp(ineq, method='highs', tol=1e-12, double_check_sol
         p1_nss_homog = lp.x[:dim_nss + 1]  # this homogeneous vector represents the conditional distr p(a1a2cb|x1x2zy,λ=0)
         if p1_nss_homog[-1] != 0:  # if p(λ=0) != 0
             p1_full_homog = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2) @ p1_nss_homog
-            assert is_in_NSCO1z(p1_full_homog, tol)
+            assert is_in_NSCO1z(p1_full_homog, tol, z_constraint=z_constraint)
 
         # check that p2 := lp.x[dim_nss + 1: 2 * dim_nss + 2] is in NSCO2
         p2_nss_homog = lp.x[dim_nss + 1: 2 * dim_nss + 2]
@@ -151,7 +201,7 @@ def maximum_violation_by_LC_lp(ineq, method='highs', tol=1e-12, double_check_sol
             p2_full_homog = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2) @ p2_nss_homog
             swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm_homog(lambda a1, a2, c, b, x1, x2, z, y: (a2, a1, c, b, x2, x1, z, y), num_of_binary_vars=8)
             p2_full_homog_swapped = swap_A1_A2_matrix @ p2_full_homog
-            assert is_in_NSCO1z(p2_full_homog_swapped, tol)
+            assert is_in_NSCO1z(p2_full_homog_swapped, tol, z_constraint=z_constraint)
 
         # Check that inequality is indeed violated by lp.sol
         sum_p1_p2_h = p1_nss_homog + p2_nss_homog
@@ -160,7 +210,7 @@ def maximum_violation_by_LC_lp(ineq, method='highs', tol=1e-12, double_check_sol
     return -lp.fun
 
 
-def is_in_NSCO1z(cor, tol=1e-12):
+def is_in_NSCO1z(cor, tol=1e-12, z_constraint=True):
     """ cor should be given in full representation, i.e. be of length 256 or 257 """
     if len(cor) == 257:
         assert cor[-1] != 0
@@ -174,15 +224,16 @@ def is_in_NSCO1z(cor, tol=1e-12):
 
     # Now check if a1a2b is independent of z
     cor = cor.reshape((2,) * 8)
-    cor_a1a2b_x1x2zy = np.einsum('ijklmnop->ijlmnop', cor)
-    for a1, a2, b, x1, x2, y in vs.cart(B, B, B, B, B, B):
-        if abs(cor_a1a2b_x1x2zy[a1, a2, b, x1, x2, 0, y] - cor_a1a2b_x1x2zy[a1, a2, b, x1, x2, 1, y]) > tol:
-            return False
+    if z_constraint:
+        cor_a1a2b_x1x2zy = np.einsum('ijklmnop->ijlmnop', cor)
+        for a1, a2, b, x1, x2, y in vs.cart(B, B, B, B, B, B):
+            if abs(cor_a1a2b_x1x2zy[a1, a2, b, x1, x2, 0, y] - cor_a1a2b_x1x2zy[a1, a2, b, x1, x2, 1, y]) > tol:
+                return False
 
     # Finally, check if a1b is independent of x2
-    cor_a1b_x1x2y = np.einsum('ijklmnop->ilmnop', cor)
-    for a1, b, x1, z, y in vs.cart(B, B, B, B, B):  # actually only have to check for z=0 due to previous paragraph
-        if abs(cor_a1b_x1x2y[a1, b, x1, 0, z, y] - cor_a1b_x1x2y[a1, b, x1, 1, z, y]) > tol:
+    cor_a1b_x1x2zy = np.einsum('ijklmnop->ilmnop', cor)
+    for a1, b, x1, z, y in vs.cart(B, B, B, B, B):
+        if abs(cor_a1b_x1x2zy[a1, b, x1, 0, z, y] - cor_a1b_x1x2zy[a1, b, x1, 1, z, y]) > tol:
             return False
     return True
 
@@ -416,9 +467,53 @@ if __name__ == '__main__':
     ineq_violated = just_alpha_terms + other_chsh
     print(ineq_violated @ cor)  # violated! by .103-.07  (max CHSH violation - the loss in alpha term due to poor choice of B's measurements)"""
 
+    cor = make_pacb_xzy_nss_h(rho_ctb=qm.rho_tcb_0phi,
+                              instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                              instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                              instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag1_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag1_onb))],
+                              instrs_B=[qm.instr_vn_destr(qm.diag1_onb), qm.instr_vn_destr(qm.diag3_onb)],
+                              dT=2, dB=2)
+    print(is_cor_in_lc(cor, method='interior-point').success)
+    normal_cor = make_pacb_xzy_nss_h(rho_ctb=qm.rho_tcb_0phi,
+                                     instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                                     instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                                     instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.diag1_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.z_onb))],
+                                     instrs_B=[qm.instr_vn_destr(qm.diag1_onb), qm.instr_vn_destr(qm.diag3_onb)],
+                                     dT=2, dB=2)
+    # maximum_violation_by_LC_lp(new_chsh)
+    # new_lc_ineq = just_alpha_terms + new_chsh
+    # maximum_violation_by_LC_lp(new_lc_ineq)
+    # print('Violation of alpha:', just_alpha_terms @ cor)
+    # print('Violation of new chsh:', new_chsh @ cor)
+    # print('Total violation:', new_lc_ineq @ cor)
+    # print('Normal:')
+    # normal_chsh = lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: (((b + c) % 2 == (1 - z) * y and x1 == x2 == 0) * 1 / 4), 0, 8, 2, 8, 2)
+    # print('++>', normal_chsh @ normal_cor)
+    #
+    # print('New:')
+    # new_chsh = lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: (((b + (1 - x1) * c + x1 * a1) % 2 == (1 - x1) * y and x1 == x2 and z == 0) * 1 / 4), 0, 8, 2, 8, 2)
+    # print('++>', new_chsh @ cor)
+    # lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: (b == c and y == 0 and z == 0 and x1 == x2 == 0) * 1, 0, 8, 2, 8, 2) @ normal_cor
+
+    normal_chsh = lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: (((b + c) % 2 == (1 - z) * y and x1 == x2 == 0) * 1 / 4), 3 / 4, 8, 2, 8, 2)
+    normal_lc_ineq = just_alpha_terms + normal_chsh
+    print(maximum_violation_by_LC_lp(normal_lc_ineq))
+    print(maximum_violation_by_LC_lp(normal_lc_ineq, z_constraint=False))
+    print(normal_lc_ineq @ normal_cor)
+
+    new_chsh = lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: (((b + (1 - x1) * c + x1 * a1) % 2 == (1 - x1) * y and x1 == x2 and z == 0) * 1 / 4), 3 / 4, 8, 2, 8, 2)
+    new_lc_ineq = lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: ((b == 0 and a2 == x1 and y == 0) * 1 / 8 +
+                                                                                              (b == 1 and a1 == x2 and y == 0) * 1 / 8 +
+                                                                                              ((b + (1 - x1) * c + x1 * a1) % 2 == (1 - x1) * y and x1 == x2 and z == 0) * 1 / 4), 7 / 4, 8, 2, 8, 2)
+
+    print(maximum_violation_by_LC_lp(new_lc_ineq))
+    print(new_lc_ineq @ cor)
+
+    assert (2 + 2 == 5)
+
     ### TODO Cors that violate LC but I don't know why:
     # B and C measuring in same bases:
-    result, cor = is_switch_cor_in_lc(method='highs',
+    result, cor = is_switch_cor_in_lc(method='interior-point',
                                       rho_ctb=qm.rho_tcb_0phi,
                                       instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
                                       instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
@@ -430,18 +525,14 @@ if __name__ == '__main__':
     print(max_of_all_chsh_violations(cor))  # no CHSH is violated for any choice of settings and outcomes
     print(ineq2 @ cor)
 
-    # An analogous one that's maybe easier to analyse, because b|y=0 is perfectly correlated with the causal order:
-    """result, cor = is_switch_cor_in_lc(method='highs',
+    # This one IS in LC, although 'highs' says it's not:
+    """result, cor = is_switch_cor_in_lc(method='interior-point',
                                       rho_ctb=1 / 2 * qm.proj(np.einsum('i,jk->jik', qm.diag1_onb[0], qm.phi_plus_un.reshape((2, 2))).reshape(8)),  # |diag>_T |php>_CB
                                       instrs_A1=[qm.instr_measure_and_prepare(qm.diag1_onb, qm.diag1_onb[0]), qm.instr_measure_and_prepare(qm.diag1_onb, qm.diag1_onb[1])],
                                       instrs_A2=[qm.instr_measure_and_prepare(qm.diag1_onb, qm.diag1_onb[0]), qm.instr_measure_and_prepare(qm.diag1_onb, qm.diag1_onb[1])],
                                       instrs_CT=[qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.z_onb)), qm.instr_C_to_instr_CT(qm.instr_vn_destr(qm.x_onb))],
                                       instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.x_onb)],
-                                      dT=2, dB=2)
-    print(result)
-    print_chsh_violations(cor)
-    print(max_of_all_chsh_violations(cor))  # no CHSH is violated for any choice of settings and outcomes
-    print(ineq2 @ cor)"""
+                                      dT=2, dB=2)"""
 
     trying = lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: ((b == 0 and a2 == x1 and y == 0) * 1 / 8 +
                                                                                          (b == 1 and a1 == x2 and y == 0) * 1 / 8 +

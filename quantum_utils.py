@@ -504,6 +504,7 @@ z_onb = onb_from_direction(0)
 x_onb = onb_from_direction(pi / 2)
 diag1_onb = onb_from_direction(pi / 4)  # Checked with my notes [p76] ✓
 diag2_onb = onb_from_direction(3 * pi / 4)  # Checked with my notes [p77] ✓
+diag3_onb = onb_from_direction(- pi / 4)
 ket_diag = diag1_onb[0]  # Ket corresponding to spin in the z+x direction, 'in between' 0 and +.
 
 

@@ -93,8 +93,9 @@ def write_unpacking_input_file(map_filename='panda-files/unpacking_maps_1024', v
         row_in_nsco1_coords = list(map(int, line.split()))
         row_in_nss_coords = vector_space_utils.NSCO1_to_NSS_with_denominator(row_in_nsco1_coords)
         # Convert to Fraction format. TODO is that necessary? Cleaner if not do this
-        rows_in_nsco1_coords.append(panda.row_with_denom_to_vector_str(np.r_[row_in_nsco1_coords, [4, ] * 6]) + '\n')  # Note that we're appending '4 4 4 4 4 4' because we have to fill up to dim 86
-        rows_in_nss_coords.append(panda.row_with_denom_to_vector_str(row_in_nss_coords) + '\n')
+        rows_in_nsco1_coords.append(
+            panda.homog_vertex_to_str_with_fractions(np.r_[row_in_nsco1_coords, [4, ] * 6]) + '\n')  # Note that we're appending '4 4 4 4 4 4' because we have to fill up to dim 86
+        rows_in_nss_coords.append(panda.homog_vertex_to_str_with_fractions(row_in_nss_coords) + '\n')
 
         # To get with denominators instead of Fraction format, use:
         # rows_in_nsco1_coords.append(' '.join(map(str, np.r_[row_in_nsco1_coords, [4, ] * 6])) + '\n')
@@ -234,7 +235,7 @@ def lc_write_panda_input(filename='panda-files/lc_vertices.pi', shuffle_vertices
     lines.append('Reduced Vertices:')
     vertices = []
     for line in open('panda-files/results/lc_vertices', 'r').readlines():
-        vertices.append(panda.row_with_denom_to_vector_str(list(map(int, line.split()))))
+        vertices.append(panda.homog_vertex_to_str_with_fractions(list(map(int, line.split()))))
     if shuffle_vertices:
         import random
         random.shuffle(vertices)
@@ -250,47 +251,13 @@ def lc_write_panda_input(filename='panda-files/lc_vertices.pi', shuffle_vertices
 
 
 def inequality_GYNI():
-    """ Bran+15 Eq. (4), but both sides multiplied by 4.
-    The inequality is returned in the form of a length-87 vector, where the last element is the negated value of the upper bound (i.e. how PANDA requires its input). """
-    coeffs = np.zeros(86)
-    upper_bound = 2
-    # Literally code Bran+15 Eq. (4)
-    NSS_to_full_weird = vs.construct_NSS_to_full_matrix_but_weird(8, 2, 4, 2)
-    for a1, a2, x1, x2 in itertools.product((0, 1), repeat=4):
-        if a1 == x2 and a2 == x1:
-            # Need to add p(a1 a2 | x1 x2) in NSS coords to coeffs.
-            for _c, _b, _y in itertools.product((0, 1), (0, 1), (0,)):
-                coeffs += NSS_to_full_weird[vs.concatenate_bits(a1, a2, _c, _b, x1, x2, _y)]
-                upper_bound -= (a1, a2, _c, _b) == (1, 1, 1, 1)  # to correct for weirdness
-    result = np.r_[coeffs, [-upper_bound]].astype('int8')
-
-    # Try manually
-    manually = np.zeros(87, dtype='int8')
-    for i in [0, 4, 17, 21, 10, 14, 27]:
-        manually[i] += 1
-    for i in [3, 7, 11, 15, 19, 23, 27]:
-        manually[i] -= 1
-    manually[-1] = -1
-    assert np.all(result == manually)
-
-    return result
+    """ Bran+15 Eq. (4), but both sides multiplied by 4. """
+    return 4 * lp_for_membership.construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (a1 == x2 and a2 == x1) * 1 / 8, upper_bound=1 / 2)
 
 
 def inequality_LGYNI():
     """ Bran+15 Eq. (5), but both sides multiplied by 4 """
-    coeffs = np.zeros(86)
-    upper_bound = 3
-    # Literally code Bran+15 Eq. (4)
-    NSS_to_full_weird = vs.construct_NSS_to_full_matrix_but_weird(8, 2, 4, 2)
-    for a1, a2, x1, x2 in itertools.product((0, 1), repeat=4):
-        if x1 * (a1 + x2) % 2 == 0 and x2 * (a2 + x1) % 2 == 0:
-            # Need to add p(a1 a2 | x1 x2) in NSS coords to coeffs.
-            for _c, _b, _y in itertools.product((0, 1), (0, 1), (0,)):
-                coeffs += NSS_to_full_weird[vs.concatenate_bits(a1, a2, _c, _b, x1, x2, _y)]
-                upper_bound -= (a1, a2, _c, _b) == (1, 1, 1, 1)  # to correct for weirdness
-    result = np.r_[coeffs, [-upper_bound]].astype('int8')
-
-    return result
+    return 4 * lp_for_membership.construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (x1 * ((a1 + x2) % 2) == 0 and x2 * ((a2 + x1) % 2) == 0) * 1 / 8, upper_bound=3 / 4)
 
 
 def inequality_violation(vector, inequality):
@@ -989,6 +956,22 @@ def deterministic_cor_full_homog(a1, a2, c, b):
     return np.r_[cor.reshape((128,)), [1]]
 
 
+def find_vector_in_kernel(matrix):
+    # Use ILP for this. Probably Gaussian elimination would be faster, but I don't have time to write that myself
+    # import pulp
+    # model = pulp.LpProblem()
+    # vars = []
+    # for i in range(matrix.shape[1]):
+    #     vars.append(pulp.LpVariable(name='x%d' % i, cat='Integer'))
+    # model += ()
+
+    # return np.linalg.lstsq(matrix, np.zeros(len(matrix), dtype='int'))[-1]
+
+    from sympy import Matrix
+    from diophantine import solve
+    return np.array(i for i in solve(Matrix(matrix), Matrix(np.zeros(matrix.shape[0], dtype='int'))))
+
+
 def find_facet_violated_by_point(point, vertices):
     d = vertices.shape[1] - 1
 
@@ -1032,16 +1015,16 @@ def find_facet_violated_by_point(point, vertices):
     # continue where we were with i
     candidate_count = 0
     while i < len(vertices):
-        if facet_candidate @ vertices[i] > 1e-15:  #  due to ridiculous error size in scipy.linalg.null_space
+        if facet_candidate @ vertices[i] > 1e-15:  # due to ridiculous error size in scipy.linalg.null_space
             # Find vertex 'discard' in aff_indep_vertices s.t. hyperplane through aff_indep_vertices['discard'] + [vertices[i]] separates 'discard' and 'point'
             candidate_count += 1
             found_a_new_candidate = False
             for j in range(d - 1, -1, -1):
                 new_aff_indep_vertices = aff_indep_vertices.copy()
                 new_aff_indep_vertices[j] = vertices[i]
-                new_facet_candidate = scipy.linalg.null_space(new_aff_indep_vertices).flatten()
+                new_facet_candidate = find_vector_in_kernel(new_aff_indep_vertices)
                 # new_facet_candidate = np.array(sympy.Matrix(new_aff_indep_vertices).nullspace()[0][:], dtype='int')
-                if len(new_facet_candidate) != d+1:
+                if len(new_facet_candidate) != d + 1:
                     print('Problem! %d' % len(new_facet_candidate))
                 if (new_facet_candidate @ aff_indep_vertices[j]) * (new_facet_candidate @ point) < 0:
                     # Success
@@ -1144,15 +1127,51 @@ if __name__ == '__main__':
     is_facet_of_polytope_npy(x1y_varx2_lazy_ineq)
     is_facet_of_polytope_npy(x1y_varx2_lazy_plus_last_term_facet)"""
 
-
     # Test find_facet_violated_by_point()
     """Q = np.concatenate((list(itertools.product([0, 1], repeat=3)), np.ones((8, 1), 'int8')), axis=1)
     point = np.array([3,3,3,1], dtype='float')
     facet = find_facet_violated_by_point(point, Q)"""
+    #
+    # cor = qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_tcb_0phi,
+    #                                 instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+    #                                 instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+    #                                 instr_C=qm.instr_vn_destr(qm.diag1_onb),
+    #                                 instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.diag1_onb)])
+    # facet = find_facet_violated_by_point(cor, np.load('panda-files/results/lc_vertices.npy'))
 
-    cor = qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_tcb_0phi,
-                                    instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
-                                    instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
-                                    instr_C=qm.instr_vn_destr(qm.diag1_onb),
-                                    instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.diag1_onb)])
-    facet = find_facet_violated_by_point(cor, np.load('panda-files/results/lc_vertices.npy'))
+    gyni = lp_for_membership.construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (a1 == x2 and a2 == x1) * 1 / 8, upper_bound=1 / 2)
+    gyni_adjacent = lp_for_membership.construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: ((a1 == x2 and a2 == x1 and b == 0 and y == 1) * 1 / 4 +
+                                                                                             (b == 1 and y == 1) * 1 / 2 * 1 / 4), upper_bound=1 / 2)
+    print(lp_for_membership.lp_max_violation_by_LC(gyni_adjacent))
+    print(lp_for_membership.lp_max_violation_by_LC(gyni))
+    # is_facet_of_polytope_npy(gyni)  # dim 83
+    # is_facet_of_polytope_npy(gyni_adjacent)  # dim 85
+
+    gyni = lp_for_membership.construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (a1 == x2 and a2 == x1) * 1 / 8, upper_bound=1 / 2)
+    lgyni = lp_for_membership.construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (x1 * ((a1 + x2) % 2) == 0 and x2 * ((a2 + x1) % 2) == 0) * 1 / 8, upper_bound=3 / 4)
+    lp_for_membership.lp_max_violation_by_LC(gyni)
+    lp_for_membership.lp_max_violation_by_LC(lgyni)
+    gyni_adjacent = lp_for_membership.construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: ((a1 == x2 and a2 == x1 and b == 0 and y == 1) * 1 / 4 +
+                                                                                             (b == 1 and y == 1) * 1 / 2 * 1 / 4), upper_bound=1 / 2)
+    lp_for_membership.lp_max_violation_by_LC(gyni_adjacent)
+    lgyni_adjacent = lp_for_membership.construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: ((x1 * ((a1 + x2) % 2) == 0 and x2 * ((a2 + x1) % 2) == 0 and b == 0 and y == 1) * 1 / 4 +
+                                                                                              (b == 1 and y == 1) * 3 / 4 * 1 / 4), upper_bound=3 / 4)  # This is indeed one of the computationally found ones. Note the two appearances of 3/4!
+    lp_for_membership.lp_max_violation_by_LC(lgyni_adjacent)
+    is_facet_of_polytope_npy(lgyni)
+
+    lgyni_adjacent_facets = np.array([list(map(int,
+                                               "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 0 1 0 1 0 -1 0 0 0 1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0 0".split())),
+                                      list(map(int,
+                                               "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 0 1 0 1 0 -1 0 0 0 1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0".split())),
+                                      list(map(int,
+                                               "0 1 1 -1 0 1 1 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 0 1 0 0 0 -1 0 -1 0 1 0 0 0 -1 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 -1".split())),
+                                      list(map(int,
+                                               "0 1 1 -1 0 1 1 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 1 0 0 0 -1 0 -1 0 1 0 0 0 -1 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 0 -1".split()))])
+    gyni_adjacent_facets = np.array([map(int,
+                                         "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0 0".split()),
+                                     map(int,
+                                         "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0".split()),
+                                     map(int,
+                                         "1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 -1".split()),
+                                     map(int,
+                                         "1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 0 -1".split())])

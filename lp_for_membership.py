@@ -2,6 +2,7 @@ import itertools
 import sys
 
 import numpy as np
+import scipy.optimize
 from scipy.optimize import linprog
 
 import quantum_utils as qm
@@ -9,6 +10,7 @@ import symmetry_utils
 import towards_lc
 import utils
 import vector_space_utils as vs
+import matplotlib.pyplot as plt
 
 dim_nss = vs.dim_NSS(8, 2, 4, 2)
 
@@ -141,6 +143,153 @@ def lp_max_violation_by_LC(ineq, method='highs', tol=1e-12, double_check_soln=Tr
         sum_p1_p2_h = p1_nss_homog + p2_nss_homog
         assert abs(lp.fun + ineq @ sum_p1_p2_h) < tol
 
+    return -lp.fun, lp.x
+
+
+def lp_constraints_is_valid_LCstar_deco():
+    # Constraint i: positivity of probabilities (see [p208,210] for matrix)
+    cons_i_matrix = np.block([[vs.construct_NSS_to_full_homogeneous(), np.zeros((129, 87), dtype='int')],
+                              [np.zeros((129, 87), dtype='int'), vs.construct_NSS_to_full_homogeneous()]])
+    A_ub = -cons_i_matrix
+    b_ub = np.zeros(258, dtype='int')
+    assert A_ub.shape == (258, 174)
+
+    # Constraint ii: p(λ=0) + p(λ=1) = 1
+    cons_ii_matrix = np.zeros((1, 174), dtype='int')
+    cons_ii_matrix[0, 86] = 1
+    cons_ii_matrix[0, 173] = 1
+    cons_ii_b = np.array([1, ])
+
+    # Constraint iii: iii-1: p(a1=0 λ=0 | x1 0 0) - p(a1=0 λ=0 | x1 1 0) = 0  for x1=0,1  (2 equalities)
+    #                 iii-2: p(a2=0 λ=1 | 0 x2 0) - p(a2=0 λ=1 | 1 x2 0) = 0  for x2=0,1  (2 equalities)
+    cons_iii_matrix = np.zeros((4, 174), dtype='int')
+    NtoF = vs.construct_NSS_to_full_matrix_but_weird(8, 2, 4, 2)  # weirdness doesn't matter here
+    # iii-1:  # NOTE this essentially constructs a (6,86) matrix which has as null space the 80-dim ahNSCO1 (subspace of ahNSS)
+    for x1, x2 in vs.cart((0, 1), (0, 1)):
+        current_row = x1
+        for a2, c, b in vs.cart((0, 1), (0, 1), (0, 1)):
+            cons_iii_matrix[current_row] += ((-1) ** x2) * np.r_[NtoF[vs.concatenate_bits(0, a2, c, b, x1, x2, 0)], np.zeros(88, dtype='int')]
+    # iii-2:
+    for x1, x2 in vs.cart((0, 1), (0, 1)):
+        current_row = 2 + x2
+        # Find row vector that will give us p(a2=0 b λ=1 | x1 x2 y)
+        # sum over a2, c
+        for a1, c, b in vs.cart((0, 1), (0, 1), (0, 1)):
+            cons_iii_matrix[current_row] += ((-1) ** x1) * np.r_[np.zeros(87, dtype='int'), NtoF[vs.concatenate_bits(a1, 0, c, b, x1, x2, 0)], [0]]
+    cons_iii_b = np.zeros(4, dtype='int')
+
+    # The equality constraints ii and iii together:
+    A_eq = np.r_[cons_ii_matrix, cons_iii_matrix]
+    b_eq = np.r_[cons_ii_b, cons_iii_b]
+
+    return A_ub, b_ub, A_eq, b_eq
+
+
+def lp_is_cor_in_LCstar(p_test, tol=1e-12, method='highs', double_check_soln=False):
+    assert len(p_test) in [86, 87]
+    if len(p_test) == 87:
+        p_test = 1. / p_test[-1] * np.array(p_test[:-1])
+
+    A_ub, b_ub, A_eq, b_eq = lp_constraints_is_valid_LCstar_deco()
+
+    # Remaining constraint: sum_λ p(...λ|..) = p_nss(...|..)
+    p_nss_cons_matrix = np.concatenate((np.identity(86), np.zeros((86, 1), dtype='int'),
+                                        np.identity(86), np.zeros((86, 1), dtype='int')), axis=1)
+    p_nss_cons_b = p_test
+
+    A_eq = np.r_[A_eq, p_nss_cons_matrix]
+    b_eq = np.r_[b_eq, p_nss_cons_b]
+
+    # Do LP
+    lp = linprog(np.zeros(174, dtype='int'), A_ub, b_ub, A_eq, b_eq, bounds=(0, 1), options={'tol': tol}, method=method)
+
+    # Double-check that solution is correct (if solution found)
+    if double_check_soln and lp.success:
+        # check that p1 := lp.x[:87] is in NSCO1
+        p1_nss_homog = lp.x[:87]  # this homogeneous vector represents the conditional distr p(a1a2cb|x1x2y,λ=0)
+        if p1_nss_homog[-1] != 0:  # if p(λ=0) != 0
+            p1_full_homog = vs.construct_NSS_to_full_homogeneous() @ p1_nss_homog
+            assert vs.is_in_NSCO1st(p1_full_homog, tol)
+
+        # check that p2 := lp.x[87:174] is in NSCO2
+        p2_nss_homog = lp.x[87:174]
+        if p2_nss_homog[-1] != 0:  # if p(λ=1) != 0
+            p2_full_homog = vs.construct_NSS_to_full_homogeneous() @ p2_nss_homog
+            swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm_homog(lambda a1, a2, c, b, x1, x2, y: (a2, a1, c, b, x2, x1, y))
+            p2_full_homog_swapped = swap_A1_A2_matrix @ p2_full_homog
+            assert vs.is_in_NSCO1st(p2_full_homog_swapped, tol)
+
+        # check that p(λ=0) p1 + p(λ=1) p2 = p_nss
+        sum_p1_p2 = p1_nss_homog[:-1] + p2_nss_homog[:-1]
+        assert np.all(np.abs(sum_p1_p2 - p_test) < tol)
+
+    return lp
+
+
+def lp_constraints_is_valid_LC1():
+    """ Returns arrays A_ub, b_ub, A_eq, B_eq that represent the constraint that an 87-length vector is in LC1*. """
+    NtoFh = vs.construct_NSS_to_full_homogeneous()
+    # Constraint i: positivity of probabilities (see [p208,210] for matrix)
+    cons_i_matrix = NtoFh
+    A_ub = -NtoFh[:-1]  # all rows except for the last (the homogeneous scaling)
+    b_ub = np.zeros(128, dtype='int')
+    assert A_ub.shape == (128, 87)
+
+    # Constraint ii: p(a1=0 b | x1 0 y) - p(a1=0 | x1 1 y) = 0  for b,x1,y=0,1   (8 equalities)
+    A_eq = np.zeros((8, 87), dtype='int')
+    for a2, c, b, x1, x2, y in itertools.product((0, 1), repeat=6):
+        current_row = vs.concatenate_bits(b, x1, y)
+        A_eq[current_row] += ((-1) ** x2) * NtoFh[vs.concatenate_bits(0, a2, c, b, x1, x2, y)]
+    b_eq = np.zeros(8, dtype='int')
+
+    # Constraint iii: the last coordinate (the homogeneous scaling) is 1.
+    A_eq = np.r_[A_eq, [utils.one_hot_vector(87, -1)]]
+    b_eq = np.r_[b_eq, [1]]
+
+    # N.B. NSS constraint is already covered by using NSS coordinates
+
+    return A_ub, b_ub, A_eq, b_eq
+
+
+def lp_constraints_is_valid_LC1star():
+    """ Returns arrays A_ub, b_ub, A_eq, B_eq that represent the constraint that an 87-length vector is in LC1*. """
+    NtoFh = vs.construct_NSS_to_full_homogeneous()
+    # Constraint i: positivity of probabilities (see [p208,210] for matrix)
+    cons_i_matrix = NtoFh
+    A_ub = -NtoFh[:-1]  # all rows except for the last (the homogeneous scaling)
+    b_ub = np.zeros(128, dtype='int')
+    assert A_ub.shape == (128, 87)
+
+    # Constraint ii: p(a1=0 | x1 0 0) - p(a1=0 | x1 1 0) = 0  for x1=0,1   (2 equalities)
+    A_eq = np.zeros((2, 87), dtype='int')
+    for a2, c, b, x1, x2 in itertools.product((0, 1), repeat=5):
+        current_row = x1
+        A_eq[current_row] += ((-1) ** x2) * NtoFh[vs.concatenate_bits(0, a2, c, b, x1, x2, 0)]
+    b_eq = np.zeros(2, dtype='int')
+
+    # Constraint iii: the last coordinate (the homogeneous scaling) is 1.
+    A_eq = np.r_[A_eq, [utils.one_hot_vector(87, -1)]]
+    b_eq = np.r_[b_eq, [1]]
+
+    # N.B. NSS constraint is already covered by using NSS coordinates
+
+    return A_ub, b_ub, A_eq, b_eq
+
+
+def lp_max_violation_under_constraints(ineq, constraints, method='highs', tol=1e-12, double_check_soln=True):
+    ineq = np.array(ineq)
+    assert ineq.shape == (dim_nss + 1,)
+
+    A_ub, b_ub, A_eq, b_eq = constraints  # e.g. lp_constraints_is_valid_LC1() or lp_constraints_is_valid_LC1star()
+
+    # Objective function to minimise: -ineq @ cor
+    c = -ineq
+
+    # Do LP
+    options = None if method == 'highs' else {'tol': tol}
+    lp = linprog(c, A_ub, b_ub, A_eq, b_eq, bounds=(0, 1), options=options, method=method)
+
+    assert lp.success
     return -lp.fun
 
 
@@ -314,12 +463,14 @@ if __name__ == '__main__':
     #                               instr_C=qm.instr_vn_destr(qm.x_onb),
     #                               instrs_B=[qm.instr_vn_destr(qm.diag1_onb), qm.instr_vn_destr(qm.diag2_onb)])
     # ).success)
-    """cor = qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_tcb_0phi,  # NOTE qm.rho_ctb_plusphiplus also works, if Alice does X mmt on setting x_i=1. Think about later
+    cor = qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_tcb_0phi,  # NOTE qm.rho_ctb_plusphiplus also works, if Alice does X mmt on setting x_i=1. Think about later
                                     instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
                                     instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
-                                    instr_C=qm.instr_vn_destr(qm.onb_from_direction(0.148 * np.pi)),  # 0.148 * np.pi seems to give maximal violation
+                                    # instr_C=qm.instr_vn_destr(qm.onb_from_direction(0.148 * np.pi)),  # 0.148 * np.pi seems to give maximal violation
+                                    instr_C=qm.instr_vn_destr(qm.diag1_onb),
                                     instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.x_onb)])
-    print(lp_is_cor_in_lc(cor).success)
+    print(lp_is_cor_in_LCstar(cor, tol=1e-8).success)  # NOTE: NOT IN LC* EITHER!
+    """print(lp_is_cor_in_lc(cor).success)
 
     print('-- CHSH stuff:')
     print(construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: ((b + c) % 2 == x1 * y and x1 == 0 and y == 0 and x2 == 0) * 1) @ cor)
@@ -378,12 +529,31 @@ if __name__ == '__main__':
     x1y_varx2_lazy_plus_last_term_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 1) * 1 / 2 +
                                                                                                (b == 1 and a1 == x2 and y == 0 and x1 == 0) * 1 / 2 +
                                                                                                ((b + c) % 2 == x1 * y and x2 == 0) * 1 / 4 +
-                                                                                               (a1 == 1 and c == 1 - b == y and x1 == 0 and x2 == 0) * 1 / 2, 7 / 4)
-    just_the_alpha_terms = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 1) * 1 / 2 +
-                                                                                 (b == 1 and a1 == x2 and y == 0 and x1 == 0) * 1 / 2, 1)
-    just_the_chsh_term = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: ((b + c) % 2 == x1 * y and x2 == 0) * 1 / 4, 3 / 4)
-    just_the_last_term = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (a1 == 1 and c == 1 - b == y and x1 == 0 and x2 == 0) * 1 / 2)
+                                                                                               (a1 == 1 and c == 1 - b == y and x1 == 0 and x2 == 0) * 1 / 2, 7 / 4)  # dim 85 (facet!)
+    x2y_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0) * 1 / 4 +
+                                                                     (b == 1 and a1 == x2 and y == 0) * 1 / 4 +
+                                                                     ((b + c) % 2 == x2 * y and x1 == 0) * 1 / 4, 7 / 4)  # dim ?
+    x2y_lazy_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 0) * 1 / 2 +
+                                                                          (b == 1 and a1 == x2 and y == 0 and x1 == 0) * 1 / 2 +
+                                                                          ((b + c) % 2 == x2 * y and x1 == 0) * 1 / 4, 7 / 4)  # dim 73
+    x2y_varx1_lazy_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 0) * 1 / 2 +
+                                                                                (b == 1 and a1 == x2 and y == 0 and x1 == 1) * 1 / 2 +
+                                                                                ((b + c) % 2 == x2 * y and x1 == 0) * 1 / 4, 7 / 4)  # dim 81
+    x2y_varx1_lazy_plus_last_term_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 0) * 1 / 2 +
+                                                                                               (b == 1 and a1 == x2 and y == 0 and x1 == 1) * 1 / 2 +
+                                                                                               ((b + c) % 2 == x2 * y and x1 == 0) * 1 / 4 +
+                                                                                               (a2 == 1 and 1 - c == b == y and x1 == 0 and x2 == 0) * 1 / 2, 7 / 4)  # dim 85
 
+    quasi_z_mmt_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 0) * 1 / 2 +
+                                                                             (b == 1 and a1 == x2 and y == 0 and x1 == 0) * 1 / 2 +
+                                                                             ((b + x2 * a1 + (1 - x2) * c) % 2 == x2 * y and x1 == 0) * 1 / 4, 7 / 4)  # dim 66
+    # gives violation of 0.05178!  Dim: 66
+    quasi_z_mmt_ineq_diffx1 = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x2 == 0) * 1 / 2 +
+                                                                                    (b == 1 and a1 == x2 and y == 0 and x1 == 1) * 1 / 2 +
+                                                                                    ((b + x2 * a1 + (1 - x2) * c) % 2 == x2 * y and x1 == 0) * 1 / 4, 7 / 4)  # dim 68
+    quasi_z_mmt_not_lazy = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0) * 1 / 4 +
+                                                                                 (b == 1 and a1 == x2 and y == 0) * 1 / 4 +
+                                                                                 ((b + x2 * a1 + (1 - x2) * c) % 2 == x2 * y and x1 == 0) * 1 / 4, 7 / 4)  # dim 52
 
     # Correlations that still require an explanation:
     """
@@ -408,7 +578,121 @@ if __name__ == '__main__':
     print_x12y_chsh_violations(cor)  # but doesn't violate a CHSH ineq btw b and c (neither for fixed x1 nor for fixed x2)
     print(max_of_all_chsh_violations(cor))"""
 
-    print('Violation of alpha term:', just_the_alpha_terms @ cor)
-    print('Violation of CHSH term:', just_the_chsh_term @ cor)
-    print('Value of last term:', just_the_last_term @ cor)
-    print('Violation of the entire expression:', x1y_varx2_lazy_plus_last_term_ineq @ cor)
+    ### LC-STAR ###
+    # cor = qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_tcb_0phi,  # NOTE qm.rho_ctb_plusphiplus also works, if Alice does X mmt on setting x_i=1. Think about later
+    #                                 instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+    #                                 instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+    #                                 instr_C=qm.instr_vn_destr(qm.diag1_onb),
+    #                                 instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.x_onb)])
+    # print(lp_is_cor_in_LCstar(cor, tol=1e-8).success)  # NOTE: NOT IN LC*!
+
+    x1y_ineq = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0) * 1 / 4 +
+                                                                     (b == 1 and a1 == x2 and y == 0) * 1 / 4 +
+                                                                     ((b + c) % 2 == x1 * y and x2 == 0) * 1 / 4, 7 / 4)
+    x1y_ineq_star_candidate = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == 0 and a2 == x1 and y == 0 and x1 == 0 and x2 == 0) +
+                                                                                    (b == 1 and a1 == x2 and y == 0 and x1 == 0 and x2 == 0) +
+                                                                                    (b == 0 and a2 == x1 and y == 0 and x1 == 0 and x2 == 1) +
+                                                                                    (b == 1 and a1 == x2 and y == 0 and x1 == 0 and x2 == 1) +
+                                                                                    (b == 0 and a2 == x1 and y == 0 and x1 == 1 and x2 == 0) +
+                                                                                    (b == 1 and a1 == x2 and y == 0 and x1 == 1 and x2 == 0) +
+                                                                                    (b == 0 and a2 == x1 and y == 0 and x1 == 1 and x2 == 1) +
+                                                                                    (b == 1 and a1 == x2 and y == 0 and x1 == 1 and x2 == 1) +
+                                                                                    ((b + c) % 2 == x1 * y and x2 == 0) * 1 / 4, 4 + 3 / 4)
+    gyni_adjacent = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: ((a1 == x2 and a2 == x1 and b == 0 and y == 1) * 1 / 4 +
+                                                                           (b == 1 and y == 1) * 1 / 2 * 1 / 4), upper_bound=1 / 2)
+    print(lp_max_violation_under_constraints(x1y_ineq, lp_constraints_is_valid_LC1()))
+    print(lp_max_violation_under_constraints(x1y_ineq, lp_constraints_is_valid_LC1star()))
+    print(lp_max_violation_under_constraints(x1y_ineq_star_candidate, lp_constraints_is_valid_LC1()))
+    print(lp_max_violation_under_constraints(x1y_ineq_star_candidate, lp_constraints_is_valid_LC1star()))
+    print(lp_max_violation_under_constraints(gyni_adjacent, lp_constraints_is_valid_LC1()))
+    print(lp_max_violation_under_constraints(gyni_adjacent, lp_constraints_is_valid_LC1star()))
+
+    # Maximising over projective measurements
+    from math import cos, sin, pi
+
+    # This is the total LC value for the c = x2 a1 + (1-x2) c' strategy:
+    lc_value = lambda a, phi, b, chi, c, psi: 3 / 4 + 1 / 4 * cos(a) + 1 / 8 * (
+            4 + sin(a) * sin(c) * cos(phi - psi) + cos(a) * cos(c) + sin(b) * sin(c) * cos(chi - psi) + cos(b) * cos(c) + cos(a) - cos(b))
+    x0 = np.array([0, 0, pi / 2, 0, pi / 4, 0])
+
+
+    def lc_value_array(x):
+        return -lc_value(*x)
+
+
+    def lc_value_array_not_complex(x):
+        return -lc_value(x[0], 0, x[1], 0, x[2], 0)
+
+
+    def lc_value_array_not_complex_cpiover4(x):
+        return -lc_value(x[0], 0, x[1], 0, pi / 4, 0)
+
+
+    scipy.optimize.minimize(lc_value_array, x0=np.random.rand(6), method='powell')
+    scipy.optimize.minimize(lc_value_array, x0=np.random.rand(6), method='nelder-mead')
+    scipy.optimize.minimize(lc_value_array_not_complex, x0=np.zeros(3), method='powell')  # Yields the same value, so adding complex numbers doesn't yield any advantage here
+    scipy.optimize.minimize(lc_value_array_not_complex_cpiover4, x0=np.zeros(2), method='powell')  # Yields the result that Wolfram gave me (maximum when c=pi/4 is fixed)
+
+    max = 0
+    argmax = []
+    for _ in range(200):
+        result = scipy.optimize.minimize(lc_value_array_not_complex, x0=np.random.rand(3) * 2 * pi, method='powell')
+        if -result.fun > max:
+            max = -result.fun
+            argmax = result.x
+    print(max)
+    lc_value(argmax[0] % pi, 0, argmax[1], 0, argmax[2], 0)
+    print(argmax)
+    print((argmax + pi) % (2 * pi) - pi)
+    # Cosistently yields   argmax = +/-[0.27564432, 2.18628108, 1.23096724]  yielding LC value of 1.827350269
+
+    # found_maxima = np.array(found_maxima)
+    # plt.hist(x=found_maxima, bins='auto')
+    # plt.show()
+    # print(max(found_maxima))
+
+    # found_maxima = []
+    # for _ in range(1000):
+    #     result = scipy.optimize.minimize(lc_value_array, x0=np.random.rand(6) * 2 * pi, method='powell')
+    #     found_maxima.append(-result.fun)
+    # found_maxima = np.array(found_maxima)
+    # plt.hist(x=found_maxima, bins='auto')
+    # plt.show()
+    # print(max(found_maxima))
+
+    ## New inequalities in light of possibilistic lemma
+    ineq_p14 = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == a1 and x2 == 1 and y == 0) * 1 / 2
+                                                                     - (a2 == 1 and x1 == 0 and x2 == 1) * 1 / 2
+                                                                     - (a1 == 1 and x1 == 1 and x2 == 0) * 1 / 2
+                                                                     - (a1 == a2 == 0 and x1 == x2 == 1) * 1 / 2
+                                                                     + ((b + c) % 2 == x1 * y and x2 == 0) * 1 / 4, 7 / 4)  # dim 40
+    ineq_p14_lazier = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (b == a1 and x2 == 1 and y == 0 and x1 == 1)
+                                                                            - (a2 == 1 and x1 == 0 and x2 == 1 and y == 0)
+                                                                            - (a1 == 1 and x1 == 1 and x2 == 0 and y == 0)
+                                                                            - (a1 == a2 == 0 and x1 == x2 == 1 and y == 0)
+                                                                            + ((b + c) % 2 == x1 * y and x2 == 0) * 1 / 4, 7 / 4)  # dim 41
+    cor2 = qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_tcb_0phi,
+                                     instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                                     instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                                     # instr_C=qm.instr_vn_destr(qm.onb_from_direction(0.148 * np.pi)),  # 0.148 * np.pi seems to give maximal violation
+                                     instr_C=qm.instr_vn_destr(qm.x_onb),
+                                     instrs_B=[qm.instr_vn_destr(qm.diag1_onb), qm.instr_vn_destr(qm.diag2_onb)])
+    ineq_p14_2 = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: - (a2 == 1 and x1 == 0) * 1 / 4
+                                                                       - (a1 == 1 and x2 == 0) * 1 / 4
+                                                                       # - (a1 == a2 == 0 and x1 == x2 == 1) * 1 / 2
+                                                                       + ((x1 * a1 + (1 - x1) * c + b) % 2 == x1 * y and x2 == x1) * 1 / 4, 3 / 4)  # dim 49
+    ineq_p14_2_lazier = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: - (a2 == 1 and x1 == 0 and x2 == 1 and y == 0)
+                                                                              - (a1 == 1 and x1 == 1 and x2 == 0 and y == 0)
+                                                                              #       - (a1 == a2 == 0 and x1 == x2 == 1 and y == 0)
+                                                                              + ((x1 * a1 + (1 - x1) * c + b) % 2 == x1 * y and x2 == x1) * 1 / 4, 3 / 4)  # dim 49
+    ineq_p19 = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: - (a1 == 1 and x1 == 1 and x2 == 0) * 1 / 4
+                                                                     - (a2 == 1 and x1 == 0 and x2 == 1) * 1 / 4
+                                                                     - (a1 == a2 == 0 and x1 == x2 == 1) * 1 / 4
+                                                                     + ((x1 * a1 + (1 - x1) * c + b) % 2 == x1 * y and x2 == x1) * 1 / 4, 3 / 4)  # dim 61
+    ineq_p19_lazier = construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: - (a1 == 1 and x1 == 1 and x2 == 0 and y == 0) * 1 / 2
+                                                                            - (a2 == 1 and x1 == 0 and x2 == 1 and y == 0) * 1 / 2
+                                                                            - (a1 == a2 == 0 and x1 == x2 == 1 and y == 0) * 1 / 2
+                                                                            + ((x1 * a1 + (1 - x1) * c + b) % 2 == x1 * y and x2 == x1) * 1 / 4, 3 / 4)  # dim 61
+    print(lp_max_violation_by_LC(ineq_p19_lazier)[0])
+    print(cor2 @ ineq_p19_lazier)
+    towards_lc.is_facet_of_polytope_npy(ineq_p19_lazier)
