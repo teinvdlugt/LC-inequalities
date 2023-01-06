@@ -1,0 +1,1 @@
+output/5_all_LC_vertices.npy filter=lfs diff=lfs merge=lfs -text
