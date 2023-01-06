@@ -1,6 +1,5 @@
 import cmath
 import functools
-import random
 import sys
 from math import pi, cos, sin, sqrt
 import numpy as np
@@ -44,11 +43,8 @@ def process_operator_switch(dT=2, dB=2):
     return proj(W_CO1 + W_CO2)
 
 
-def make_pacb_xy_noTmmt(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT, dB):
-    return make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_C_to_instr_CT(instr_C), instrs_B, dT, dB)
-
-
-def make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT, dB):
+## Making quantum correlations from instruments, using the process operator of process_operator_switch
+def quantum_cor_full(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT, dB):
     """ All provided instruments should be CJ reps of instruments in the form of 4x4 matrices, NOT transposes of those (so not 'taus'). """
     # Check if all arguments are valid instruments
     for instr in np.r_[instrs_A1, instrs_A2]:
@@ -104,47 +100,39 @@ def make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT, dB):
     return pacb_xy
 
 
-def assert_is_quantum_instrument(instr, d_in, d_out, num_of_outcomes=2, tol=1e-12):
-    """ Checks whether instr is a CJ rep of a valid quantum instrument from a d_in-dinmnsional system
-    to a d_out-dimensional system. That is, that for any i, instr[i] is a CJ rep of a CP map, such
-    that all instr[i] together sum to a CPTP map. CJ reps are done in the basis-independent way, viz. taking
-    the dual of the input space.
-    TODO treat H_out ⊗ H_in* as tensor or kronecker product? """
-    assert len(instr) == num_of_outcomes
-    # Check that all maps are of the right dimension and are CP
-    for _map in instr:
-        # assert _map.shape == (d_out, d_out, d_in, d_in)  # operator on H_in* ⊗ H_out
-        assert _map.shape == (d_in * d_out, d_in * d_out)
-        # CP is equivalent to the CJ rep being positive semidefinite as an operator (d_out*d_in, d_out*d_in)
-        # _map_as_kron_matrix = tns_to_kron_of_ops(_map)  # NOTE these 'out' and 'in' are not the same as in tns_to_kron_of_ops
-        assert np.all(np.abs(_map - _map.conj().T) < tol)  # finding eigenvalues only works when self-adjoint. TODO right?
-        assert np.all(np.linalg.eigvals(_map) > -tol)
-
-    # CPTP is equivalent to Tr_out(CJ rep) == Id_in
-    sum_of_maps = np.sum(instr, axis=0)
-    sum_tns = sum_of_maps.reshape((d_in, d_out, d_in, d_out))  # tensor rather than kronecker rep
-    assert np.all(np.abs(np.trace(sum_tns, axis1=1, axis2=3) - np.identity(d_in)) < tol)
+def quantum_cor_nss_h(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT=2, dB=2):
+    cor_full = quantum_cor_full(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT, dB).reshape((128,))
+    cor_full_h = np.r_[cor_full, [1]]
+    return vs.construct_full_to_NSS_h() @ cor_full_h
 
 
-def quantum_cor_nss_noTmmt(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT=2, dB=2, common_multiple_of_denominators=None):
-    cor_full = make_pacb_xy_noTmmt(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT, dB).reshape((128,))
-    return vs.full_acb_to_nss_homog(cor_full, common_multiple_of_denominators)
+def quantum_cor_nss(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT=2, dB=2):
+    return quantum_cor_nss_h(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT, dB)[:-1]
 
 
-def quantum_cor_nss(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT=2, dB=2, common_multiple_of_denominators=None):
-    cor_full = make_pacb_xy(rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT, dB).reshape((128,))
-    return vs.full_acb_to_nss_homog(cor_full, common_multiple_of_denominators)
+def quantum_cor_full_discardT(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT, dB):
+    return quantum_cor_full(rho_ctb, instrs_A1, instrs_A2, instr_C_to_instr_CT(instr_C), instrs_B, dT, dB)
 
 
-def quantum_cor_nss_from_complete_vn_mmts_noTmmt(rho_ctb, X1, X2, c_onb, Y, common_multiple_of_denominators=None):
-    return quantum_cor_nss_noTmmt(rho_ctb=rho_ctb,
-                                  instrs_A1=np.array([instr_vn_nondestr(onb) for onb in X1]),
-                                  instrs_A2=np.array([instr_vn_nondestr(onb) for onb in X2]),
-                                  instr_C=instr_vn_destr(c_onb),
-                                  instrs_B=np.array([instr_vn_destr(onb) for onb in Y]),
-                                  dT=2, dB=2, common_multiple_of_denominators=common_multiple_of_denominators)
+def quantum_cor_nss_discardT(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT=2, dB=2):
+    return quantum_cor_nss(rho_ctb, instrs_A1, instrs_A2, instr_C_to_instr_CT(instr_C), instrs_B, dT, dB)
 
 
+def quantum_cor_nss_h_discardT(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, dT=2, dB=2):
+    return quantum_cor_nss_h(rho_ctb, instrs_A1, instrs_A2, instr_C_to_instr_CT(instr_C), instrs_B, dT, dB)
+
+
+def quantum_cor_nss_discardT_from_vn_mmts(rho_ctb, X1, X2, c_onb, Y):
+    """ Convenience function for creating quantum correlation using projective (von Neumann) measurements. """
+    return quantum_cor_nss_discardT(rho_ctb=rho_ctb,
+                                    instrs_A1=np.array([instr_vn_nondestr(onb) for onb in X1]),
+                                    instrs_A2=np.array([instr_vn_nondestr(onb) for onb in X2]),
+                                    instr_C=instr_vn_destr(c_onb),
+                                    instrs_B=np.array([instr_vn_destr(onb) for onb in Y]),
+                                    dT=2, dB=2)
+
+
+# Some random quantum setup generators. Plug the result into the appropriate quantum_cor_nss_ function
 def random_quantum_setup_qubit_vn_noTmmt():
     return random_pure_density_matrix(allow_complex=True), \
            [instr_vn_nondestr(random_onb()), instr_vn_nondestr(random_onb())], \
@@ -189,67 +177,30 @@ def random_quantum_setup_qutrit_proj():
     return rho_ctb, instrs_A1, instrs_A2, instr_CT, instrs_B, dT, dB
 
 
-def quantum_setup_two_channels():
-    """ Returns the quantum instruments corresponding to the 'two channels' scenario, where the target system is
-     two qubits, each of which is used for a communication direction (i.e. A1->A2 and A2->A1, respectively).
-     Precisely: A1 measures target qubit 2 in computational basis and prepares target qubit 1 in computational basis state according to setting x1
-                A2 measures target qubit 1 in computational basis and prepares target qubit 2 in computational basis state according to setting x2
-                B measures his (single) qubit in Z or X basis depending on setting y
-                C measures control qubit in X basis
-    TODO generalise this?
-                no initial state is returned by this function
-    :returns instrs_A1, instrs_A2, instr_C, instrs_B
-    """
-    print('This function might be wrong')
-    ## instrs_A1: prepare qubit 1 in |x1> and measure qubit 2
-    instrs_A1 = np.zeros((2, 2, 16, 16))  # 2 settings, 2 outcomes, and CP maps are 16x16 matrices
-    for x1 in (0, 1):
-        x1_ket = [ket0, ket1][x1]
-        instrs_A1[x1] = [kron(np.identity(2), proj(ket0), proj(x1_ket), proj(ket0)),  # TODO wrong because of missing conjugate?
-                         kron(np.identity(2), proj(ket1), proj(x1_ket), proj(ket1))]
-    ## instrs_A2: prepare qubit 2 in |x2> and measure qubit 1
-    instrs_A2 = np.zeros((2, 2, 16, 16))  # 2 settings, 2 outcomes, and CP maps are 16x16 matrices
-    for x2 in (0, 1):
-        x2_ket = [ket0, ket1][x2]
-        instrs_A2[x2] = [kron(proj(ket0), np.identity(2), proj(ket0), proj(x1_ket)),
-                         kron(proj(ket1), np.identity(2), proj(ket1), proj(x1_ket))]
-    ## instrs_B: measure in Z or X basis
-    instrs_B = [instr_vn_destr(z_onb), instr_vn_destr(x_onb)]
-    ## instr_C: measure in X basis
-    instr_C = instr_vn_destr(x_onb)
-
-    return instrs_A1, instrs_A2, instr_C, instrs_B
-
-
-def generate_some_quantum_cors_complete_vn_noTmmt(file_to_save_to=None, num_of_random_cors=1000, common_multiple_of_denominators=None):
+# Functions to generate large numbers of quantum correlations
+def generate_some_quantum_cors_vn_discardT(file_to_save_to=None, num_of_random_cors=1000):
     """
     If common_multiple_of_denominators is not None, then the generated correlations are approximated by fractions with
     the given denominator.
     """
     qm_cors = [
-        quantum_cor_nss_from_complete_vn_mmts_noTmmt(rho_ctb=rho_ctb_plusphiplus, X1=[z_onb, x_onb], X2=[z_onb, x_onb], c_onb=x_onb, Y=[z_onb, x_onb],
-                                                     common_multiple_of_denominators=common_multiple_of_denominators),
-        quantum_cor_nss_from_complete_vn_mmts_noTmmt(rho_ctb=rho_tcb_0phi, X1=[z_onb, x_onb], X2=[z_onb, x_onb], c_onb=x_onb, Y=[diag1_onb, diag2_onb],
-                                                     common_multiple_of_denominators=common_multiple_of_denominators),
-        quantum_cor_nss_from_complete_vn_mmts_noTmmt(rho_ctb=rho_tcb_0phi, X1=[z_onb, x_onb], X2=[z_onb, x_onb], c_onb=diag1_onb, Y=[z_onb, x_onb],
-                                                     common_multiple_of_denominators=common_multiple_of_denominators),
-        quantum_cor_nss_from_complete_vn_mmts_noTmmt(rho_ctb=rho_tcb_0phi, X1=[diag1_onb, diag2_onb], X2=[z_onb, x_onb], c_onb=diag2_onb, Y=[z_onb, x_onb],
-                                                     common_multiple_of_denominators=common_multiple_of_denominators),
-        quantum_cor_nss_from_complete_vn_mmts_noTmmt(rho_ctb=rho_ctb_ghz, X1=[diag1_onb, diag2_onb], X2=[diag1_onb, diag2_onb], c_onb=x_onb, Y=[diag1_onb, diag2_onb],
-                                                     common_multiple_of_denominators=common_multiple_of_denominators),
-        quantum_cor_nss_from_complete_vn_mmts_noTmmt(rho_ctb=rho_ctb_ghz, X1=[z_onb, x_onb], X2=[z_onb, x_onb], c_onb=diag1_onb, Y=[z_onb, x_onb],
-                                                     common_multiple_of_denominators=common_multiple_of_denominators)]
+        quantum_cor_nss_discardT_from_vn_mmts(rho_ctb=rho_ctb_plusphiplus, X1=[z_onb, x_onb], X2=[z_onb, x_onb], c_onb=x_onb, Y=[z_onb, x_onb]),
+        quantum_cor_nss_discardT_from_vn_mmts(rho_ctb=rho_tcb_0phi, X1=[z_onb, x_onb], X2=[z_onb, x_onb], c_onb=x_onb, Y=[diag1_onb, diag2_onb]),
+        quantum_cor_nss_discardT_from_vn_mmts(rho_ctb=rho_tcb_0phi, X1=[z_onb, x_onb], X2=[z_onb, x_onb], c_onb=diag1_onb, Y=[z_onb, x_onb]),
+        quantum_cor_nss_discardT_from_vn_mmts(rho_ctb=rho_tcb_0phi, X1=[diag1_onb, diag2_onb], X2=[z_onb, x_onb], c_onb=diag2_onb, Y=[z_onb, x_onb]),
+        quantum_cor_nss_discardT_from_vn_mmts(rho_ctb=rho_ctb_ghz, X1=[diag1_onb, diag2_onb], X2=[diag1_onb, diag2_onb], c_onb=x_onb, Y=[diag1_onb, diag2_onb]),
+        quantum_cor_nss_discardT_from_vn_mmts(rho_ctb=rho_ctb_ghz, X1=[z_onb, x_onb], X2=[z_onb, x_onb], c_onb=diag1_onb, Y=[z_onb, x_onb])]
     if file_to_save_to is not None:
         np.save(file_to_save_to, qm_cors)
     for i in range(0, num_of_random_cors):
         print("Generated %d / %d random qm cors" % (i, num_of_random_cors))
-        qm_cors.append(quantum_cor_nss_noTmmt(*random_quantum_setup_qubit_vn_noTmmt(), common_multiple_of_denominators=common_multiple_of_denominators))
+        qm_cors.append(quantum_cor_nss_discardT(*random_quantum_setup_qubit_vn_noTmmt()))
         if file_to_save_to is not None:
             np.save(file_to_save_to, qm_cors)
     return qm_cors
 
 
-def generate_some_quantum_cors_complete_vn(file_to_save_to=None, num_of_random_cors=1000, common_multiple_of_denominators=None):
+def generate_some_quantum_cors_vn(file_to_save_to=None, num_of_random_cors=1000):
     """
     If common_multiple_of_denominators is not None, then the generated correlations are approximated by fractions with
     the given denominator.
@@ -257,7 +208,7 @@ def generate_some_quantum_cors_complete_vn(file_to_save_to=None, num_of_random_c
     qm_cors = []
     for i in range(0, num_of_random_cors):
         print("Generated %d / %d random qm cors" % (i, num_of_random_cors))
-        qm_cors.append(quantum_cor_nss(*random_quantum_setup_qubit_vn(), common_multiple_of_denominators=common_multiple_of_denominators))
+        qm_cors.append(quantum_cor_nss(*random_quantum_setup_qubit_vn()))
         if file_to_save_to is not None:
             np.save(file_to_save_to, qm_cors)
     return qm_cors
@@ -309,12 +260,12 @@ def kron(*factors):
     return product
     """
 
-    # Later learned that this can also be done easier as follows:
+    # Easier as follows:
     return functools.reduce(np.kron, factors)
 
 
-def reshuffle_kron(matrix, perm):  # TODO doesn't work yet. For now use reshuffle_kron_vector()
-    """
+"""def reshuffle_kron(matrix, perm):  # NOTE doesn't work yet. For now use reshuffle_kron_vector()
+    \"""
     :param matrix: a np.array which is a kronecker product of n := len(perm) 2x2 matrices, i.e. it is a 2^n x 2^n matrix.
     :param perm: the permutation along which to shuffle the Kronecker factors, provided as a length-n list;
         e.g. (1,0,3,2) swaps the order of the first two and the last two factors.
@@ -322,7 +273,7 @@ def reshuffle_kron(matrix, perm):  # TODO doesn't work yet. For now use reshuffl
         It is crucial that all matrices A,B,C,D are assumed to be 2-dimensional. But you can also use this function for
         power-of-2 dimensional matrices: e.g. if A,B are two-dimensional and C is four-dimensional, then
         reshuffle(kron(A,B,C), (0,2,3,1)) gives the same as kron(A,C,B).
-    """
+    \"""
     print("The function reshuffle_kron() which you're using doesn't work!")
     # Based on https://stackoverflow.com/a/50889816/4129739. Yet to understand!
     # Example (from that SO answer): if order is ABCD and you want CADB, then perm is (2, 0, 3, 1).
@@ -340,7 +291,7 @@ def reshuffle_kron(matrix, perm):  # TODO doesn't work yet. For now use reshuffl
 
 
 def reshuffle_kron_vector(kron_vector, perm):
-    """
+    \"""
     :param kron_vector: a ROW vector, i.e. of shape (d,), which is a kronecker product of n := len(perm) 2d vectors, i.e. d = 2^n.
     :param perm: the permutation along which to shuffle the Kronecker factors, provided as a length-n list;
         e.g. (1,0,3,2) swaps the order of the first two and the last two factors.
@@ -353,7 +304,7 @@ def reshuffle_kron_vector(kron_vector, perm):
     (since the only thing that happens should be reordering some elements of a vector).
 
     Approach inspired by https://stackoverflow.com/questions/50883773/permute-string-of-kronecker-products/50889816
-    """
+    \"""
     # For vectors (rather than general matrices) the correspondence between kronecker and tensor product is easier,
     # and can be done using just reshaping.
     n = len(perm)  # number of factors in the kronecker/tensor product
@@ -367,11 +318,12 @@ def reshuffle_kron_vector(kron_vector, perm):
     return tens_vector.reshape((2 ** n,))  # tested
 
 
+
 def tns_to_kron_of_ops(tns):
-    """ Convert between ways of describing an operator H1in ⊗ H2in -> H1out ⊗ H2out.
+    \""" Convert between ways of describing an operator H1in ⊗ H2in -> H1out ⊗ H2out.
     :param tns: A 4-tensor with dimensions (d1out, d1in, d2out, d2in).
     :return: A 2-tensor with dimensions (d1out * d2out, d1in * d2in).
-    """
+    \"""
     d1out, d1in, d2out, d2in = tns.shape
     # tns is an element of B(H1in, H1out) ⊗ B(H2in, H2out)
     # so it is a finite sum of product elements A1 ⊗ A2,   Ai in B(Hiin, Hiout).
@@ -380,7 +332,7 @@ def tns_to_kron_of_ops(tns):
     # a is a 2-tensor with dimensions (dH, dK). a = sum_ij a_ij |i>_H ⊗ |j>_K
     # So the product elements are a_ij |i>_H ⊗ |j>_K == a[i,j] δij with δij the 2-tensor that only
     # has a 1 at indices [i,j].
-    """
+    \"""
     result = np.zeros((d1out * d2out, d1in * d2in))
     original = np.zeros_like(tns)
     for i, j, k, l in itertools.product(range(0, d1out), range(0, d1in), range(0, d2out), range(0, d2in)):
@@ -399,8 +351,9 @@ def tns_to_kron_of_ops(tns):
     assert np.all(original == tns)
     assert np.all(result == tns.swapaxes(1,2).reshape((d1out * d2out, d1in * d2in)))
     return result
-    """
+    \"""
     return tns.swapaxes(1, 2).reshape((d1out * d2out, d1in * d2in))
+"""
 
 
 def complex_exp(phi):
@@ -478,12 +431,29 @@ def random_unitary(dim=2):
     return random_onb(dim).T
 
 
-def random_real_onb():
-    print("Avoid the use of random_real_onb(); it doesn't sample uniformly.")
-    return onb_from_direction(random.random() * pi, 0)
+def assert_is_quantum_instrument(instr, d_in, d_out, num_of_outcomes=2, tol=1e-12):
+    """ Checks whether instr is a CJ rep of a valid quantum instrument from a d_in-dinmnsional system
+    to a d_out-dimensional system. That is, that for any i, instr[i] is a CJ rep of a CP map, such
+    that all instr[i] together sum to a CPTP map. CJ reps are done in the basis-independent way, viz. taking
+    the dual of the input space.
+    TODO treat H_out ⊗ H_in* as tensor or kronecker product? """
+    assert len(instr) == num_of_outcomes
+    # Check that all maps are of the right dimension and are CP
+    for _map in instr:
+        # assert _map.shape == (d_out, d_out, d_in, d_in)  # operator on H_in* ⊗ H_out
+        assert _map.shape == (d_in * d_out, d_in * d_out)
+        # CP is equivalent to the CJ rep being positive semidefinite as an operator (d_out*d_in, d_out*d_in)
+        # _map_as_kron_matrix = tns_to_kron_of_ops(_map)  # NOTE these 'out' and 'in' are not the same as in tns_to_kron_of_ops
+        assert np.all(np.abs(_map - _map.conj().T) < tol)  # finding eigenvalues only works when self-adjoint. TODO right?
+        assert np.all(np.linalg.eigvals(_map) > -tol)
+
+    # CPTP is equivalent to Tr_out(CJ rep) == Id_in
+    sum_of_maps = np.sum(instr, axis=0)
+    sum_tns = sum_of_maps.reshape((d_in, d_out, d_in, d_out))  # tensor rather than kronecker rep
+    assert np.all(np.abs(np.trace(sum_tns, axis1=1, axis2=3) - np.identity(d_in)) < tol)
 
 
-## COMMON VECTORS AND ONBs
+## COMMON VECTORS AND ONBs, AND INSTRUMENTS
 sqrt2 = sqrt(2)
 
 # Some common states.
@@ -508,7 +478,7 @@ diag3_onb = onb_from_direction(- pi / 4)
 ket_diag = diag1_onb[0]  # Ket corresponding to spin in the z+x direction, 'in between' 0 and +.
 
 
-# Some common instruments
+# Some common instruments.
 def kraus_op_to_cj(lin_map):
     """
     :param lin_map: A linear map (i.e. dOut x dIn matrix) acting on kets (not on density matrices!). E.g. a projection |psi><psi| = proj(psi).
@@ -597,75 +567,3 @@ def instr_C_to_instr_CT(instr_C, dT=2):
 
 # instr_do_nothing = np.array([proj(phi_plus_un), np.zeros((4, 4), dtype='int')])     gives same as:
 instr_do_nothing = np.array([kraus_op_to_cj(np.identity(2)).astype('int'), kraus_op_to_cj(np.zeros((2, 2))).astype('int')])  # outcome is 0 with probability 1
-
-if __name__ == '__main__':
-    # To test quantum_cor_from_complete_vn_mmts_new and make_pacb_xy_new:
-    """rho_ctb, X1, X2, Y, c_onb = random_pure_density_matrix(True), \
-                   [random_onb(), random_onb()], \
-                   [random_onb(), random_onb()], \
-                   [random_onb(), random_onb()], \
-                   random_onb()
-    assert np.all(quantum_cor_from_complete_vn_mmts_new(rho_ctb, X1, X2, Y, c_onb) == quantum_cor_nss_definitive(rho_ctb, X1, X2, Y, c_onb))
-    instrs_A1 = [instr_vn_nondestr(i) for i in X1]
-    instrs_A2 = [instr_vn_nondestr(i) for i in X2]
-    instrs_B = [instr_vn_destr(i) for i in Y]
-    instr_C = instr_vn_destr(c_onb)
-    p_new = make_pacb_xy_new(rho_ctb, instrs_A1, instrs_A2, instr_C, instrs_B, 2, 2)
-    p = make_pacb_xy(rho_ctb, X1, X2, Y, c_onb)
-    print(np.all(p_new == p))  # Success!"""
-
-    # TODO repeat this and see if same with new make_pacb_xy:
-    # qm_cors = np.array(generate_some_quantum_cors_complete_vn_noTmmt('some_quantum_cors4_not_approximated.npy', num_of_random_cors=5000))
-    # print('Done.')
-
-    """rho_ctb = proj(np.array([1, 0, 0, 0, 0, 0, 0, 0]))
-    cp_A1 = proj(phi_plus_un)
-    cp_A2 = kron(proj(ket1), proj(ket0))
-    cp_C = proj(ket0)
-    tau_Ttilde = np.identity(2)
-    cp_B = proj(ket0)
-    taus = kron(rho_ctb.T, cp_A1.T, cp_A2.T, cp_C.T, tau_Ttilde, cp_B.T)
-
-    phi_plus_dT = np.identity(2)
-    phi_plus_dB = np.identity(2)
-    # CO1 part of W. See [p72].  Tensor order before reordering of the Einstein indices: Bout*, B~in, Cout*, C~in, Tout*, A1in, A1out^*, A2in, A2out*, T~in
-    # and after reordering: Cout*, Tout*, Bout*, A1in, A1out*, A2in, A2out*, C~in, T~in, B~in.
-    W_CO1 = np.einsum('ij,k,l,mn,op,qr->kminopqlrj', phi_plus_dB, ket0, ket0, phi_plus_dT, phi_plus_dT, phi_plus_dT).reshape(1024)
-    taus_test = kron(proj(ket1), np.identity(512))
-    print(np.trace(np.matmul(proj(W_CO1), taus_test)))
-    print(np.trace(np.matmul(proj(W_CO1), taus)))"""
-
-    # TODO continue testing this:
-    """cor = make_pacb_xy(rho_ctb=random_pure_density_matrix(True),
-                       # instrs_A1=[instr_do_nothing, instr_measure_and_prepare(z_onb, ket0)],
-                       # instrs_A2=[instr_do_nothing, instr_measure_and_prepare(z_onb, ket0)],
-                       instrs_A1=[instr_measure_and_prepare(random_onb(), random_onb()[0]), instr_measure_and_prepare(random_onb(), random_onb()[0])],
-                       instrs_A2=[instr_measure_and_prepare(random_onb(), random_onb()[0]), instr_measure_and_prepare(random_onb(), random_onb()[0])],
-                       instr_C=instr_vn_destr(x_onb),
-                       instrs_B=[instr_vn_destr(random_onb()), instr_vn_destr(random_onb())],
-                       dT=2, dB=2) \
-        .reshape(128)
-    vector_space_utils.write_cor_to_file(cor, 'tmp')
-
-    cor_nss_homog = vector_space_utils.full_acb_to_nss_homog(cor, 2 ** 18)
-    print('Largest known LC violation:', towards_lc.maximum_violation_of_known_lc_facets(np.array([cor_nss_homog])))
-    print('Largest Caus2 violation:', towards_lc.maximum_violation_of_caus2_facets(np.array([cor_nss_homog])))"""
-
-    """
-    instrs_A1, instrs_A2, instr_C, instrs_B = quantum_setup_two_channels()
-    # sample random initial states
-    for i in range(100):
-        rho_ctb_random = random_pure_density_matrix(dim=16, allow_complex=True)
-        cor = make_pacb_xy(rho_ctb_random, instrs_A1, instrs_A2, instr_C, instrs_B, 4, 2)
-        cor_nss = vector_space_utils.full_acb_to_nss_homog(cor)
-        if not lp_for_membership.lp_is_cor_in_lc(cor_nss, method='highs').success:
-            print('\nFound violation!')
-            break
-        else:
-            print('Checked %d random initial states' % i, end='\r')
-            sys.stdout.flush()
-    """
-
-    # cor_nss = quantum_cor_nss_from_complete_vn_mmts_noTmmt(rho_ctb_plusphiplus, [z_onb, x_onb], [z_onb, x_onb], z_onb, [z_onb, x_onb])
-
-    # qm_cors = generate_some_quantum_cors_complete_vn(num_of_random_cors=10)

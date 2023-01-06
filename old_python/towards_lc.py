@@ -34,7 +34,7 @@ def LC_NSCO1_symms_left_coset_reps():
         else:
             print('No counterpart found')
         i += 1
-    # print('|H\H^c| =', len(alpha_tuples))  # gives 512 as expected
+    print('|H\H^c| =', len(alpha_tuples))  # gives 512 as expected
 
     # Each alpha_tuple corresponds to a representative of a class in the left quotient H\H^c. Now construct those representatives from alpha_tuples
     # explicitly. [p162]
@@ -88,11 +88,11 @@ def write_unpacking_input_file(map_filename='panda-files/unpacking_maps_1024', v
     # TODO later: But to allow us to get a nice informative output in C++, let's also add all of those in their original NSCO1 coords.
     rows_in_nsco1_coords = []
     rows_in_nss_coords = []
-    nsco1_file = open('panda-files/nsco1_vertex_classes.out', 'r')
+    nsco1_file = open('../panda-files/nsco1_vertex_classes.out', 'r')
     for line in nsco1_file.readlines():
         row_in_nsco1_coords = list(map(int, line.split()))
-        row_in_nss_coords = vector_space_utils.NSCO1_to_NSS_with_denominator(row_in_nsco1_coords)
-        # Convert to Fraction format. TODO is that necessary? Cleaner if not do this
+        row_in_nss_coords = vs.construct_full_to_NSCO1_homog() @ vs.construct_NSCO1_to_full_homogeneous() @ row_in_nsco1_coords
+        # Convert to Fraction format.
         rows_in_nsco1_coords.append(
             panda.homog_vertex_to_str_with_fractions(np.r_[row_in_nsco1_coords, [4, ] * 6]) + '\n')  # Note that we're appending '4 4 4 4 4 4' because we have to fill up to dim 86
         rows_in_nss_coords.append(panda.homog_vertex_to_str_with_fractions(row_in_nss_coords) + '\n')
@@ -134,7 +134,7 @@ def do_unpacking_in_python():
 
     v = 0
     for nsco1_vertex_rep_nsco1_coords in nsco1_vertex_classes_nsco1_coords:
-        nsco1_vertex_rep_nss_coords = vector_space_utils.NSCO1_to_NSS_with_denominator(nsco1_vertex_rep_nsco1_coords)
+        nsco1_vertex_rep_nss_coords = vs.construct_full_to_NSS_homog() @ vs.construct_NSCO1_to_full_homogeneous() @ nsco1_vertex_rep_nsco1_coords
 
         v += 1
         write_line('\nNSCO1 vertex class #' + str(v) + '\n' + ' '.join(map(str, nsco1_vertex_rep_nsco1_coords)))
@@ -244,7 +244,7 @@ def lc_write_panda_input(filename='panda-files/lc_vertices.pi', shuffle_vertices
 
     # Write to file
     if filename is None:
-        filename = 'panda-files/old-and-irrelevant/nsco1_facets_perm6feb.pi'
+        filename = '../panda-files/old-and-irrelevant/nsco1_facets_perm6feb.pi'
     file = open(filename, 'w')
     file.write('\n'.join(lines))
     file.close()
@@ -260,71 +260,7 @@ def inequality_LGYNI():
     return 4 * lp_for_membership.construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: (x1 * ((a1 + x2) % 2) == 0 and x2 * ((a2 + x1) % 2) == 0) * 1 / 8, upper_bound=3 / 4)
 
 
-def inequality_violation(vector, inequality):
-    """ vector: shape (86,), inequality: shape (87,)
-    :returns sth <0 if the vector satisfies the inequality with equality;
-             0 if the vector satisfies the inequality strictly;
-             sth >0 if the vector does not satisfy the inequality. """
-    return np.dot(inequality, np.r_[vector, [1]])
-
-
-def find_affinely_independent_point(points, file_to_search, constraint=None, update_interval=5000):
-    """ TODO this function can be massively improved by using that affine indep <=> lin indep of the homogenised coordinates (rather than using LP).
-    NOTE but also, this function wasn't really necessary, because if an affine subspace spanned by an affinely independent set S does not intersect the origin, then S is also linearly independent.
-    :param points: an array of d-dimensional vectors.
-    :param file_to_search: File where each non-empty line is a vector-with-denominator, i.e. d+1 integers.
-    :param constraint: a function taking length-d+1 int arrays to booleans. Any line in file_to_search that does
-                       not satisfy this constraint will be ignored (if constraint is not None).
-    :param update_interval: Print a progress message every update_interval points. None if don't want to print update messages.
-    :return: if it exists, a d-dimensional vector that was in `file_to_search`, that satisfies constraints and that is
-             not in the affine hull of `points`.
-    """
-    d = len(points[0])
-    file = open(file_to_search, 'r')
-
-    empty_line_count = 0
-    point_count = 0
-
-    # For the LP program:
-    n = len(points)
-    A = np.r_[points.T, np.ones((1, n))]
-
-    line = file.readline()
-    while line:
-        if not line.strip():
-            empty_line_count += 1
-            if update_interval is not None:
-                print("Empty lines encountered: %d, points processed: %d" % (empty_line_count, point_count), end='\r')
-            sys.stdout.flush()
-            line = file.readline()
-            continue
-
-        row = list(map(int, line.split()))
-        point_count += 1
-
-        if constraint is None or constraint(row):
-            point = 1. / row[-1] * np.array(row[:-1])
-            assert len(point) == d
-
-            if update_interval is not None and point_count % update_interval == 0:
-                print("Empty lines encountered: %d, points processed: %d" % (empty_line_count, point_count), end='\r')
-            sys.stdout.flush()
-
-            b = np.r_[point, np.ones(1)]
-            in_affine_hull = linprog(np.zeros(n), A_eq=A, b_eq=b, options={'tol': 1e-8}, bounds=(None, None)).success  # NOTE using the default tolerance value here. Might want to decrease
-
-            # if not polytope_utils.in_affine_hull_lp(points, point):
-            if not in_affine_hull:
-                print()
-                print("Affinely independent point found on line %d of file (counting from 1)" % (empty_line_count + point_count))
-                return point
-
-        line = file.readline()
-
-    print()
-    print("Reached end of file. No affinely independent point found!")
-
-
+# Deprecated:
 def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, check_vertices_are_on_face=True, violation_threshold=1e-10, output_file=None, snapshot_file=None, load_from_snapshot=True,
                                                snapshot_frequency=100, update_frequency_j=100,
                                                carriage_return=True):
@@ -530,134 +466,6 @@ def find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, known_facets=None, ch
     return facets
 
 
-def find_a_facet_adjacent_to_face(face, vertices, vertices_on_face=None, tol=1e-13, randomise=True):
-    d = vertices.shape[1] - 1
-
-    violations = vertices @ face
-
-    if vertices_on_face is None:
-        vertices_on_face = np.empty((0, d + 1), vertices.dtype)
-    else:
-        assert np.linalg.matrix_rank(vertices_on_face) == len(vertices_on_face)
-        if len(vertices_on_face) >= d:
-            return face
-    # Find as many affinely independent vertices on the face as possible
-    for i in np.argwhere(np.abs(violations) < tol).flatten():
-        print('Finding aff indep vertices on face... i=%d' % i, end='\r')
-        new_matrix = np.r_[vertices_on_face, [vertices[i]]]
-        if np.linalg.matrix_rank(new_matrix) == len(new_matrix):
-            vertices_on_face = new_matrix
-            if len(vertices_on_face) == d:
-                print('Found facet here!')
-                return face
-    # Dimension of the face:
-    f = len(vertices_on_face) - 1
-    print('Finding aff indep vertices on face... Done, f=%d' % f)
-
-    # Throw away vertices that are on the face
-    vertices = vertices[violations < -tol]
-
-    # Need d-2 dim rotation axis, spanned by d-1 aff indep vectors
-    # So need to find  (d-1)-(f+1)=d-f-2  remaining aff indep vectors on the face.
-    # I.e. these vectors should be orthogonal to the normal to the face, and to all vertices_on_face
-    def find_affinely_independent_points_on_hyperplane(points_h, hyperplane):
-        x_0 = points_h[0][:-1]
-        lambda_0 = points_h[0][-1]
-        if len(points_h) == 1:
-            pts_translated = np.empty((0, len(points_h[0]) - 1))
-        else:
-            pts_translated = np.array([pt[:-1] * lambda_0 / pt[-1] - x_0 for pt in points_h[1:]])
-        indep_pts_translated = scipy.linalg.null_space(np.r_[[hyperplane[:-1]], pts_translated]).T  # TODO replace with integer method? (avoid normalisation)
-        indep_pts = np.array([1 / lambda_0 * (pt + x_0) for pt in indep_pts_translated])  # TODO could improve randomisation by applying a rotation to indep_pts here
-        indep_pts_h = np.concatenate([indep_pts, np.ones((len(indep_pts), 1), dtype=indep_pts.dtype)], axis=1)  # TODO try to normalise
-        return indep_pts_h
-    aff_indep_pts = find_affinely_independent_points_on_hyperplane(vertices_on_face, face)
-    assert np.linalg.matrix_rank(np.r_[vertices_on_face, aff_indep_pts]) == len(vertices_on_face) + len(aff_indep_pts)
-    assert len(aff_indep_pts) == d - f - 1
-    m_index = np.random.randint(len(aff_indep_pts)) if randomise else len(aff_indep_pts) - 1
-    remaining_axis_points = np.r_[aff_indep_pts[:m_index], aff_indep_pts[m_index + 1:]]
-    assert len(remaining_axis_points) == d - f - 2
-
-    """
-    # m = 1 / np.linalg.norm(aff_indep_pts[m_index]) * aff_indep_pts[m_index]  # NOTE it's essential that m and n are normalised
-    # n = 1 / np.linalg.norm(face) * face.astype('float')
-    # Calculate angle theta from face to vertex, for all vertices not on the face
-    # theta = arctan(-<n,v> / <m,v>)   (numpy handles <m,v>=0 automatically)
-    # thetas = np.arctan2(-vertices @ n, vertices @ m)
-
-    # Normalise vertices
-    vertices_non_h = vertices[:,:-1].astype('float')
-    for i in range(len(vertices)):
-        vertices_non_h[i] = vertices_non_h[i] / vertices[i][-1]
-
-    # Calculate d and e for each v in vertices
-    c_b = face[:-1].astype('float') / face[-1]  # NOTE assuming that b != 0
-    c_b_norm = np.linalg.norm(c_b)
-    ds = 1 / c_b_norm * (vertices_non_h @ c_b + np.ones(len(vertices_non_h)))
-    m_mu = aff_indep_pts[m_index][:-1] / aff_indep_pts[m_index][-1]
-    x_0_lambda_0 = vertices_on_face[0][:-1] / vertices_on_face[0][-1]
-    m_mu_prime = m_mu - x_0_lambda_0
-    # m_mu_prime = c_b_norm ** 2 * m_mu + c_b  # this is 'm_prime / mu_prime' in notes
-    m_mu_prime_normalised = m_mu_prime / np.linalg.norm(m_mu_prime)
-    c_normalised = face[:-1].astype('float') / np.linalg.norm(face[:-1])
-    projection = qm.proj(m_mu_prime_normalised) + qm.proj(c_normalised)
-    vertices_shifted = vertices_non_h - x_0_lambda_0
-    differences = vertices_shifted @ projection.T
-    del vertices_shifted
-    fs = np.linalg.norm(differences, axis=1)
-    del differences
-    thetas = np.arcsin(ds / fs)
-    thetas = np.where(np.isfinite(thetas), thetas, 5)  # remove NaNs
-    # es = vertices_non_h @ m_mu_prime_normalised
-    # thetas = np.arctan2(ds, es)
-
-    new_vertex_on_facet = vertices[np.argmin(thetas)]
-    
-    assert face @ new_vertex_on_facet < -tol
-    new_face = scipy.linalg.null_space(np.r_[vertices_on_face, remaining_axis_points, [new_vertex_on_facet]])  # TODO again, try making this integer arithmetic
-    assert new_face.shape == (d + 1, 1)
-    new_face = new_face.flatten()
-    
-    # Flip sign of inequality if necessary
-    for v in vertices:
-        if new_face @ v < -tol:
-            break
-        if new_face @ v > tol:
-            new_face = -new_face
-            break
-    """
-
-    # Loop-through-vertices method
-    axis_points = np.r_[vertices_on_face, remaining_axis_points]
-    vertex_candidate = vertices[0]  # (NB this is not on the face)
-    face_candidate = scipy.linalg.null_space(np.r_[axis_points, [vertex_candidate]]).flatten()
-    for i in range(1, len(vertices)):
-        if i % 1000 == 0:
-            print('Rotating face... f=%d, i=%d' % (f, i), end='\r')
-        v = vertices[i]
-        if face_candidate @ v > 0:  # TODO maybe make this more efficient by calculating violations in batches
-            face_candidate = scipy.linalg.null_space(np.r_[axis_points, [v]]).flatten()
-            # Make sure that the previous vertex candidate lies on the good side of the new face: if not, flip the new face's sign
-            if face_candidate @ vertex_candidate > -tol:
-                face_candidate = -face_candidate
-            vertex_candidate = v
-    print()
-    # face_candidate should now be a new face!
-    new_face = face_candidate
-    new_vertex_on_face = vertex_candidate
-    print('Verifying new face...')
-    assert np.all(vertices @ new_face < tol)
-    print('New face: %s' % str(new_face))
-
-    new_vertices_on_face = np.r_[vertices_on_face, [new_vertex_on_face]]
-
-    if len(new_vertices_on_face) == d:
-        print('Found facet!')
-        return new_face
-    else:
-        return find_a_facet_adjacent_to_face(new_face, vertices, new_vertices_on_face, tol, randomise)
-
-
 def test_find_facets_adjacent_to_d_minus_3_dim_face():
     ## Let's try an octahedron centred around the origin in R^3
     # The vertices (homogeneous coords):
@@ -673,7 +481,7 @@ def test_find_facets_adjacent_to_d_minus_3_dim_face():
     P = np.array([[1, 0, 0, 1]])
     # Run algorithm
     print("Octahedron (should yield 4 facets):")
-    facets = list(map(list, find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, output_file='panda-files/test_find_facets')))
+    facets = list(map(list, find_facets_adjacent_to_d_minus_3_dim_face(face, P, Q, output_file='../panda-files/test_find_facets')))
     assert len(facets) == 4
     assert [1, 1, 1, -1] in facets
     assert [1, 1, -1, -1] in facets
@@ -767,53 +575,7 @@ def test_find_facets_adjacent_to_d_minus_3_dim_face():
     print("Success!")
 
 
-def is_facet_of_LC(ineq):
-    """ Checks whether ineq is valid for LC and whether LC ∩ ineq is 85-dimensional. """
-    max_dimension = 85
-
-    with open('panda-files/results/8 all LC vertices', 'r') as LC_vertices:
-        aff_indep_subset = np.empty((0, 87), 'int8')
-
-        vertex_count = 0
-
-        line = LC_vertices.readline()
-        while line:
-            if line.strip():
-                vertex = list(map(int, line.split()))
-                violation = np.dot(vertex, ineq)
-                if violation > 0:
-                    print("The inequality")
-                    print(' '.join(map(str, ineq)))
-                    print("is NOT valid for LC, as it is violated by the LC vertex")
-                    print(' '.join(map(str, vertex)))
-                    return False
-                if len(aff_indep_subset) - 1 < max_dimension and violation == 0:
-                    # vertex is on the hyperplane defined by the inequality
-                    # Check if vertex is not already in span of previously found ones
-                    new_matrix = np.r_[aff_indep_subset, [vertex]]
-                    if np.linalg.matrix_rank(new_matrix) == len(aff_indep_subset) + 1:  # i.e. if matrix has full rank
-                        aff_indep_subset = new_matrix
-                vertex_count += 1
-
-            print("Processed %d vertices; currently at dimension %d" % (vertex_count, len(aff_indep_subset) - 1), end='\r')
-
-            line = LC_vertices.readline()
-
-    print()
-    if len(aff_indep_subset) == 0:
-        print("The inequality is valid for LC but is not a strict inequality and hence does not support a face of LC.")
-        return False
-    elif len(aff_indep_subset) - 1 == max_dimension:
-        print("The inequality supports a facet of LC!")
-        return True
-    elif len(aff_indep_subset) - 1 > max_dimension:
-        print("Something weird just happened.")
-        return False
-    else:
-        print("The inequality supports a face of LC of dimension %d" % (len(aff_indep_subset) - 1))
-        return False
-
-
+# Now count_face_dimension() in face_utils.py:
 def is_facet_of_polytope_npy(ineq, polytope_vertices_npy='panda-files/results/lc_vertices.npy', polytope_dim=None):
     print('Loading vertices...')
     vertices = np.load(polytope_vertices_npy)
@@ -864,7 +626,7 @@ def count_LC_vertices_on_facets(facets):
     vertices_not_on_a_facet = []
     facets = np.array(facets)
 
-    with open('panda-files/results/8 all LC vertices') as f:
+    with open('../panda-files/results/8 all LC vertices') as f:
         batch_size = 10000
         line = f.readline()
         while line:
@@ -925,7 +687,7 @@ def maximum_violation_of_known_lc_facets(cors, known_lc_facets_file='panda-files
 
 
 def maximum_violation_of_caus2_facets(cors):
-    caus2_facets = utils.read_vertex_range_from_file('panda-files/results/15 Caus2/all_caus2_facets')
+    caus2_facets = utils.read_vertex_range_from_file('../panda-files/results/15 Caus2/all_caus2_facets')
     cors = cors.astype('float')
     for i in range(0, len(cors)):  # normalise the qm cors
         cors[i] = (1. / cors[i][-1]) * cors[i]
@@ -948,135 +710,7 @@ def a_p_that_is_not_in_LC():
     return vs.construct_full_to_NSS_homog(8, 2, 4, 2) @ p_homog
 
 
-def deterministic_cor_full_homog(a1, a2, c, b):
-    """ a1, a2, c, b should be functions (e.g. lambdas) from three binary variables to one binary variable. The returned vector is full homogeneous, so of length 129. """
-    cor = np.zeros((2,) * 7, dtype='int')
-    for _a1, _a2, _c, _b, x1, x2, y in itertools.product((0, 1), repeat=7):
-        cor[_a1, _a2, _c, _b, x1, x2, y] = 1 * (_a1 == a1(x1, x2, y)) * (_a2 == a2(x1, x2, y)) * (_c == c(x1, x2, y)) * (_b == b(x1, x2, y))
-    return np.r_[cor.reshape((128,)), [1]]
-
-
-def find_vector_in_kernel(matrix):
-    # Use ILP for this. Probably Gaussian elimination would be faster, but I don't have time to write that myself
-    # import pulp
-    # model = pulp.LpProblem()
-    # vars = []
-    # for i in range(matrix.shape[1]):
-    #     vars.append(pulp.LpVariable(name='x%d' % i, cat='Integer'))
-    # model += ()
-
-    # return np.linalg.lstsq(matrix, np.zeros(len(matrix), dtype='int'))[-1]
-
-    from sympy import Matrix
-    from diophantine import solve
-    return np.array(i for i in solve(Matrix(matrix), Matrix(np.zeros(matrix.shape[0], dtype='int'))))
-
-
-def find_facet_violated_by_point(point, vertices):
-    d = vertices.shape[1] - 1
-
-    # Sort vertices based on distance to point. Closer-by vertices are more likely to be on a facet violated by the point.
-    """print('Sorting vertices by distance...')
-    assert np.max(vertices[:, -1]) <= 2
-    for i in np.argwhere(vertices[:, -1] != 2):
-        assert vertices[i, -1] == 1
-        vertices[i] *= 2
-    point = 2 / point[-1] * point
-    batch_size = 10000
-    distances = np.empty((0,), dtype='float')
-    # continue optimising?
-    distances = np.linalg.norm(vertices[:, :-1] - point[:-1], axis=1)
-    print('Really sorting...')
-    sorted_indices = np.argsort(distances)
-    print('Done really sorting')
-    vertices = vertices[sorted_indices]"""
-
-    # Start with an informed guess: pick hyperplane through closest affinely independent vertices
-    print('Finding aff indep vertices...')
-    aff_indep_vertices = np.empty((0, d + 1), dtype='int8')
-    i = 0
-    while i < len(vertices):
-        new_matrix = np.r_[aff_indep_vertices, [vertices[i]]]
-        if np.linalg.matrix_rank(new_matrix) == len(new_matrix):
-            aff_indep_vertices = new_matrix
-            if len(aff_indep_vertices) == d:
-                i += 1
-                break
-        i += 1
-    facet_candidate = scipy.linalg.null_space(aff_indep_vertices).flatten()
-    # facet_candidate = np.array(sympy.Matrix(aff_indep_vertices).nullspace()[0][:], dtype='int')
-    assert len(facet_candidate) == d + 1
-
-    # Get the point on the right side of the inequality
-    facet_candidate *= int(np.sign(facet_candidate @ point)) or 1  # np.sign(0)=0, but we want 1 in that case
-
-    # Now pick the closest-by vertex that violates the inequality, and let it replace one of the aff_indep_vertices, chosen (randomly, for now) such that
-    # the thrown-away vertex and the point lie on different sides of the new hyperplane.
-    # continue where we were with i
-    candidate_count = 0
-    while i < len(vertices):
-        if facet_candidate @ vertices[i] > 1e-15:  # due to ridiculous error size in scipy.linalg.null_space
-            # Find vertex 'discard' in aff_indep_vertices s.t. hyperplane through aff_indep_vertices['discard'] + [vertices[i]] separates 'discard' and 'point'
-            candidate_count += 1
-            found_a_new_candidate = False
-            for j in range(d - 1, -1, -1):
-                new_aff_indep_vertices = aff_indep_vertices.copy()
-                new_aff_indep_vertices[j] = vertices[i]
-                new_facet_candidate = find_vector_in_kernel(new_aff_indep_vertices)
-                # new_facet_candidate = np.array(sympy.Matrix(new_aff_indep_vertices).nullspace()[0][:], dtype='int')
-                if len(new_facet_candidate) != d + 1:
-                    print('Problem! %d' % len(new_facet_candidate))
-                if (new_facet_candidate @ aff_indep_vertices[j]) * (new_facet_candidate @ point) < 0:
-                    # Success
-                    facet_candidate = new_facet_candidate * int(np.sign(new_facet_candidate @ point) or 1)
-                    aff_indep_vertices = new_aff_indep_vertices
-                    found_a_new_candidate = True
-                    break
-            if not found_a_new_candidate:
-                print('THERE WAS NO VERTEX THAT COULD BE THROWN AWAY! this shouldn\'t happen')
-        print('At i=%d, candidates tried: %d' % (i, candidate_count), end='\r')
-        i += 1
-
-    # facet_candidate should now be really a facet
-    print('Validating facet...')
-    max_violation_by_lc = np.max(vertices @ facet_candidate)
-    if max_violation_by_lc > 0:
-        print('\n\nError: LC violates the supposed facet by %s\n\n' % str(max_violation_by_lc))
-    print('point violates facet by %s' % str(point @ facet_candidate))
-    print('Facet is:')
-    print(facet_candidate)
-
-    return facet_candidate
-
-
 if __name__ == '__main__':
-    # For result files 10 & 11: (for 11, change GYNI to LGYNI)
-    """
-    gyni = inequality_GYNI()
-    vector_space_utils.reduce_file_to_lin_indep_subset("panda-files/results/8 all LC vertices", 2, 86,
-                                                       constraint=lambda row: np.dot(gyni, row) == 0,
-                                                       output_filename='panda-files/results/11 lin indep on GYNI, not LGYNI')
-    """
-
-    """
-    # P = result file 10 but homogenised
-    P = np.concatenate((utils.read_vertex_range_from_file('panda-files/results/10 lin indep on GYNI'), np.ones((84, 1), 'int16')), axis=1)
-    # Q = vertices to search = result file 8
-    # Q = np.r_[
-    #     utils.read_vertex_range_from_file('panda-files/results/8 all LC vertices', 50176, 54272),
-    #     utils.read_vertex_range_from_file('panda-files/results/8 all LC vertices', 0, 1024)
-    # ]
-    # or
-    Q = np.load('panda-files/results/lc_vertices.npy')
-    # Q = np.flipud(Q)  # if you want to go through Q in reverse order
-    # np.random.shuffle(Q)  # if you want to go through Q in random order
-    print("Loaded P and Q into memory")
-    facets = find_facets_adjacent_to_d_minus_3_dim_face(inequality_GYNI(), P, Q, known_gyni_facets,
-                                                        # output_file='panda-files/results/12 facets adjacent to GYNI',
-                                                        # snapshot_file='panda-files/results/12 facets adjacent to GYNI_snapshot',
-                                                        carriage_return=False)
-    """
-
     # Checking computation of [p218]. this is lc_abxy.facet1()
     """ineq = list(map(int,
                     '1 0 0 -1 1 0 0 -1 0 0 1 -1 0 0 1 -1 0 1 0 -1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 0 0 0 0 -1 0 1 0 0 0 0 0 -1 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 0 0 0 0 0 -1'.split()))
@@ -1089,10 +723,10 @@ if __name__ == '__main__':
                                                           lambda x1, x2, y: 0,  # c
                                                           lambda x1, x2, y: x2)  # b
     assert vs.is_in_NSS(caus2_cor_full, 8, 2, 4, 2)
-    caus2_cor_nss = vs.construct_full_to_NSS_homog(8, 2, 4, 2) @ caus2_cor_full
+    caus2_cor_nss = vs.construct_full_to_NSS_h(8, 2, 4, 2) @ caus2_cor_full
     print('Violation:', caus2_cor_nss @ ineq)"""
 
-    """cor = qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_tcb_0phi,
+    """cor = qm.quantum_cor_nss_discardT(rho_ctb=qm.rho_tcb_0phi,
                                     instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
                                     instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
                                     instr_C=qm.instr_vn_destr(qm.onb_from_direction(.148 * np.pi)),
@@ -1132,7 +766,7 @@ if __name__ == '__main__':
     point = np.array([3,3,3,1], dtype='float')
     facet = find_facet_violated_by_point(point, Q)"""
     #
-    # cor = qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_tcb_0phi,
+    # cor = qm.quantum_cor_nss_discardT(rho_ctb=qm.rho_tcb_0phi,
     #                                 instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
     #                                 instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
     #                                 instr_C=qm.instr_vn_destr(qm.diag1_onb),
@@ -1155,9 +789,9 @@ if __name__ == '__main__':
                                                                                              (b == 1 and y == 1) * 1 / 2 * 1 / 4), upper_bound=1 / 2)
     lp_for_membership.lp_max_violation_by_LC(gyni_adjacent)
     lgyni_adjacent = lp_for_membership.construct_ineq_nss(7, lambda a1, a2, c, b, x1, x2, y: ((x1 * ((a1 + x2) % 2) == 0 and x2 * ((a2 + x1) % 2) == 0 and b == 0 and y == 1) * 1 / 4 +
-                                                                                              (b == 1 and y == 1) * 3 / 4 * 1 / 4), upper_bound=3 / 4)  # This is indeed one of the computationally found ones. Note the two appearances of 3/4!
+                                                                                              (b == 1 and y == 1) * 3 / 4 * 1 / 4),
+                                                          upper_bound=3 / 4)  # This is indeed one of the computationally found ones. Note the two appearances of 3/4!
     lp_for_membership.lp_max_violation_by_LC(lgyni_adjacent)
-    is_facet_of_polytope_npy(lgyni)
 
     lgyni_adjacent_facets = np.array([list(map(int,
                                                "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 0 1 0 1 0 -1 0 0 0 1 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 0 0 1 0 -1 0 0 0 1 0 0 0 -1 0 0 0 1 0 0 0 -1 0 0 0 0 0 0 0 0 0 0".split())),

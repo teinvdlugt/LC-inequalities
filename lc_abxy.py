@@ -14,7 +14,7 @@ def marginalise_vertices(input_file, output_file, use_numpy_load_save=False):
         marg_c_full_h[vs.concatenate_bits(a1, a2, b, x1, x2, y)][vs.concatenate_bits(a1, a2, 0, b, x1, x2, y)] = 1
         marg_c_full_h[vs.concatenate_bits(a1, a2, b, x1, x2, y)][vs.concatenate_bits(a1, a2, 1, b, x1, x2, y)] = 1
     marg_c_full_h[-1, -1] = 1  # the homogeneous coordinates
-    marg_c_nss_h = vs.construct_full_to_NSS_homog(4, 2, 4, 2) @ marg_c_full_h @ vs.construct_NSS_to_full_homogeneous(8, 2, 4, 2)
+    marg_c_nss_h = vs.construct_full_to_NSS_h(4, 2, 4, 2) @ marg_c_full_h @ vs.construct_NSS_to_full_h(8, 2, 4, 2)
 
     # lc_abxy_vertices = (marg_c_nss_h @ lc_vertices.T).T, which is:
     # lc_abxy_vertices = lc_vertices @ marg_c_nss_h.T
@@ -88,7 +88,7 @@ def full_perm_to_symm_h(perm, dtype='int'):
 
 def var_perm_to_symm_h(perm, dtype='int'):
     perm_matrix = full_perm_to_symm_h(perm, dtype)
-    return vs.construct_full_to_NSS_homog(4, 2, 4, 2) @ perm_matrix @ vs.construct_NSS_to_full_homogeneous(4, 2, 4, 2)
+    return vs.construct_full_to_NSS_h(4, 2, 4, 2) @ perm_matrix @ vs.construct_NSS_to_full_h(4, 2, 4, 2)
 
 
 def lco1_symm_generators():
@@ -109,7 +109,7 @@ def marginalise_ineqs(input_file, output_file):
         marg_c_full_h[vs.concatenate_bits(a1, a2, b, x1, x2, y)][vs.concatenate_bits(a1, a2, 0, b, x1, x2, y)] = 1
         marg_c_full_h[vs.concatenate_bits(a1, a2, b, x1, x2, y)][vs.concatenate_bits(a1, a2, 1, b, x1, x2, y)] = 1
     marg_c_full_h[-1, -1] = 1  # the homogeneous coordinates
-    marg_c_nss_h = vs.construct_full_to_NSS_homog(4, 2, 4, 2) @ marg_c_full_h @ vs.construct_NSS_to_full_homogeneous(8, 2, 4, 2)
+    marg_c_nss_h = vs.construct_full_to_NSS_h(4, 2, 4, 2) @ marg_c_full_h @ vs.construct_NSS_to_full_h(8, 2, 4, 2)
 
     new_ineqs = []
 
@@ -142,7 +142,7 @@ def facet1():
         if b == 0 and y == 1:
             ineq_full[a1, a2, b, x1, x2, y] += 1 / 2
     ineq_full_h = np.r_[ineq_full.reshape(64), [-2]]
-    ineq_nss_h = vs.construct_NSS_to_full_homogeneous(4, 2, 4, 2).T @ ineq_full_h
+    ineq_nss_h = vs.construct_NSS_to_full_h(4, 2, 4, 2).T @ ineq_full_h
     return ineq_nss_h
 
 
@@ -154,7 +154,7 @@ def facet2try(alpha=.5):
         if b != x1 and y == 1:
             ineq_full[a1, a2, b, x1, x2, y] += alpha
     ineq_full_h = np.r_[ineq_full.flatten(), [0]]
-    ineq_nss_h = vs.construct_NSS_to_full_homogeneous(4, 2, 4, 2).T @ ineq_full_h
+    ineq_nss_h = vs.construct_NSS_to_full_h(4, 2, 4, 2).T @ ineq_full_h
     return ineq_nss_h
 
 
@@ -188,4 +188,4 @@ if __name__ == '__main__':
     print(' '.join(map(str, ineq)))
     violation, cor = maximum_violation_by_vertices(ineq)
     print(violation)
-    write_cor_to_file((vs.construct_NSS_to_full_homogeneous(4,2,4,2) @ cor)[:-1], 'tmp')
+    write_cor_to_file((vs.construct_NSS_to_full_h(4,2,4,2) @ cor)[:-1], 'tmp')

@@ -44,13 +44,13 @@ def make_panda_file_with_closest_vertices(num_of_vertices, cor, filename):
 
 
 if __name__ == '__main__':
-    cor = qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_tcb_0phi,
-                                    instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
-                                    instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
-                                    instr_C=qm.instr_vn_destr(qm.diag1_onb),
-                                    instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.diag1_onb)])
+    cor = qm.quantum_cor_nss_discardT(rho_ctb=qm.rho_tcb_0phi,
+                                      instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                                      instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.z_onb, qm.ket1)],
+                                      instr_C=qm.instr_vn_destr(qm.diag1_onb),
+                                      instrs_B=[qm.instr_vn_destr(qm.z_onb), qm.instr_vn_destr(qm.diag1_onb)])
     # Try this one later:
-    # cor = qm.quantum_cor_nss_noTmmt(rho_ctb=qm.rho_ctb_plusphiplus,
+    # cor = qm.quantum_cor_nss_discardT(rho_ctb=qm.rho_ctb_plusphiplus,
     #                                 instrs_A1=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.x_onb, qm.ket1)],
     #                                 instrs_A2=[qm.instr_measure_and_prepare(qm.z_onb, qm.ket0), qm.instr_measure_and_prepare(qm.x_onb, qm.ket1)],
     #                                 instr_C=qm.instr_vn_destr(qm.x_onb),

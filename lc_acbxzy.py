@@ -1,16 +1,15 @@
-import functools
+# Collection of functions similar to others found in this repository but then based on the higher-dimensional LC polytope including Charlie's setting z.
+
 import itertools
-import math
 
 import numpy as np
 from scipy.optimize import linprog
 
-import lp_for_membership
 import symmetry_utils
-import towards_lc
 import utils
 import vector_space_utils as vs
 import quantum_utils as qm
+import face_utils as fc
 
 dim_nss = vs.dim_NSS(8, 2, 8, 2)
 dim_full = 2 ** 8
@@ -23,8 +22,8 @@ def constraints_is_valid_lc_deco():
     num_of_unknowns = (dim_nss + 1) * 2
 
     # Constraint i: positivity of probabilities (see [p208,210] for matrix)
-    cons_i_matrix = np.block([[vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2), np.zeros((dim_full + 1, dim_nss + 1), dtype='int')],
-                              [np.zeros((dim_full + 1, dim_nss + 1), dtype='int'), vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2)]])
+    cons_i_matrix = np.block([[vs.construct_NSS_to_full_h(8, 2, 8, 2), np.zeros((dim_full + 1, dim_nss + 1), dtype='int')],
+                              [np.zeros((dim_full + 1, dim_nss + 1), dtype='int'), vs.construct_NSS_to_full_h(8, 2, 8, 2)]])
     A_ub = -cons_i_matrix
     b_ub = np.zeros(2 * dim_full + 2, dtype='int')
     assert A_ub.shape == (2 * dim_full + 2, num_of_unknowns)
@@ -36,7 +35,7 @@ def constraints_is_valid_lc_deco():
     cons_ii_b = np.array([1, ])
 
     # Constraint iv: p(a1 a2 b | x1 x2 z=0 y) - p(a1 a2 b | x1 x2 z=1 y) = 0   for (a1,a2,b)≠(1,1,1)   7 x 8 = 56 constraints  NOTE could also impose this by changing parameterisation
-    NtoF = vs.construct_NSS_to_full_matrix_but_weird(8, 2, 8, 2)  # weirdness doesn't matter here
+    NtoF = vs.construct_NSS_to_full_h(8, 2, 8, 2)[:-1,:-1]  # weirdness doesn't matter here
     cons_iii_matrix = np.zeros((2 * 56, num_of_unknowns), dtype='int')
     for (a1, a2, b), x1, x2, y in vs.cart(vs.cart(B, B, B)[:-1], B, B, B):
         cons_iii_matrix[vs.concatenate_bits(a1, a2, b, x1, x2, y)] += np.r_[NtoF[vs.concatenate_bits(a1, a2, 0, b, x1, x2, 0, y)], np.zeros(2 + dim_nss, dtype='int')]
@@ -82,8 +81,8 @@ def constraints_is_valid_lc_deco_without_z_constraint():
     num_of_unknowns = (dim_nss + 1) * 2
 
     # Constraint i: positivity of probabilities (see [p208,210] for matrix)
-    cons_i_matrix = np.block([[vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2), np.zeros((dim_full + 1, dim_nss + 1), dtype='int')],
-                              [np.zeros((dim_full + 1, dim_nss + 1), dtype='int'), vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2)]])
+    cons_i_matrix = np.block([[vs.construct_NSS_to_full_h(8, 2, 8, 2), np.zeros((dim_full + 1, dim_nss + 1), dtype='int')],
+                              [np.zeros((dim_full + 1, dim_nss + 1), dtype='int'), vs.construct_NSS_to_full_h(8, 2, 8, 2)]])
     A_ub = -cons_i_matrix
     b_ub = np.zeros(2 * dim_full + 2, dtype='int')
     assert A_ub.shape == (2 * dim_full + 2, num_of_unknowns)
@@ -96,7 +95,7 @@ def constraints_is_valid_lc_deco_without_z_constraint():
 
     # Constraint v: iv-1: p(a1=0 b λ=0 | x1 0 z y) - p(a1=0 b λ=0 | x1 1 0 z y) = 0  for (b,y)≠(1,1)   (12 equalities)
     #               iv-2: p(a2=0 b λ=1 | 0 x2 z y) - p(a2=0 b λ=1 | 1 x2 0 z y) = 0  for (b,y)≠(1,1)   (12 equalities)
-    NtoF = vs.construct_NSS_to_full_matrix_but_weird(8, 2, 8, 2)  # weirdness doesn't matter here
+    NtoF = vs.construct_NSS_to_full_h(8, 2, 8, 2)[:-1,:-1]  # weirdness doesn't matter here
     cons_iv_matrix = np.zeros((24, num_of_unknowns), dtype='int')
     # iv-1:  # NOTE this essentially constructs a (6,dim_nss) matrix which has as null space the 80-dim ahNSCO1 (subspace of ahNSS)
     for (b, y), x1, x2, z in vs.cart(vs.cart(B, B)[:-1], B, B, B):
@@ -150,13 +149,13 @@ def is_cor_in_lc(p_nss, tol=1e-12, method='highs', double_check_soln=True, doubl
         # check that p1 := lp.x[:dim_nss + 1] is in NSCO1
         p1_nss_homog = lp.x[:dim_nss + 1]  # this homogeneous vector represents the conditional distr p(a1a2cb|x1x2zy,λ=0)
         if p1_nss_homog[-1] != 0:  # if p(λ=0) != 0
-            p1_full_homog = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2) @ p1_nss_homog
+            p1_full_homog = vs.construct_NSS_to_full_h(8, 2, 8, 2) @ p1_nss_homog
             assert is_in_NSCO1z(p1_full_homog, double_check_tol)
 
         # check that p2 := lp.x[dim_nss + 1: 2 * dim_nss + 2] is in NSCO2
         p2_nss_homog = lp.x[dim_nss + 1: 2 * dim_nss + 2]
         if p2_nss_homog[-1] != 0:  # if p(λ=1) != 0
-            p2_full_homog = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2) @ p2_nss_homog
+            p2_full_homog = vs.construct_NSS_to_full_h(8, 2, 8, 2) @ p2_nss_homog
             swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm_homog(lambda a1, a2, c, b, x1, x2, z, y: (a2, a1, c, b, x2, x1, z, y), num_of_binary_vars=8)
             p2_full_homog_swapped = swap_A1_A2_matrix @ p2_full_homog
             assert is_in_NSCO1z(p2_full_homog_swapped, double_check_tol)
@@ -192,13 +191,13 @@ def maximum_violation_by_LC_lp(ineq, method='highs', tol=1e-12, double_check_sol
         # check that p1 := lp.x[:dim_nss + 1] is in NSCO1
         p1_nss_homog = lp.x[:dim_nss + 1]  # this homogeneous vector represents the conditional distr p(a1a2cb|x1x2zy,λ=0)
         if p1_nss_homog[-1] != 0:  # if p(λ=0) != 0
-            p1_full_homog = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2) @ p1_nss_homog
+            p1_full_homog = vs.construct_NSS_to_full_h(8, 2, 8, 2) @ p1_nss_homog
             assert is_in_NSCO1z(p1_full_homog, tol, z_constraint=z_constraint)
 
         # check that p2 := lp.x[dim_nss + 1: 2 * dim_nss + 2] is in NSCO2
         p2_nss_homog = lp.x[dim_nss + 1: 2 * dim_nss + 2]
         if p2_nss_homog[-1] != 0:  # if p(λ=1) != 0
-            p2_full_homog = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2) @ p2_nss_homog
+            p2_full_homog = vs.construct_NSS_to_full_h(8, 2, 8, 2) @ p2_nss_homog
             swap_A1_A2_matrix = symmetry_utils.full_perm_to_symm_homog(lambda a1, a2, c, b, x1, x2, z, y: (a2, a1, c, b, x2, x1, z, y), num_of_binary_vars=8)
             p2_full_homog_swapped = swap_A1_A2_matrix @ p2_full_homog
             assert is_in_NSCO1z(p2_full_homog_swapped, tol, z_constraint=z_constraint)
@@ -249,7 +248,7 @@ def make_pacb_xzy(rho_ctb, instrs_A1, instrs_A2, instrs_CT, instrs_B, dT, dB):
         qm.assert_is_quantum_instrument(instr, 2 * dT, 1)
     qm.assert_is_quantum_instrument([rho_ctb], 1, 2 * dT * dB, num_of_outcomes=1)  # essentially checks that rho_ctb is a valid state (density matrix)
 
-    # Make correlation. For explanation see make_pacb_xy in quantum_utils.py
+    # Make correlation. For explanation see quantum_cor_full in quantum_utils.py
     tau_dim = rho_ctb.shape[0] * instrs_A1[0][0].shape[0] * instrs_A2[0][0].shape[0] * instrs_CT[0][0].shape[0] * instrs_B[0][0].shape[0]
 
     # Define some index labels:
@@ -272,7 +271,7 @@ def make_pacb_xzy(rho_ctb, instrs_A1, instrs_A2, instrs_CT, instrs_B, dT, dB):
 
 
 def make_pacb_xzy_nss_h(rho_ctb, instrs_A1, instrs_A2, instrs_CT, instrs_B, dT, dB):
-    return vs.construct_full_to_NSS_homog(8, 2, 8, 2) @ np.r_[make_pacb_xzy(rho_ctb, instrs_A1, instrs_A2, instrs_CT, instrs_B, dT, dB).reshape(2 ** 8), [1]]
+    return vs.construct_full_to_NSS_h(8, 2, 8, 2) @ np.r_[make_pacb_xzy(rho_ctb, instrs_A1, instrs_A2, instrs_CT, instrs_B, dT, dB).reshape(2 ** 8), [1]]
 
 
 def is_switch_cor_in_lc(rho_ctb, instrs_A1, instrs_A2, instrs_CT, instrs_B, dT, dB, tol=1e-12, method='highs'):
@@ -289,12 +288,12 @@ def chsh_rep_2222():
         if (a + b) % 2 == x * y:
             ineq_full[vs.concatenate_bits(a, b, x, y)] += 1. / 4
     ineq_full[-1] = 0
-    return vs.construct_NSS_to_full_homogeneous(2, 2, 2, 2).T @ ineq_full
+    return vs.construct_NSS_to_full_h(2, 2, 2, 2).T @ ineq_full
 
 
 def nss_var_perm_to_symm_h_2222(perm, dtype='int'):
     perm_matrix = symmetry_utils.full_perm_to_symm_homog(perm, num_of_binary_vars=4, dtype=dtype)
-    return vs.construct_full_to_NSS_homog(2, 2, 2, 2) @ perm_matrix @ vs.construct_NSS_to_full_homogeneous(2, 2, 2, 2)
+    return vs.construct_full_to_NSS_h(2, 2, 2, 2) @ perm_matrix @ vs.construct_NSS_to_full_h(2, 2, 2, 2)
 
 
 def bell_2222_symmetries():
@@ -308,17 +307,17 @@ def bell_2222_symmetries():
 
 
 def print_chsh_violations(p_acbxzy_nss):
-    p_full = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2) @ p_acbxzy_nss
+    p_full = vs.construct_NSS_to_full_h(8, 2, 8, 2) @ p_acbxzy_nss
     p_full = (1 / p_full[-1] * p_full[:-1]).reshape((2,) * 8)
     bell_facets = 1 / 2 * utils.read_vertex_range_from_file('panda-files/chsh_2222')
     p_cbxzy = np.einsum('aecbxwzy->cbxwzy', p_full)
     for x1, x2 in vs.cart(B, B):
-        cor = np.r_[vs.construct_full_to_NSS_matrix(2, 2, 2, 2) @ p_cbxzy[:, :, x1, x2, :, :].reshape(16), [1]]
+        cor = np.r_[vs.construct_full_to_NSS(2, 2, 2, 2) @ p_cbxzy[:, :, x1, x2, :, :].reshape(16), [1]]
         print('CHSH violation for x1=%d, x2=%d: %s' % (x1, x2, str(utils.max_violation_h(cor, bell_facets))))
 
 
 def max_of_all_chsh_violations(p_acbxy_nss):
-    p_full_h = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2) @ p_acbxy_nss
+    p_full_h = vs.construct_NSS_to_full_h(8, 2, 8, 2) @ p_acbxy_nss
     p_full = (1 / p_full_h[-1] * p_full_h[:-1]).reshape((2,) * 8)
     bell_facets = 1 / 2 * utils.read_vertex_range_from_file('panda-files/chsh_2222')
     bipartite_cors = []
@@ -343,7 +342,7 @@ def max_of_all_chsh_violations(p_acbxy_nss):
     for x2, z in vs.cart(B, B):
         bipartite_cors.append(p_a2bx1x2zy[:, :, :, x2, z, :].flatten())
 
-    bipartite_cors_h = (np.concatenate((bipartite_cors, np.ones((len(bipartite_cors), 1), dtype='int')), axis=1)) @ vs.construct_full_to_NSS_homog(2, 2, 2, 2).T
+    bipartite_cors_h = (np.concatenate((bipartite_cors, np.ones((len(bipartite_cors), 1), dtype='int')), axis=1)) @ vs.construct_full_to_NSS_h(2, 2, 2, 2).T
     return utils.max_violation_h(bipartite_cors_h, bell_facets)
 
 
@@ -358,7 +357,7 @@ def ineq_beta_gamma_delta(beta, gamma, delta):
         if (b + c) % 2 == y * z and x1 == x2 == 0:
             ineq_full[a1, a2, c, b, x1, x2, z, y] += 1 / 4
     ineq_full_h = np.r_[ineq_full.flatten(), [0]]
-    ineq_nss_h = vs.construct_NSS_to_full_homogeneous(8, 2, 8, 2).T @ ineq_full_h
+    ineq_nss_h = vs.construct_NSS_to_full_h(8, 2, 8, 2).T @ ineq_full_h
     return ineq_nss_h
 
 
@@ -369,7 +368,7 @@ def construct_vertices():
         marg_map_f_h[vs.concatenate_bits(a1, a2, b, x1, x2, y)][vs.concatenate_bits(a1, a2, 0, b, x1, x2, y)] = 1
         marg_map_f_h[vs.concatenate_bits(a1, a2, b, x1, x2, y)][vs.concatenate_bits(a1, a2, 1, b, x1, x2, y)] = 1
     marg_map_f_h[-1][-1] = 1
-    marg_map_n_h = vs.construct_full_to_NSS_homog(4, 2, 4, 2) @ marg_map_f_h @ vs.construct_NSS_to_full_homogeneous(8, 2, 4, 2)
+    marg_map_n_h = vs.construct_full_to_NSS_h(4, 2, 4, 2) @ marg_map_f_h @ vs.construct_NSS_to_full_h(8, 2, 4, 2)
     # TODO test this map
 
     print('Loading LC_acbxy vertices...')
@@ -427,14 +426,14 @@ def construct_vertices():
 
 if __name__ == '__main__':
     # TODO is this one violated by the switch too?
-    ineq1 = lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: ((b == 0 and a2 == x1 and y == 0) * 1 / 8 +
+    ineq1 = fc.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: ((b == 0 and a2 == x1 and y == 0) * 1 / 8 +
                                                                                         (b == 1 and a1 == x2 and y == 0) * 1 / 8 +
                                                                                         ((b + c) % 2 == y * z and x1 == x2 == 0) * 1 / 4), 7 / 4, 8, 2, 8, 2)
     # This is the one violated:
-    ineq2 = lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: ((b == 0 and a2 == x1 and y == 0) * 1 / 8 +
+    ineq2 = fc.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: ((b == 0 and a2 == x1 and y == 0) * 1 / 8 +
                                                                                         (b == 1 and a1 == x2 and y == 0) * 1 / 8 +
                                                                                         ((b + c) % 2 == (1 - y) * z and x1 == x2 == 0) * 1 / 4), 7 / 4, 8, 2, 8, 2)
-    just_alpha_terms = lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: ((b == 0 and a2 == x1 and y == 0) * 1 / 8 +
+    just_alpha_terms = fc.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: ((b == 0 and a2 == x1 and y == 0) * 1 / 8 +
                                                                                                    (b == 1 and a1 == x2 and y == 0) * 1 / 8), 1, 8, 2, 8, 2)
 
     ## Most straightforward violation of ineq2 - actually leading to the _maximal_ quantum violation of it:
@@ -495,14 +494,14 @@ if __name__ == '__main__':
     # print('++>', new_chsh @ cor)
     # lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: (b == c and y == 0 and z == 0 and x1 == x2 == 0) * 1, 0, 8, 2, 8, 2) @ normal_cor
 
-    normal_chsh = lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: (((b + c) % 2 == (1 - z) * y and x1 == x2 == 0) * 1 / 4), 3 / 4, 8, 2, 8, 2)
+    normal_chsh = fc.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: (((b + c) % 2 == (1 - z) * y and x1 == x2 == 0) * 1 / 4), 3 / 4, 8, 2, 8, 2)
     normal_lc_ineq = just_alpha_terms + normal_chsh
     print(maximum_violation_by_LC_lp(normal_lc_ineq))
     print(maximum_violation_by_LC_lp(normal_lc_ineq, z_constraint=False))
     print(normal_lc_ineq @ normal_cor)
 
-    new_chsh = lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: (((b + (1 - x1) * c + x1 * a1) % 2 == (1 - x1) * y and x1 == x2 and z == 0) * 1 / 4), 3 / 4, 8, 2, 8, 2)
-    new_lc_ineq = lp_for_membership.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: ((b == 0 and a2 == x1 and y == 0) * 1 / 8 +
+    new_chsh = fc.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: (((b + (1 - x1) * c + x1 * a1) % 2 == (1 - x1) * y and x1 == x2 and z == 0) * 1 / 4), 3 / 4, 8, 2, 8, 2)
+    new_lc_ineq = fc.construct_ineq_nss(8, lambda a1, a2, c, b, x1, x2, z, y: ((b == 0 and a2 == x1 and y == 0) * 1 / 8 +
                                                                                               (b == 1 and a1 == x2 and y == 0) * 1 / 8 +
                                                                                               ((b + (1 - x1) * c + x1 * a1) % 2 == (1 - x1) * y and x1 == x2 and z == 0) * 1 / 4), 7 / 4, 8, 2, 8, 2)
 

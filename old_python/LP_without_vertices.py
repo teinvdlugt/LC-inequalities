@@ -4,7 +4,7 @@ import numpy as np
 from scipy.optimize import NonlinearConstraint, LinearConstraint
 import scipy.optimize
 import time
-import one_switch_4mmts
+from old_python import one_switch_4mmts
 import quantum_utils as qm
 import vector_space_utils
 import vector_space_utils as vs
