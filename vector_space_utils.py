@@ -56,6 +56,9 @@ def construct_full_to_NSS_h(na=8, nb=2, nx=4, ny=2):
 
 
 def construct_NSS_to_full_h(na=8, nb=2, nx=4, ny=2):
+    """
+    See README.md.
+    """
     # First create matrix of shape (nx*ny*na*nb, nx*ny*(na-1)(nb-1)+nx(na-1)+ny(nb-1)) that converts NSS coords
     #         {p(a|x), p(b|y), p(ab|xy)  |  a<na-1, b<nb-1, all x,y} =: NSS-I ∪ NSS-II ∪ NSS-III (see [p113])
     #     into 'weird' full coords
@@ -123,7 +126,7 @@ def dim_LC1(nabcxy):
 
 def construct_full_to_LC1():
     """
-    Make and return matrix that converts length-128 vectors to length-80 vectors (NSCO1 rep of [p131])
+    Make and return matrix that converts length-128 vectors to length-80 vectors (LC1 rep of [p131])
     NOTE this function assumes the order first c, then b.
     """
 
@@ -169,6 +172,10 @@ def construct_full_to_LC1_h():
 
 
 def construct_LC1_to_full_h():
+    """
+    See README.md.
+    """
+
     # First create 'weird' matrix (see comments in construct_NSS_to_full_h):
     NSCO1_II_offset = 2
     NSCO1_III_offset = NSCO1_II_offset + 2
